@@ -1,3 +1,5 @@
 *.env
 static/*
 !static/default-logo.svg
+.idea
+xodbox.yaml

@@ -228,6 +228,7 @@ const requestHandler = (request, response) => {
 
 const server = http.createServer(requestHandler)
 server.listen(port, (err) => {
+  console.warn("the node.js version of xodbox is being deprecated. please migrate to the golang version.")
   if (err) {
     return console.log('something bad happened', err)
   }
