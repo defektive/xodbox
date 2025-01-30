@@ -4,4 +4,11 @@ description: Log to application log
 weight: 1
 ---
 
-App log
+## Configuration
+
+
+| Key      | Values                                                                       |
+|----------|------------------------------------------------------------------------------|
+| notifier | Must be `log`                                                                |
+
+

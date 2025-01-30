@@ -6,40 +6,56 @@ import (
 	"fmt"
 	"github.com/defektive/xodbox/pkg/app/types"
 	"io"
+	"log"
 	"net/http"
+	"regexp"
 )
 
-type WebhookNotifier struct {
-	name string
-	URL  string
+type Notifier struct {
+	name   string
+	URL    string
+	filter *regexp.Regexp
 }
 
-func NewWebhookNotifier(url string) types.Notifier {
-	return &WebhookNotifier{
-		name: "WebhookNotifier",
-		URL:  url,
+func NewWebhookNotifier(url string, filter string) types.Notifier {
+
+	if filter == "" {
+		filter = ".*"
+	}
+
+	return &Notifier{
+		name:   "WebhookNotifier",
+		URL:    url,
+		filter: regexp.MustCompile(filter),
 	}
 }
 
-func (wh *WebhookNotifier) Name() string {
+func (wh *Notifier) Name() string {
 	return wh.name
 }
 
-func (wh *WebhookNotifier) Endpoint() string {
+func (wh *Notifier) Filter() *regexp.Regexp {
+	return wh.filter
+}
+
+func (wh *Notifier) Endpoint() string {
 	return wh.URL
 }
 
-func (wh *WebhookNotifier) Send(event types.InteractionEvent) error {
+func (wh *Notifier) Send(event types.InteractionEvent) error {
+
+	log.Println("here")
+
 	jsonBody, err := wh.Payload(event)
 	if err != nil {
 		lg().Error("error marshaling JSON", "err", err)
 		return err
 	}
 
-	return WebHookPost(wh.URL, jsonBody)
+	return SendPost(wh.URL, jsonBody)
 }
 
-func WebHookPost(url string, payload []byte) error {
+func SendPost(url string, payload []byte) error {
 	res, err := http.Post(url, "application/json", bytes.NewBuffer(payload))
 	if err != nil {
 		lg().Error("Slack notification error", "err", err)
@@ -56,6 +72,10 @@ func WebHookPost(url string, payload []byte) error {
 	return nil
 }
 
-func (wh *WebhookNotifier) Payload(e types.InteractionEvent) ([]byte, error) {
+func (wh *Notifier) Payload(e types.InteractionEvent) ([]byte, error) {
 	return json.Marshal(fmt.Sprintf("%s\n```%s\n```", e.Details(), e.Data()))
+}
+
+func FilterMatches(filter *regexp.Regexp, data string) bool {
+	return filter.MatchString(data)
 }

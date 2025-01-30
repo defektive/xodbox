@@ -1,5 +1,7 @@
 package types
 
+import "regexp"
+
 type App interface {
 	Run()
 	RegisterNotificationHandler(func(InteractionEvent))
@@ -23,6 +25,7 @@ type Notifier interface {
 	Endpoint() string
 	Send(InteractionEvent) error
 	Payload(InteractionEvent) ([]byte, error)
+	Filter() *regexp.Regexp
 }
 
 type BaseEvent struct {

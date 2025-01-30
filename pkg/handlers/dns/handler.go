@@ -21,7 +21,10 @@ type Handler struct {
 	dispatchChannel chan types.InteractionEvent
 }
 
-func NewHandler(listener string, defaultResponseIP string) *Handler {
+func NewHandler(handlerConfig map[string]string) types.Handler {
+	listener := handlerConfig["listener"]
+	defaultResponseIP := handlerConfig["default_ip"]
+
 	return &Handler{
 		name:              "DNS",
 		Listener:          listener,

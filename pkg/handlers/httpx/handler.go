@@ -3,6 +3,8 @@ package httpx
 import (
 	"fmt"
 	"github.com/defektive/xodbox/pkg/app/types"
+	"golang.org/x/crypto/acme"
+	"golang.org/x/crypto/acme/autocert"
 	"html"
 	"image"
 	"image/color"
@@ -10,9 +12,12 @@ import (
 	"image/gif"
 	"image/jpeg"
 	"image/png"
+	"log"
+	"net"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -26,7 +31,11 @@ type Handler struct {
 	dispatchChannel chan types.InteractionEvent
 }
 
-func NewHandler(listener string, autoCert bool) *Handler {
+func NewHandler(handlerConfig map[string]string) types.Handler {
+
+	listener := handlerConfig["listener"]
+	autoCert := handlerConfig["autocert"] == "true"
+
 	return &Handler{
 		name:     "HTTPX",
 		Listener: listener,
@@ -141,20 +150,65 @@ func (h *Handler) Start(eventChan chan types.InteractionEvent) error {
 		//io.WriteString(w, htmlIndex)
 	})
 
-	httpSrv := &http.Server{
-		ReadTimeout:  5 * time.Second,
-		WriteTimeout: 5 * time.Second,
-		IdleTimeout:  120 * time.Second,
-		Handler:      mux,
+	domains := ""
+
+	tlsDomains := strings.Split(domains, ",")
+
+	if len(domains) > 0 {
+		lg().Info("Listening on TLS Domains", "domains", tlsDomains)
+		err := http.Serve(autocertListener(true, tlsDomains...), mux)
+		if err != nil {
+			lg().Error("error starting autocert HTTP server", "tlsDomains", tlsDomains, "err", err)
+			return err
+		}
+
+	} else {
+
+		httpSrv := &http.Server{
+			ReadTimeout:  5 * time.Second,
+			WriteTimeout: 5 * time.Second,
+			IdleTimeout:  120 * time.Second,
+			Handler:      mux,
+		}
+
+		httpSrv.Addr = h.Listener
+		lg().Info("Starting HTTP server", "listener", httpSrv.Addr)
+
+		err := httpSrv.ListenAndServe()
+		if err != nil {
+			lg().Error("error starting HTTP server", "listener", httpSrv.Addr, "err", err)
+			return err
+		}
 	}
 
-	httpSrv.Addr = h.Listener
-
-	lg().Info("Starting HTTP server", "listener", h.Listener)
-	err := httpSrv.ListenAndServe()
-	if err != nil {
-		lg().Error("error starting HTTP server", "listener", h.Listener, "err", err)
-		return err
-	}
 	return nil
+}
+
+func autocertListener(staging bool, domains ...string) net.Listener {
+
+	letsEncryptStaging := "https://acme-staging-v02.api.letsencrypt.org/directory"
+	acmeDirectoryURL := autocert.DefaultACMEDirectory
+
+	if staging {
+		acmeDirectoryURL = letsEncryptStaging
+	}
+
+	m := &autocert.Manager{
+		Prompt: autocert.AcceptTOS,
+		Client: &acme.Client{
+			DirectoryURL: acmeDirectoryURL,
+		},
+	}
+
+	if len(domains) > 0 {
+		m.HostPolicy = autocert.HostWhitelist(domains...)
+	}
+
+	dir := "certs"
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		log.Printf("warning: autocert.NewListener not using a cache: %v", err)
+	} else {
+		m.Cache = autocert.DirCache(dir)
+	}
+	return m.Listener()
 }

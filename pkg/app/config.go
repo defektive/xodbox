@@ -37,41 +37,30 @@ func LoadAppConfig(configFile string) *AppConfig {
 	return conf.ToAppConfig()
 }
 
+var newHandlerMap = map[string]func(handlerConfig map[string]string) types.Handler{}
+var newNotifierMap = map[string]func(notifierConfig map[string]string) types.Notifier{}
+
+func init() {
+	newHandlerMap["DNS"] = dns.NewHandler
+	newHandlerMap["HTTPX"] = httpx.NewHandler
+
+	newNotifierMap["app_log"] = app_log.NewNotifier
+	newNotifierMap["discord"] = discord.NewNotifier
+	newNotifierMap["slack"] = slack.NewNotifier
+}
+
 func (conf *ConfigFile) ToAppConfig() *AppConfig {
 	appConfig := &AppConfig{[]types.Handler{}, []types.Notifier{}}
-	for _, handler := range conf.Handlers {
-		if handler["handler"] == "HTTPX" {
-			if handler["listener"] != "" {
-				h := httpx.NewHandler(handler["listener"], false)
-				appConfig.Handlers = append(appConfig.Handlers, h)
-			}
-		}
-		if handler["handler"] == "DNS" {
-			if handler["listener"] != "" {
 
-				h := dns.NewHandler(handler["listener"], handler["defaultIP"])
-				appConfig.Handlers = append(appConfig.Handlers, h)
-			}
+	for _, handlerConfig := range conf.Handlers {
+		if newHandlerFn, ok := newHandlerMap[handlerConfig["handler"]]; ok {
+			appConfig.Handlers = append(appConfig.Handlers, newHandlerFn(handlerConfig))
 		}
 	}
 
-	for _, notifier := range conf.Notifiers {
-		if notifier["notifier"] == "slack" {
-			n := slack.NewSlackWebhookNotifier(notifier["url"], notifier["channel"], notifier["author"], notifier["author_image"])
-			appConfig.Notifiers = append(appConfig.Notifiers, n)
-			continue
-		}
-
-		if notifier["notifier"] == "discord" {
-			n := discord.NewDiscordWebhookNotifier(notifier["url"], notifier["author"], notifier["author_image"])
-			appConfig.Notifiers = append(appConfig.Notifiers, n)
-			continue
-		}
-
-		if notifier["notifier"] == "log" {
-			n := app_log.NewLogNotifier()
-			appConfig.Notifiers = append(appConfig.Notifiers, n)
-			continue
+	for _, notifierConfig := range conf.Notifiers {
+		if newNotifierFn, ok := newNotifierMap[notifierConfig["notifier"]]; ok {
+			appConfig.Notifiers = append(appConfig.Notifiers, newNotifierFn(notifierConfig))
 		}
 	}
 	return appConfig

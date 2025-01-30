@@ -2,27 +2,14 @@ package app
 
 import (
 	"github.com/defektive/xodbox/pkg/app/types"
-	"github.com/defektive/xodbox/pkg/handlers/dns"
-	"github.com/defektive/xodbox/pkg/handlers/httpx"
 	"os"
 )
-
-var Handlers = []types.Handler{}
-
-func init() {
-	AddHandler(httpx.NewHandler(":80", false))
-	AddHandler(dns.NewHandler(":53", "127.0.0.1"))
-}
 
 func NewXodbox() *Xodbox {
 	return &Xodbox{
 		eventChan:            make(chan types.InteractionEvent),
 		notificationHandlers: []types.Notifier{},
 	}
-}
-
-func AddHandler(h types.Handler) {
-	Handlers = append(Handlers, h)
 }
 
 type Xodbox struct {
