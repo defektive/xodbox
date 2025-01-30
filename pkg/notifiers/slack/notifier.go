@@ -1,9 +1,10 @@
-package app
+package slack
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/defektive/xodbox/pkg/app/types"
+	"github.com/defektive/xodbox/pkg/notifiers/webhook"
 )
 
 type SlackWebhookPost struct {
@@ -22,7 +23,7 @@ type SlackWebhookNotifier struct {
 
 func NewSlackWebhookNotifier(url, channel, user, icon string) types.Notifier {
 	return &SlackWebhookNotifier{
-		Notifier: NewWebhookNotifier(url),
+		Notifier: webhook.NewWebhookNotifier(url),
 		Channel:  channel,
 		User:     user,
 		Icon:     icon,
@@ -47,5 +48,5 @@ func (wh *SlackWebhookNotifier) Send(event types.InteractionEvent) error {
 		return err
 	}
 
-	return WebHookPost(wh.Endpoint(), jsonBody)
+	return webhook.WebHookPost(wh.Endpoint(), jsonBody)
 }

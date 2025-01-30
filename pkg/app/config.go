@@ -2,8 +2,11 @@ package app
 
 import (
 	"github.com/defektive/xodbox/pkg/app/types"
-	"github.com/defektive/xodbox/pkg/dns"
-	"github.com/defektive/xodbox/pkg/httpx"
+	"github.com/defektive/xodbox/pkg/handlers/dns"
+	"github.com/defektive/xodbox/pkg/handlers/httpx"
+	"github.com/defektive/xodbox/pkg/notifiers/app_log"
+	"github.com/defektive/xodbox/pkg/notifiers/discord"
+	"github.com/defektive/xodbox/pkg/notifiers/slack"
 	"gopkg.in/yaml.v3"
 	"os"
 )
@@ -54,19 +57,19 @@ func (conf *ConfigFile) ToAppConfig() *AppConfig {
 
 	for _, notifier := range conf.Notifiers {
 		if notifier["notifier"] == "slack" {
-			n := NewSlackWebhookNotifier(notifier["url"], notifier["channel"], notifier["author"], notifier["author_image"])
+			n := slack.NewSlackWebhookNotifier(notifier["url"], notifier["channel"], notifier["author"], notifier["author_image"])
 			appConfig.Notifiers = append(appConfig.Notifiers, n)
 			continue
 		}
 
 		if notifier["notifier"] == "discord" {
-			n := NewDiscordWebhookNotifier(notifier["url"], notifier["author"], notifier["author_image"])
+			n := discord.NewDiscordWebhookNotifier(notifier["url"], notifier["author"], notifier["author_image"])
 			appConfig.Notifiers = append(appConfig.Notifiers, n)
 			continue
 		}
 
 		if notifier["notifier"] == "log" {
-			n := NewLogNotifier()
+			n := app_log.NewLogNotifier()
 			appConfig.Notifiers = append(appConfig.Notifiers, n)
 			continue
 		}

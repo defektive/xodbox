@@ -1,5 +1,10 @@
-# xodbox
-Network interaction handler
+---
+title: XodBox
+linkTitle: Docs
+menu: {main: {weight: 20}}
+---
+> Network interaction listening post
+> https://defektive.github.io/xodbox/
 
 ## Purpose
 

@@ -1,9 +1,10 @@
-package app
+package discord
 
 import (
 	"encoding/json"
 	"fmt"
 	"github.com/defektive/xodbox/pkg/app/types"
+	"github.com/defektive/xodbox/pkg/notifiers/webhook"
 )
 
 type DiscordWebhookPost struct {
@@ -20,7 +21,7 @@ type DiscordWebhookNotifier struct {
 
 func NewDiscordWebhookNotifier(url, user, icon string) types.Notifier {
 	return &DiscordWebhookNotifier{
-		Notifier: NewWebhookNotifier(url),
+		Notifier: webhook.NewWebhookNotifier(url),
 		User:     user,
 		Icon:     icon,
 	}
@@ -43,5 +44,5 @@ func (wh *DiscordWebhookNotifier) Send(event types.InteractionEvent) error {
 		return err
 	}
 
-	return WebHookPost(wh.Endpoint(), jsonBody)
+	return webhook.WebHookPost(wh.Endpoint(), jsonBody)
 }

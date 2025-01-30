@@ -2,8 +2,8 @@ package app
 
 import (
 	"github.com/defektive/xodbox/pkg/app/types"
-	"github.com/defektive/xodbox/pkg/dns"
-	"github.com/defektive/xodbox/pkg/httpx"
+	"github.com/defektive/xodbox/pkg/handlers/dns"
+	"github.com/defektive/xodbox/pkg/handlers/httpx"
 	"os"
 )
 

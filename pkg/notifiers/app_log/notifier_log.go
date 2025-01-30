@@ -1,4 +1,4 @@
-package app
+package app_log
 
 import (
 	"github.com/defektive/xodbox/pkg/app/types"

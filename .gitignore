@@ -3,3 +3,8 @@ static/*
 !static/default-logo.svg
 .idea
 xodbox.yaml
+
+.hugo/public
+.hugo/resources/
+node_modules/
+.hugo_build.lock
