@@ -1,3 +1,4 @@
+#file: noinspection SpellCheckingInspection
 version: 2
 updates:
   - package-ecosystem: "gomod"

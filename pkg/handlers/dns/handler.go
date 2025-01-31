@@ -11,6 +11,7 @@ import (
 	"strconv"
 )
 
+//goland:noinspection SpellCheckingInspection
 const Base36String string = "0123456789abcdefghijklmnopqrstuvwxyz"
 
 type Handler struct {
@@ -140,12 +141,12 @@ func decodeIP(encodedIP string) string {
 func encodeIP(rawIP string) string {
 	var base36 = basen.NewEncoding(Base36String)
 
-	ip, ipnet, err := net.ParseCIDR(rawIP)
+	ip, ipNet, err := net.ParseCIDR(rawIP)
 	if err != nil {
 		lg().Error("error encoding base36 ip", "err", err)
 		return ""
 	}
-	fmt.Println(rawIP, "-> ip:", ip, " net:", ipnet)
+	fmt.Println(rawIP, "-> ip:", ip, " net:", ipNet)
 	s := ip2int(ip)
 	b := []byte(string(s))
 	return base36.EncodeToString(b)

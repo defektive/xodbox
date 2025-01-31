@@ -69,9 +69,9 @@ func fullPkg(l interface{}) string {
 }
 
 func pkgFromFnPointer(p uintptr) string {
-	strs := strings.Split((runtime.FuncForPC(p).Name()), "/")
-	strs[len(strs)-1] = strings.Split(strs[len(strs)-1], ".")[0]
-	return strings.Join(strs, "/")
+	pkgSlice := strings.Split(runtime.FuncForPC(p).Name(), "/")
+	pkgSlice[len(pkgSlice)-1] = strings.Split(pkgSlice[len(pkgSlice)-1], ".")[0]
+	return strings.Join(pkgSlice, "/")
 }
 
 func relPkg(l interface{}) string {

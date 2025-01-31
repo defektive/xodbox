@@ -5,7 +5,7 @@ package httpx
 // go run main.go
 // Command-line options:
 //   -production : enables HTTPS on port 443
-//   -redirect-to-https : redirect HTTP to HTTTPS
+//   -redirect-to-https : redirect HTTP to HTTPS
 
 //const (
 //	htmlIndex = `<html><body>Welcome!</body></html>`
@@ -55,7 +55,7 @@ package httpx
 //	if flgProduction {
 //		hostPolicy := func(ctx context.Context, host string) error {
 //			// Note: change to your real host
-//			allowedHost := "www.mydomain.com"
+//			allowedHost := "www.example.com"
 //			if host == allowedHost {
 //				return nil
 //			}
@@ -77,7 +77,7 @@ package httpx
 //			fmt.Printf("Starting HTTPS server on %s\n", httpsSrv.Addr)
 //			err := httpsSrv.ListenAndServeTLS("", "")
 //			if err != nil {
-//				log.Fatalf("httpsSrv.ListendAndServeTLS() failed with %s", err)
+//				log.Fatalf("httpsSrv.ListenAndServeTLS() failed with %s", err)
 //			}
 //		}()
 //	}

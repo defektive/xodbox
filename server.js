@@ -1,4 +1,6 @@
 // content of index.js
+// noinspection HttpUrlsUsage,SpellCheckingInspection
+
 const http = require('http');
 const https = require('https');
 const fs = require('fs');
@@ -207,7 +209,7 @@ const requestHandler = (request, response) => {
           break;
         } else if (requestURI.match(/\.mp4$/)) {
           response.setHeader('content-type', 'video/mp4');
-          // i am an mp4, I promise
+          // I am a mp4, I promise
           response.end("\x00\x00\x00\x20\x66\x74\x79\x70\x69\x73\x6f\x6d\x00\x00\x02\x00");
           break;
         }

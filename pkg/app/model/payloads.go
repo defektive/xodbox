@@ -3,6 +3,7 @@ package model
 import (
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
+	"regexp"
 )
 
 type Project struct {
@@ -22,9 +23,19 @@ type Payload struct {
 
 	SortOrder int `json:"sort_order"`
 
-	PathPattern string `json:"path_pattern" gorm:"uniqueIndex:idx_type_pattern"`
+	Pattern string `json:"pattern" gorm:"uniqueIndex:idx_type_pattern"`
 
 	Data []byte `json:"data"`
+
+	patternRegexp *regexp.Regexp
+}
+
+func (p *Payload) PatternRegexp() *regexp.Regexp {
+	if p.patternRegexp == nil {
+		p.patternRegexp = regexp.MustCompile(p.Pattern)
+	}
+
+	return p.patternRegexp
 }
 
 type Interaction struct {

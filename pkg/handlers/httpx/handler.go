@@ -42,7 +42,7 @@ type Event struct {
 }
 
 func newHTTPEvent(req *http.Request) types.InteractionEvent {
-	remoteAddrURL := fmt.Sprintf("http://%s", req.RemoteAddr)
+	remoteAddrURL := fmt.Sprintf("https://%s", req.RemoteAddr)
 	parsedURL, _ := url.Parse(remoteAddrURL)
 	portNum, _ := strconv.Atoi(parsedURL.Port())
 	dump, _ := httputil.DumpRequest(req, true)
