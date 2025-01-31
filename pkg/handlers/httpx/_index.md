@@ -53,7 +53,7 @@ Support for HTTP request reflection in the following formats. Simply change the 
 
 #### Legacy Payloads
 
-slightly different then the original. Path must end with `/{original_pattern}`.
+slightly different from the original. Path must end with `/{original_pattern}`.
 
 - [x] sh
 - [x] dt
