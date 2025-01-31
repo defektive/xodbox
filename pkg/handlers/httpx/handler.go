@@ -75,13 +75,19 @@ func (h *Handler) Start(eventChan chan types.InteractionEvent) error {
 
 	mux := &http.ServeMux{}
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+
+		loadStart := time.Now()
+
 		go h.dispatchEvent(r)
 
-		for _, payload := range payloads {
+		for _, payload := range SortedPayloads() {
 			if payload.ShouldHandle(r) {
 				payload.Process(w, r)
 			}
 		}
+
+		timeTaken := time.Now().Sub(loadStart)
+		lg().Debug("http response completed", "timeTaken", timeTaken)
 	})
 
 	domains := ""

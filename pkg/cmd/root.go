@@ -10,7 +10,7 @@ import (
 )
 
 var xodbox *app.Xodbox
-var debug bool = false
+var debug = false
 
 // XodboxCmd represents the base command when called without any subcommands
 var XodboxCmd = &cobra.Command{
@@ -39,6 +39,5 @@ func Execute() {
 }
 
 func init() {
-
 	XodboxCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Debug mode")
 }

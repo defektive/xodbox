@@ -7,13 +7,13 @@ import (
 
 func NewXodbox() *Xodbox {
 	return &Xodbox{
-		eventChan:            make(chan types.InteractionEvent),
+		eventChan: make(chan types.InteractionEvent),
 		notificationHandlers: []types.Notifier{},
 	}
 }
 
 type Xodbox struct {
-	eventChan            chan types.InteractionEvent
+	eventChan chan types.InteractionEvent
 	notificationHandlers []types.Notifier
 }
 

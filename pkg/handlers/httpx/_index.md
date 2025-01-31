@@ -43,7 +43,7 @@ Support for HTTP request reflection in the following formats. Simply change the 
 - [ ] json
     - [ ] b64
 - [ ] redirect
-    - [ ] b64
+    - [ ] b64 
 - [ ] alert pattern with payload
 - [ ] alert pattern
 - [ ] slack hook
