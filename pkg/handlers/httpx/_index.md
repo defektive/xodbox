@@ -16,13 +16,13 @@ weight: 1
 | acme_directory_url  | Override URL                                                                       |
 | autocert_accept_tos | Boolean. Do you accept the CAs TOS?                                                |
 
-
-
 ## Responses
 
-### Built-In 
+### Built-In
 
-Support for HTTP request reflection in the following formats. Simply change the file extension in the request.
+#### `/inspect`
+
+Inspect or reflect the request back in various formats.
 
 - [x] Plain Text (default, .txt)
 - [x] HTML (.html, .html)
@@ -32,11 +32,44 @@ Support for HTTP request reflection in the following formats. Simply change the 
 - [ ] MP4 (.mp4)
 - [ ] XML (.xml)
 
+##### Examples
+
+- http://localhost/inspect
+- http://localhost/some/random/path/inspect.gif
+
+#### `/wpad.dat`
+
+Returns a WPAD config file (Javascript).
+
+#### `/sh`
+
+Returns an XXE payload that attempt to get the contents of `/etc/hostname`.
+
+#### `/dt`
+
+Returns an XXE payload that attempts to load a xodbox URL as an external entitiy.
+
+#### `/evil.dtd`
+
+Returns a DTD that attempts to grab `/ets/passwd`.
+
+#### `/js`
+
+Returns a JavaScript payload that will embed an image that calls back to xodbox. 
+
+#### `/ht`
+
+Returns an HTML payload with an iframe source to `/etc/passwd`.
+
+#### `/sv`
+
+Returns an SVG payload with XXE to call back to xodbox.
+
 #### New Features
 
 - [ ] Let's Encrypt Auto Cert
 
-#### Legacy Functionality
+#### Legacy Functionality to be implemented.
 
 - [ ] robots.txt
 - [ ] unfurly
@@ -51,12 +84,3 @@ Support for HTTP request reflection in the following formats. Simply change the 
 - [ ] breakfastbot
 - [ ] allow origin *
 
-#### Legacy Payloads
-
-slightly different from the original. Path must end with `/{original_pattern}`.
-
-- [x] sh
-- [x] dt
-- [x] evil.dtd
-- [x] ht
-- [x] sv

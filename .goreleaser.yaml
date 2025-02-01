@@ -23,7 +23,7 @@ builds:
       - -trimpath
     goos:
       - linux
-      - windows
+      - windows # not sure need to test
       - darwin
 #    ldflags:
 #      - -s -w

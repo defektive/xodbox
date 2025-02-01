@@ -16,21 +16,13 @@ import (
 	"strings"
 )
 
-type RequestReflectionPayload struct {
-}
-
-func (h *RequestReflectionPayload) ShouldHandle(r *http.Request) bool {
-	return strings.HasPrefix(r.URL.Path, "/inspect")
-}
-
-func (h *RequestReflectionPayload) Process(w http.ResponseWriter, r *http.Request) {
-	rr := NewRequestResponse(r)
+func Inspect(w http.ResponseWriter, r *http.Request, requestStr string) {
 
 	lineHeight := 15
 	characterWidth := 7
 
 	if strings.HasSuffix(r.URL.Path, ".png") || strings.HasSuffix(r.URL.Path, ".gif") || strings.HasSuffix(r.URL.Path, ".jpg") {
-		resData := strings.Split(rr.Text(), "\n")
+		resData := strings.Split(requestStr, "\n")
 		maxLen := 0
 		for _, v := range resData {
 			ml := len(v)
@@ -73,13 +65,13 @@ func (h *RequestReflectionPayload) Process(w http.ResponseWriter, r *http.Reques
 
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-		htmlRes := fmt.Sprintf("<html><head></head><body><h1>HTML Request</h1><pre>%s</pre></body></html>", html.EscapeString(rr.Text()))
+		htmlRes := fmt.Sprintf("<html><head></head><body><h1>HTML Request</h1><pre>%s</pre></body></html>", html.EscapeString(requestStr))
 		fmt.Fprint(w, htmlRes)
 		return
 	}
 
 	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-	fmt.Fprint(w, fmt.Sprintf("Text Request\n\n%s", rr.Text()))
+	fmt.Fprint(w, fmt.Sprintf("Text Request\n\n%s", requestStr))
 }
 
 func addLabel(img *image.CMYK, x, y int, label string) {

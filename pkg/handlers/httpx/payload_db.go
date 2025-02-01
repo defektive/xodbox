@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/defektive/xodbox/pkg/app/model"
 	"net/http"
+	"net/http/httputil"
 	"text/template"
 	"time"
 )
@@ -23,7 +24,7 @@ type HeaderTemplate struct {
 
 type PayloadData struct {
 	Headers         map[string]string `json:"headers"`
-	Body            []byte            `json:"body"`
+	Body            string            `json:"body"`
 	headerTemplates []*HeaderTemplate
 	bodyTemplate    *template.Template
 }
@@ -75,11 +76,15 @@ func (h *HTTPPayload) Process(w http.ResponseWriter, r *http.Request) {
 	headers := h.Data.HeaderTemplates(key)
 	body := h.Data.BodyTemplate(key)
 
+	fullRequestBytes, _ := httputil.DumpRequest(r, true)
+	requestStr := string(fullRequestBytes)
+
 	templateData := map[string]string{
 		"ProxySrvRegex": "127\\.0\\.0\\.1",
 		"ProxySrv":      "127.0.0.1",
 		"Host":          r.Host,
 		"AlertPattern":  "l",
+		"Request":       requestStr,
 	}
 
 	for _, headTemplates := range headers {
@@ -97,8 +102,13 @@ func (h *HTTPPayload) Process(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set(hdrBytes.String(), valBytes.String())
 	}
 
-	err := body.Execute(w, templateData)
+	if h.Pattern == InspectPattern {
+		// ghetto hack cause I am lazy
+		Inspect(w, r, requestStr)
+		return
+	}
 
+	err := body.Execute(w, templateData)
 	if err != nil {
 		lg().Error("Error executing body template: ", "err", err)
 	}
