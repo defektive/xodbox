@@ -5,24 +5,33 @@ import (
 	"os"
 )
 
-func NewXodbox() *Xodbox {
-	return &Xodbox{
-		eventChan: make(chan types.InteractionEvent),
+func NewXodbox(config *AppConfig) *Xodbox {
+
+	xodbox := &Xodbox{
+		appConfig:            config,
+		eventChan:            make(chan types.InteractionEvent),
 		notificationHandlers: []types.Notifier{},
 	}
+
+	for _, notifier := range config.Notifiers {
+		lg().Debug("notifier: ", notifier.Name())
+		xodbox.RegisterNotificationHandler(notifier)
+	}
+
+	return xodbox
 }
 
 type Xodbox struct {
-	eventChan chan types.InteractionEvent
+	appConfig            *AppConfig
+	eventChan            chan types.InteractionEvent
 	notificationHandlers []types.Notifier
 }
 
-func (x *Xodbox) Run(handlers []types.Handler) {
-
-	for _, h := range handlers {
+func (x *Xodbox) Run() {
+	for _, h := range x.appConfig.Handlers {
 		lg().Debug("Running handler", "handler", h)
 		go (func() {
-			err := h.Start(x.eventChan)
+			err := h.Start(x.eventChan, x)
 			if err != nil {
 				lg().Error("error starting handler", "err", err, "handler", h)
 				os.Exit(1)
@@ -35,6 +44,10 @@ func (x *Xodbox) Run(handlers []types.Handler) {
 
 func (x *Xodbox) RegisterNotificationHandler(n types.Notifier) {
 	x.notificationHandlers = append(x.notificationHandlers, n)
+}
+
+func (x *Xodbox) GetTemplateData() map[string]string {
+	return x.appConfig.TemplateData
 }
 
 func (x *Xodbox) waitForEvents() {

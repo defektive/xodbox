@@ -70,7 +70,7 @@ func (h *Handler) Name() string {
 	return h.name
 }
 
-func (h *Handler) Start(eventChan chan types.InteractionEvent) error {
+func (h *Handler) Start(eventChan chan types.InteractionEvent, app types.App) error {
 	h.dispatchChannel = eventChan
 
 	mux := &http.ServeMux{}
@@ -82,7 +82,7 @@ func (h *Handler) Start(eventChan chan types.InteractionEvent) error {
 
 		for _, payload := range SortedPayloads() {
 			if payload.ShouldHandle(r) {
-				payload.Process(w, r)
+				payload.Process(w, r, app.GetTemplateData())
 			}
 		}
 

@@ -70,7 +70,7 @@ func (h *HTTPPayload) ShouldHandle(r *http.Request) bool {
 	return h.PatternRegexp().MatchString(r.URL.Path)
 }
 
-func (h *HTTPPayload) Process(w http.ResponseWriter, r *http.Request) {
+func (h *HTTPPayload) Process(w http.ResponseWriter, r *http.Request, templateData map[string]string) {
 
 	key := fmt.Sprintf("http_payload_%d", h.ID)
 	headers := h.Data.HeaderTemplates(key)
@@ -79,13 +79,8 @@ func (h *HTTPPayload) Process(w http.ResponseWriter, r *http.Request) {
 	fullRequestBytes, _ := httputil.DumpRequest(r, true)
 	requestStr := string(fullRequestBytes)
 
-	templateData := map[string]string{
-		"ProxySrvRegex": "127\\.0\\.0\\.1",
-		"ProxySrv":      "127.0.0.1",
-		"Host":          r.Host,
-		"AlertPattern":  "l",
-		"Request":       requestStr,
-	}
+	templateData["Host"] = r.Host
+	templateData["Host"] = requestStr
 
 	for _, headTemplates := range headers {
 		var hdrBytes bytes.Buffer

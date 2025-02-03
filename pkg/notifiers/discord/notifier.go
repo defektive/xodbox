@@ -14,23 +14,23 @@ type POSTData struct {
 }
 
 type Notifier struct {
-	types.Notifier
+	*webhook.Notifier
 	User string
 	Icon string
 }
 
 func NewNotifier(notifierConfig map[string]string) types.Notifier {
-// be sure to update the _index.md file if you change stuff here
-url := notifierConfig["url"]
-user := notifierConfig["author"]
-icon := notifierConfig["author_image"]
-filter := notifierConfig["filter"]
+	// be sure to update the _index.md file if you change stuff here
+	url := notifierConfig["url"]
+	user := notifierConfig["author"]
+	icon := notifierConfig["author_image"]
+	filter := notifierConfig["filter"]
 
-return &Notifier{
-Notifier: webhook.NewWebhookNotifier(url, filter),
-User:     user,
-Icon:     icon,
-}
+	return &Notifier{
+		Notifier: webhook.NewWebhookNotifier(url, filter),
+		User:     user,
+		Icon:     icon,
+	}
 }
 
 func (wh *Notifier) Name() string {
@@ -55,7 +55,7 @@ func (wh *Notifier) Send(event types.InteractionEvent) error {
 			return err
 		}
 
-		return webhook.SendPost(wh.Endpoint(), jsonBody)
+		return webhook.SendPost(wh.URL, jsonBody)
 	}
 
 	return nil

@@ -2,32 +2,26 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/defektive/xodbox/pkg/app"
-	"github.com/defektive/xodbox/pkg/app/model"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
 
-// payloadDumpCmd represents the base command when called without any subcommands
-var payloadDumpCmd = &cobra.Command{
-	Use:   "dump",
-	Short: "dump payloads.",
-	Long:  `dump payloads.`,
+// configCmd represents the base command when called without any subcommands
+var configCmd = &cobra.Command{
+	Use:   "config",
+	Short: "generate/print config",
+	Long:  `generate/print config`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 
 	Run: func(cmd *cobra.Command, args []string) {
-		appConfig := app.LoadAppConfig("xodbox.yaml")
-		xodbox = app.NewXodbox(appConfig)
+		bytes, err := yaml.Marshal(appConfig)
 
-		payloads := model.SortedPayloads()
-
-		yamlBytes, err := yaml.Marshal(payloads)
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println(string(yamlBytes))
 
+		fmt.Println(string(bytes))
 	},
 }
 
@@ -42,5 +36,5 @@ func init() {
 	//startCmd.Flags().String("discord-avatar", "", "Discord avatar URL")
 	//startCmd.Flags().BoolP("log", "l", false, "Print a log of interaction events")
 	//startCmd.Flags().BoolP("log", "l", false, "Print a log of interaction events")
-	payloadCmd.AddCommand(payloadDumpCmd)
+	XodboxCmd.AddCommand(configCmd)
 }

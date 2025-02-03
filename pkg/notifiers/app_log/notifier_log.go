@@ -10,20 +10,20 @@ type Notifier struct {
 }
 
 func NewNotifier(notifierConfig map[string]string) types.Notifier {
+	filter := notifierConfig["filter"]
+	if filter == "" {
+		filter = ".*"
+	}
 
-filter := notifierConfig["filter"]
-if filter == "" {
-filter = ".*"
-}
-
-return &Notifier{
-filter: regexp.MustCompile(filter),
-}
+	return &Notifier{
+		filter: regexp.MustCompile(filter),
+	}
 }
 
 func (wh *Notifier) Filter() *regexp.Regexp {
 	return wh.filter
 }
+
 func (wh *Notifier) Name() string {
 	return "app_log"
 }

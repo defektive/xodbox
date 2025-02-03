@@ -37,15 +37,15 @@ type Project struct {
 type Payload struct {
 	gorm.Model
 
-	Type      string  `json:"type" gorm:"uniqueIndex:idx_type_pattern"`
-	ProjectID uint    `json:"project_id"`
-	Project   Project `json:"-" yaml:"-"`
+	Type      string  `yaml:"type" gorm:"uniqueIndex:idx_type_pattern"`
+	ProjectID uint    `yaml:"project_id"`
+	Project   Project `yaml:"-" yaml:"-"`
 
-	SortOrder int `json:"sort_order"`
+	SortOrder int `yaml:"sort_order"`
 
-	Pattern string `json:"pattern" gorm:"uniqueIndex:idx_type_pattern"`
+	Pattern string `yaml:"pattern" gorm:"uniqueIndex:idx_type_pattern"`
 
-	Data string `json:"data" yaml:"data" `
+	Data string `yaml:"data" yaml:"data" `
 
 	patternRegexp *regexp.Regexp
 }

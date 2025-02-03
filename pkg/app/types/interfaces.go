@@ -4,7 +4,8 @@ import "regexp"
 
 type App interface {
 	Run()
-	RegisterNotificationHandler(func(InteractionEvent))
+	RegisterNotificationHandler(Notifier)
+	GetTemplateData() map[string]string
 }
 
 type InteractionEvent interface {
@@ -17,13 +18,28 @@ type InteractionEvent interface {
 
 type Handler interface {
 	Name() string
-	Start(eventChan chan InteractionEvent) error
+	Start(chan InteractionEvent, App) error
 }
 
 type Notifier interface {
 	Name() string
-	Endpoint() string
 	Send(InteractionEvent) error
-	Payload(InteractionEvent) ([]byte, error)
 	Filter() *regexp.Regexp
+}
+
+type NotifierBase struct {
+	Name   string
+	Filter string
+}
+
+type NotifierWebhook struct {
+	NotifierBase
+	URL string
+}
+
+type NotifierChat struct {
+	NotifierWebhook
+	Channel   string
+	User      string
+	UserImage string
 }

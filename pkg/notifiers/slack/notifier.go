@@ -15,7 +15,7 @@ type POSTData struct {
 }
 
 type Notifier struct {
-	types.Notifier
+	*webhook.Notifier
 	Channel string
 	User    string
 	Icon    string
@@ -60,7 +60,7 @@ func (wh *Notifier) Send(event types.InteractionEvent) error {
 			return err
 		}
 
-		return webhook.SendPost(wh.Endpoint(), jsonBody)
+		return webhook.SendPost(wh.URL, jsonBody)
 	}
 
 	return nil

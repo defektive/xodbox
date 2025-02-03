@@ -14,15 +14,9 @@ var startCmd = &cobra.Command{
 	// has an action associated with it:
 
 	Run: func(cmd *cobra.Command, args []string) {
-		appConfig := app.LoadAppConfig("xodbox.yaml")
-		xodbox = app.NewXodbox()
+		xodbox = app.NewXodbox(appConfig)
 
-		for _, notifier := range appConfig.Notifiers {
-			xodbox.RegisterNotificationHandler(notifier)
-		}
-
-		lg().Debug("run app with handlers", "handlers", appConfig.Handlers)
-		xodbox.Run(appConfig.Handlers)
+		xodbox.Run()
 	},
 }
 

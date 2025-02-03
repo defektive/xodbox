@@ -17,7 +17,7 @@ type Notifier struct {
 	filter *regexp.Regexp
 }
 
-func NewWebhookNotifier(url string, filter string) types.Notifier {
+func NewWebhookNotifier(url string, filter string) *Notifier {
 
 	if filter == "" {
 		filter = ".*"
