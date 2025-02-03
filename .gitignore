@@ -2,7 +2,7 @@
 static/*
 !static/default-logo.svg
 .idea
-xodbox.yaml
+/xodbox.yaml
 
 .hugo/public
 .hugo/resources/
