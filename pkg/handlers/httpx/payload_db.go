@@ -99,7 +99,10 @@ func (h *HTTPPayload) Process(w http.ResponseWriter, r *http.Request, templateDa
 
 	if h.Pattern == InspectPattern {
 		// ghetto hack cause I am lazy
-		Inspect(w, r, requestStr)
+		err := Inspect(w, r, requestStr)
+		if err != nil {
+			lg().Error("Error executing inspect template: ", "err", err)
+		}
 		return
 	}
 
