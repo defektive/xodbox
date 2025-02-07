@@ -14,7 +14,6 @@ import (
 	"image/gif"
 	"image/jpeg"
 	"image/png"
-	"io"
 	"net/http"
 	"strings"
 )
@@ -61,14 +60,14 @@ func (rh RequestStruct) MarshalXML(e *xml.Encoder, start xml.StartElement) error
 }
 
 type RequestStruct struct {
-	Method     string
-	Path       string
-	RemoteAddr string
-	Headers    map[string][]string
-	Body       []byte
+	Method     string              `xml:"method" json:"method"`
+	Path       string              `xml:"path" json:"path"`
+	RemoteAddr string              `xml:"remote_addr" json:"remote_addr"`
+	Headers    map[string][]string `xml:"headers" json:"headers"`
+	Body       string              `xml:"body" json:"body"`
 }
 
-func Inspect(w http.ResponseWriter, r *http.Request, requestStr string) error {
+func Inspect(w http.ResponseWriter, r *http.Request, body []byte, requestStr string) error {
 
 	if strings.HasSuffix(r.URL.Path, ".png") {
 		return toPNG(w, r, requestStr)
@@ -87,16 +86,12 @@ func Inspect(w http.ResponseWriter, r *http.Request, requestStr string) error {
 	fmtString := "Text Request\n\n%s"
 	outputString := requestStr
 
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return err
-	}
 	myRequest := RequestStruct{
 		Method:     r.Method,
 		Path:       r.URL.Path,
 		RemoteAddr: r.RemoteAddr,
 		Headers:    r.Header,
-		Body:       body,
+		Body:       string(body),
 	}
 
 	if strings.HasSuffix(r.URL.Path, ".html") || strings.HasSuffix(r.URL.Path, ".htm") {
@@ -104,8 +99,14 @@ func Inspect(w http.ResponseWriter, r *http.Request, requestStr string) error {
 		fmtString = "<html><head></head><body><h1>HTML Request</h1><pre>%s</pre></body></html>"
 		outputString = html.EscapeString(outputString)
 	} else if strings.HasSuffix(r.URL.Path, ".json") {
-		contentType = "text/json; charset=utf-8"
-		fmtString = "%s"
+		contentType = "application/json; charset=utf-8"
+
+		if r.URL.Query().Has("array") {
+			fmtString = "[%s]"
+		} else {
+			fmtString = "%s"
+		}
+
 		jsonBytes, err := json.Marshal(myRequest)
 		if err != nil {
 			return err
@@ -131,7 +132,7 @@ func Inspect(w http.ResponseWriter, r *http.Request, requestStr string) error {
 	}
 
 	w.Header().Set("Content-Type", contentType)
-	_, err = fmt.Fprintf(w, fmtString, outputString)
+	_, err := fmt.Fprintf(w, fmtString, outputString)
 	return err
 }
 

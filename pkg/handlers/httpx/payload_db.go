@@ -70,11 +70,9 @@ func (h *HTTPPayload) ShouldHandle(r *http.Request) bool {
 	return h.PatternRegexp().MatchString(r.URL.Path)
 }
 
-func (h *HTTPPayload) Process(w http.ResponseWriter, r *http.Request, templateData map[string]string) {
+func (h *HTTPPayload) Process(w http.ResponseWriter, r *http.Request, body []byte, templateData map[string]string) {
 
 	key := fmt.Sprintf("http_payload_%d", h.ID)
-	headers := h.Data.HeaderTemplates(key)
-	body := h.Data.BodyTemplate(key)
 
 	fullRequestBytes, _ := httputil.DumpRequest(r, true)
 	requestStr := string(fullRequestBytes)
@@ -82,7 +80,7 @@ func (h *HTTPPayload) Process(w http.ResponseWriter, r *http.Request, templateDa
 	templateData["Host"] = r.Host
 	templateData["Host"] = requestStr
 
-	for _, headTemplates := range headers {
+	for _, headTemplates := range h.Data.HeaderTemplates(key) {
 		var hdrBytes bytes.Buffer
 		var valBytes bytes.Buffer
 		err := headTemplates.HeaderTemplate.Execute(&hdrBytes, templateData)
@@ -99,14 +97,14 @@ func (h *HTTPPayload) Process(w http.ResponseWriter, r *http.Request, templateDa
 
 	if h.Pattern == InspectPattern {
 		// ghetto hack cause I am lazy
-		err := Inspect(w, r, requestStr)
+		err := Inspect(w, r, body, requestStr)
 		if err != nil {
 			lg().Error("Error executing inspect template: ", "err", err)
 		}
 		return
 	}
 
-	err := body.Execute(w, templateData)
+	err := h.Data.BodyTemplate(key).Execute(w, templateData)
 	if err != nil {
 		lg().Error("Error executing body template: ", "err", err)
 	}

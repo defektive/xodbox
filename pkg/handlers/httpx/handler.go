@@ -5,6 +5,7 @@ import (
 	"github.com/defektive/xodbox/pkg/app/types"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -41,11 +42,12 @@ type Event struct {
 	req *http.Request
 }
 
-func newHTTPEvent(req *http.Request) types.InteractionEvent {
+func newHTTPEvent(req *http.Request, body []byte) types.InteractionEvent {
 	remoteAddrURL := fmt.Sprintf("https://%s", req.RemoteAddr)
 	parsedURL, _ := url.Parse(remoteAddrURL)
 	portNum, _ := strconv.Atoi(parsedURL.Port())
-	dump, _ := httputil.DumpRequest(req, true)
+	dump, _ := httputil.DumpRequest(req, false)
+	dump = append(dump, body...)
 
 	return &Event{
 		BaseEvent: &types.BaseEvent{
@@ -62,8 +64,8 @@ func (e *Event) Details() string {
 	return fmt.Sprintf("HTTPX: %s %s://%s%s from %s", e.req.Method, "http", e.req.Host, e.req.URL.String(), e.req.RemoteAddr)
 }
 
-func (h *Handler) dispatchEvent(r *http.Request) {
-	h.dispatchChannel <- newHTTPEvent(r)
+func (h *Handler) dispatchEvent(r *http.Request, body []byte) {
+	h.dispatchChannel <- newHTTPEvent(r, body)
 }
 
 func (h *Handler) Name() string {
@@ -77,12 +79,13 @@ func (h *Handler) Start(eventChan chan types.InteractionEvent, app types.App) er
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 
 		loadStart := time.Now()
-
-		go h.dispatchEvent(r)
+		body, _ := io.ReadAll(r.Body)
+		defer r.Body.Close()
+		go h.dispatchEvent(r, body)
 
 		for _, payload := range SortedPayloads() {
 			if payload.ShouldHandle(r) {
-				payload.Process(w, r, app.GetTemplateData())
+				payload.Process(w, r, body, app.GetTemplateData())
 			}
 		}
 
