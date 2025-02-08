@@ -4,7 +4,7 @@ handlers:
       defaultIP: 127.0.0.1
     - handler: HTTPX
       listener: :80
-      alert_prefix: /H/
+#     alert_prefix: /H/
 notifiers:
 #    - notifier: slack
 #      url: https://hooks.slack.com/....
