@@ -2,9 +2,6 @@ package httpx
 
 import (
 	"fmt"
-	"github.com/defektive/xodbox/pkg/app/types"
-	"golang.org/x/crypto/acme"
-	"golang.org/x/crypto/acme/autocert"
 	"io"
 	"log"
 	"net"
@@ -15,12 +12,17 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/defektive/xodbox/pkg/app/types"
+	"golang.org/x/crypto/acme"
+	"golang.org/x/crypto/acme/autocert"
 )
 
 type Handler struct {
-	name     string
-	Listener string
-	AutoCert bool
+	name        string
+	Listener    string
+	AutoCert    bool
+	AlertPrefix string // Add alert prefix field
 
 	dispatchChannel chan types.InteractionEvent
 }
@@ -29,11 +31,13 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 
 	listener := handlerConfig["listener"]
 	autoCert := handlerConfig["autocert"] == "true"
+	alertPrefix := handlerConfig["alert_prefix"]
 
 	return &Handler{
-		name:     "HTTPX",
-		Listener: listener,
-		AutoCert: autoCert,
+		name:        "HTTPX",
+		Listener:    listener,
+		AutoCert:    autoCert,
+		AlertPrefix: alertPrefix,
 	}
 }
 
@@ -65,6 +69,11 @@ func (e *Event) Details() string {
 }
 
 func (h *Handler) dispatchEvent(r *http.Request, body []byte) {
+	if h.AlertPrefix != "" {
+		if !strings.HasPrefix(r.URL.Path, h.AlertPrefix) {
+			return
+		}
+	}
 	h.dispatchChannel <- newHTTPEvent(r, body)
 }
 
