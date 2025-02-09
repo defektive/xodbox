@@ -5,8 +5,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// startCmd represents the base command when called without any subcommands
-var startCmd = &cobra.Command{
+// StartCmd represents the base command when called without any subcommands
+var StartCmd = &cobra.Command{
 	Use:   "start",
 	Short: "Start xodbox server.",
 	Long:  `Start xodbox server.`,
@@ -21,15 +21,15 @@ var startCmd = &cobra.Command{
 }
 
 func init() {
-	//startCmd.Flags().String("slack-webhook", "", "Slack Webhook URL")
-	//startCmd.Flags().String("slack-user", "Pirate Virus", "Slack user")
-	//startCmd.Flags().String("slack-channel", "", "Slack channel")
-	//startCmd.Flags().String("slack-avatar", "", "Slack avatar emoji")
+	//StartCmd.Flags().String("slack-webhook", "", "Slack Webhook URL")
+	//StartCmd.Flags().String("slack-user", "Pirate Virus", "Slack user")
+	//StartCmd.Flags().String("slack-channel", "", "Slack channel")
+	//StartCmd.Flags().String("slack-avatar", "", "Slack avatar emoji")
 	//
-	//startCmd.Flags().String("discord-webhook", "", "Discord webhook URL")
-	//startCmd.Flags().String("discord-user", "Pirate Virus", "Discord user")
-	//startCmd.Flags().String("discord-avatar", "", "Discord avatar URL")
-	//startCmd.Flags().BoolP("log", "l", false, "Print a log of interaction events")
-	//startCmd.Flags().BoolP("log", "l", false, "Print a log of interaction events")
-	XodboxCmd.AddCommand(startCmd)
+	//StartCmd.Flags().String("discord-webhook", "", "Discord webhook URL")
+	//StartCmd.Flags().String("discord-user", "Pirate Virus", "Discord user")
+	//StartCmd.Flags().String("discord-avatar", "", "Discord avatar URL")
+	//StartCmd.Flags().BoolP("log", "l", false, "Print a log of interaction events")
+	//StartCmd.Flags().BoolP("log", "l", false, "Print a log of interaction events")
+	XodboxCmd.AddCommand(StartCmd)
 }

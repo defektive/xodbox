@@ -64,3 +64,25 @@ Configuration information for each Notifier is documented alongside it's code in
 ```sh
 ./xodbox
 ```
+
+## Refactor / Migration Tracking
+
+- [ ] Tag existing branch
+- [ ] rename master to main
+- [ ] Configure github actions to build doc site
+- [ ] Configure github actions to run goreleaser
+- [ ] Remove files
+  - [ ] Makefile
+  - [ ] example*env
+  - [ ] server.js
+- [ ] PocketBase for admin
+- [ ] Docs
+  - [ ] Validator
+  - [ ] HTTPx Handler
+  - [ ] DNS Handler
+  - [ ] How To Make A Handler
+  - [ ] Slack Notifier
+  - [ ] Discord Notifier
+  - [ ] Log Notifier
+  - [ ] ???
+- [ ] Seeds from Markdown
