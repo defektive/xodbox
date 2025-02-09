@@ -12,28 +12,40 @@ import (
 	"net/http/httputil"
 	"net/url"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
 )
 
 type Handler struct {
-	name     string
-	Listener string
-	AutoCert bool
+	name              string
+	Listener          string
+	StaticRequestPath string
+	StaticDir         string
+	AutoCert          bool
 
 	dispatchChannel chan types.InteractionEvent
 }
 
 func NewHandler(handlerConfig map[string]string) types.Handler {
-
 	listener := handlerConfig["listener"]
 	autoCert := handlerConfig["autocert"] == "true"
 
+	staticRequestPath := ""
+	staticDir, ok := handlerConfig["static_dir"]
+	if ok {
+		staticRequestPath, ok = handlerConfig["static_request_path"]
+		if !ok {
+			staticRequestPath = filepath.Base(staticDir)
+		}
+	}
 	return &Handler{
-		name:     "HTTPX",
-		Listener: listener,
-		AutoCert: autoCert,
+		name:              "HTTPX",
+		Listener:          listener,
+		AutoCert:          autoCert,
+		StaticRequestPath: staticRequestPath,
+		StaticDir:         staticDir,
 	}
 }
 
@@ -77,7 +89,6 @@ func (h *Handler) Start(eventChan chan types.InteractionEvent, app types.App) er
 
 	mux := &http.ServeMux{}
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-
 		loadStart := time.Now()
 		body, _ := io.ReadAll(r.Body)
 		defer r.Body.Close()
@@ -93,6 +104,10 @@ func (h *Handler) Start(eventChan chan types.InteractionEvent, app types.App) er
 		lg().Debug("http response completed", "timeTaken", timeTaken)
 	})
 
+	if h.StaticDir != "" {
+		staticFs := http.FileServer(http.Dir(h.StaticDir))
+		mux.Handle(fmt.Sprintf("/%s/", h.StaticRequestPath), staticFs)
+	}
 	domains := ""
 	tlsDomains := strings.Split(domains, ",")
 
@@ -103,7 +118,6 @@ func (h *Handler) Start(eventChan chan types.InteractionEvent, app types.App) er
 			lg().Error("error starting autocert HTTP server", "tlsDomains", tlsDomains, "err", err)
 			return err
 		}
-
 	} else {
 
 		httpSrv := &http.Server{

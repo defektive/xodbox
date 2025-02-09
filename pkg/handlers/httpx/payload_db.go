@@ -10,6 +10,28 @@ import (
 	"time"
 )
 
+var InternalCodeMap = map[string]func(w http.ResponseWriter, r *http.Request, body []byte, requestStr string) error{}
+var payloads = []*HTTPPayload{}
+
+func init() {
+	Seed(model.DB())
+
+	InternalCodeMap[InternalFnInspect] = Inspect
+}
+
+func SortedPayloads() []*HTTPPayload {
+
+	if len(payloads) == 0 {
+		loadStart := time.Now()
+		lg().Warn("Loading payloads")
+		model.DB().Where("type = ?", PayloadName).Order("sort_order, project_id, pattern asc").Find(&payloads)
+		timeTaken := time.Now().Sub(loadStart)
+		lg().Debug("Loading payloads", "timeTaken", timeTaken)
+	}
+
+	return payloads
+}
+
 type HTTPPayload struct {
 	model.Payload
 	Data PayloadData `gorm:"serializer:json"`
@@ -95,36 +117,18 @@ func (h *HTTPPayload) Process(w http.ResponseWriter, r *http.Request, body []byt
 		w.Header().Set(hdrBytes.String(), valBytes.String())
 	}
 
-	if h.Pattern == InspectPattern {
-		// ghetto hack cause I am lazy
-		err := Inspect(w, r, body, requestStr)
-		if err != nil {
-			lg().Error("Error executing inspect template: ", "err", err)
+	for k, fn := range InternalCodeMap {
+		if h.InternalFunc == k {
+			err := fn(w, r, body, requestStr)
+			if err != nil {
+				lg().Error("Error executing inspect template: ", "err", err)
+			}
+			return
 		}
-		return
 	}
 
 	err := h.Data.BodyTemplate(key).Execute(w, templateData)
 	if err != nil {
 		lg().Error("Error executing body template: ", "err", err)
 	}
-}
-
-func init() {
-	Seed(model.DB())
-}
-
-var payloads = []*HTTPPayload{}
-
-func SortedPayloads() []*HTTPPayload {
-
-	if len(payloads) == 0 {
-		loadStart := time.Now()
-		lg().Warn("Loading payloads")
-		model.DB().Where("type = ?", PayloadName).Order("sort_order, project_id, pattern asc").Find(&payloads)
-		timeTaken := time.Now().Sub(loadStart)
-		lg().Debug("Loading payloads", "timeTaken", timeTaken)
-	}
-
-	return payloads
 }

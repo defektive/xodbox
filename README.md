@@ -86,3 +86,5 @@ Configuration information for each Notifier is documented alongside it's code in
   - [ ] Log Notifier
   - [ ] ???
 - [ ] Seeds from Markdown
+- [ ] Static file hosting
+  - 

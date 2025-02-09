@@ -43,9 +43,9 @@ type Payload struct {
 
 	SortOrder int `yaml:"sort_order"`
 
-	Pattern string `yaml:"pattern" gorm:"uniqueIndex:idx_type_pattern"`
-
-	Data string `yaml:"data" yaml:"data" `
+	InternalFunc string `yaml:"internal_func"`
+	Pattern      string `yaml:"pattern" gorm:"uniqueIndex:idx_type_pattern"`
+	Data         string `yaml:"data" yaml:"data" `
 
 	patternRegexp *regexp.Regexp
 }
