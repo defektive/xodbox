@@ -1,13 +1,70 @@
 package httpx
 
 import (
+	"embed"
+	"fmt"
+	"github.com/adrg/frontmatter"
 	"github.com/defektive/xodbox/pkg/app/model"
 	"gorm.io/gorm"
+	"io/fs"
 )
 
 const InspectPattern = "/inspect"
 
+//go:embed seeds
+var embeddedFS embed.FS
+
+type matter struct {
+	Name string   `yaml:"name"`
+	Tags []string `yaml:"tags"`
+}
+
+func getAllFilenames(efs *embed.FS) (files []string, err error) {
+	if err := fs.WalkDir(efs, ".", func(path string, d fs.DirEntry, err error) error {
+		if d.IsDir() {
+			return nil
+		}
+
+		files = append(files, path)
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return files, nil
+}
+
+func getSeedsFromFiles() {
+
+	embeddedFiles, err := getAllFilenames(&embeddedFS)
+	if err != nil {
+		panic(err)
+	}
+
+	for _, embeddedFile := range embeddedFiles {
+		f, err := embeddedFS.Open(embeddedFile)
+		if err != nil {
+			panic(err)
+		}
+
+		var seedData = matter{}
+		rest, err := frontmatter.Parse(f, &seedData)
+		if err != nil {
+			panic(err)
+		}
+
+		fmt.Println(rest)
+
+	}
+
+}
+
 func Seed(dbh *gorm.DB) {
+
+	getSeedsFromFiles()
+	return
+
 	seedFns := []func(db *gorm.DB) *gorm.DB{
 		seedBreakfastBot,
 		seedInspect,
