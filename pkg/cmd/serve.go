@@ -7,9 +7,10 @@ import (
 
 // StartCmd represents the base command when called without any subcommands
 var StartCmd = &cobra.Command{
-	Use:   "start",
-	Short: "Start xodbox server.",
-	Long:  `Start xodbox server.`,
+	Use:     "serve",
+	Aliases: []string{"start"},
+	Short:   "Start xodbox server.",
+	Long:    `Start xodbox server.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 
