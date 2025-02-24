@@ -6,7 +6,7 @@ import (
 	"github.com/analog-substance/util/cli/docs"
 	"github.com/analog-substance/util/cli/glamour_help"
 	"github.com/analog-substance/util/cli/updater/cobra_updater"
-	"github.com/defektive/xodbox/pkg/validator/cmd"
+	"github.com/defektive/xodbox/cmd/xodbox-validator/cmd"
 )
 
 var version = "v0.0.0"

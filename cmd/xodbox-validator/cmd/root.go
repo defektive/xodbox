@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/defektive/xodbox/pkg/validator/tests"
+	"github.com/defektive/xodbox/cmd/xodbox-validator/tests"
 	"github.com/spf13/cobra"
 	"os"
 )
