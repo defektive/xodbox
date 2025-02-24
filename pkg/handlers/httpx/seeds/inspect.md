@@ -7,7 +7,6 @@ payloads:
     project_id: 1
     sort_order: -500
     pattern: /inspect
-    xodboxFn: inspect
     data: '{"headers":null,"body":""}'
 ---
 

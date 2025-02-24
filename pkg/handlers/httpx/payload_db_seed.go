@@ -9,7 +9,7 @@ import (
 	"io/fs"
 )
 
-const InternalFnInspect = "inspect"
+const InspectPattern = "/inspect"
 
 //go:embed seeds
 var embeddedFS embed.FS
@@ -99,7 +99,7 @@ func seedBreakfastBot(dbh *gorm.DB) *gorm.DB {
 }
 
 func seedInspect(dbh *gorm.DB) *gorm.DB {
-	h := newDefaultPayload("/inspect", -500)
+	h := newDefaultPayload(InspectPattern, -500)
 	return dbh.Create(h)
 }
 
@@ -159,9 +159,6 @@ func newDefaultPayload(pattern string, sortOrder int) *HTTPPayload {
 	n.Project = model.DefaultProject()
 
 	n.Pattern = pattern
-	if pattern == "/inspect" {
-		n.InternalFunc = InternalFnInspect
-	}
 	n.SortOrder = sortOrder
 
 	return n
