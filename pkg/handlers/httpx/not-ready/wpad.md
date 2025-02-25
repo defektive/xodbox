@@ -1,6 +1,6 @@
 ---
-title: Inspect
-description: Reflect back HTTP requests in various formats
+title: WPAD
+description: Returns a WPAD config file (Javascript).
 weight: 1
 payloads:
   - type: HTTPX

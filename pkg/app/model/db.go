@@ -26,11 +26,12 @@ func DB() *gorm.DB {
 		)
 
 		var err error
-		db, err = gorm.Open(sqlite.Open("test.db"), &gorm.Config{
+		db, err = gorm.Open(sqlite.Open("xodbox.db"), &gorm.Config{
 			Logger: newLogger,
 		})
 		if err != nil {
-			panic("failed to connect database")
+			lg().Error("failed to connect database", "error", err)
+			panic(err)
 		}
 
 		models := []interface{}{
@@ -41,16 +42,15 @@ func DB() *gorm.DB {
 
 		err = db.AutoMigrate(models...)
 		if err != nil {
-			lg().Info("failed to migrate models", "error", err)
+			lg().Error("failed to migrate models", "error", err)
 		}
 
 		seed(db)
-
 	}
 	return db
 }
 
-var defaultProject = Project{
+var defaultProject = &Project{
 	Name:    "default",
 	Code:    "",
 	Default: true,
@@ -62,3 +62,21 @@ func seed(dbh *gorm.DB) {
 		lg().Info("failed to seed default project", "error", tx.Error)
 	}
 }
+
+//func seed(dbh *gorm.DB) {
+//
+//	tx := dbh.Model(Project{Default: true}).FirstOrInit(&defaultProject)
+//	if tx.Error != nil {
+//		lg().Error("failed to seed default project", "error", tx.Error)
+//	}
+//
+//	if defaultProject.ID == 0 {
+//		defaultProject.Name = "default"
+//		defaultProject.Default = true
+//
+//		tx = dbh.Save(&defaultProject)
+//		if tx.Error != nil {
+//			lg().Error("failed to create default project", "error", tx.Error)
+//		}
+//	}
+//}

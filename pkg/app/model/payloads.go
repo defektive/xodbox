@@ -24,15 +24,17 @@ import (
 type Payload struct {
 	gorm.Model
 
-	Type      string  `yaml:"type" gorm:"uniqueIndex:idx_type_pattern"`
-	ProjectID uint    `yaml:"project_id"`
-	Project   Project `yaml:"-" yaml:"-"`
+	Type      string   `json,yaml:"type" gorm:"uniqueIndex:idx_type_pattern"`
+	ProjectID uint     `json,yaml:"project_id"`
+	Project   *Project `yaml:"-" yaml:"-"`
 
 	SortOrder int `yaml:"sort_order"`
 
-	Pattern string `yaml:"pattern" gorm:"uniqueIndex:idx_type_pattern"`
+	Pattern          string `json,yaml:"pattern" gorm:"uniqueIndex:idx_type_pattern"`
+	InternalFunction string `json,yaml:"internal_function"`
+	IsFinal          bool   `json,yaml:"is_final"`
 
-	Data string `yaml:"data" yaml:"data" `
+	Data string `json,yaml:"data"`
 
 	patternRegexp *regexp.Regexp
 }

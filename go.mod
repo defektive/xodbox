@@ -3,7 +3,8 @@ module github.com/defektive/xodbox
 go 1.23.4
 
 require (
-	github.com/analog-substance/util v1.1.3
+	github.com/adrg/frontmatter v0.2.0
+	github.com/analog-substance/util v1.1.4
 	github.com/factomproject/basen v0.0.0-20150613233007-fe3947df716e
 	github.com/glebarez/sqlite v1.11.0
 	github.com/miekg/dns v1.1.63
@@ -17,7 +18,6 @@ require (
 require (
 	github.com/BurntSushi/toml v0.3.1 // indirect
 	github.com/NoF0rte/cmd-builder v0.0.0-20220305223538-e35bfeabbbff // indirect
-	github.com/adrg/frontmatter v0.2.0 // indirect
 	github.com/alecthomas/chroma/v2 v2.15.0 // indirect
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/aymerick/douceur v0.2.0 // indirect

@@ -13,7 +13,7 @@ var version = "v0.0.0"
 var commit = "replace"
 
 func main() {
-	versionInfo := build_info.GetVersion(version, commit)
+	versionInfo := build_info.InitLoadedVersion(version, commit)
 	cmd.XodboxCmd.Version = versionInfo.String()
 	cobra_updater.AddToRootCmd(cmd.XodboxCmd, versionInfo)
 	completion.AddToRootCmd(cmd.XodboxCmd)

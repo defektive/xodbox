@@ -5,9 +5,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// startCmd represents the base command when called without any subcommands
-var startCmd = &cobra.Command{
-	Use:   "start",
+// serveCmd represents the base command when called without any subcommands
+var serveCmd = &cobra.Command{
+	Use:   "serve",
 	Short: "Start xodbox server.",
 	Long:  `Start xodbox server.`,
 	// Uncomment the following line if your bare application
@@ -31,5 +31,5 @@ func init() {
 	//startCmd.Flags().String("discord-avatar", "", "Discord avatar URL")
 	//startCmd.Flags().BoolP("log", "l", false, "Print a log of interaction events")
 	//startCmd.Flags().BoolP("log", "l", false, "Print a log of interaction events")
-	XodboxCmd.AddCommand(startCmd)
+	XodboxCmd.AddCommand(serveCmd)
 }

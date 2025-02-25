@@ -41,7 +41,7 @@ func ConfigFromFile(configFile string) (*ConfigFile, error) {
 	return conf, err
 }
 
-func LoadAppConfig(configFile string) *AppConfig {
+func LoadApp(configFile string) *AppConfig {
 	conf, err := ConfigFromFile(configFile)
 	if err != nil {
 		lg().Error("error reading config", "error", err)
@@ -76,12 +76,16 @@ func (conf *ConfigFile) ToAppConfig() *AppConfig {
 	for _, handlerConfig := range conf.Handlers {
 		if newHandlerFn, ok := newHandlerMap[handlerConfig["handler"]]; ok {
 			appConfig.Handlers = append(appConfig.Handlers, newHandlerFn(handlerConfig))
+		} else {
+			lg().Error("handler not found", "handler", handlerConfig["handler"])
 		}
 	}
 
 	for _, notifierConfig := range conf.Notifiers {
 		if newNotifierFn, ok := newNotifierMap[notifierConfig["notifier"]]; ok {
 			appConfig.Notifiers = append(appConfig.Notifiers, newNotifierFn(notifierConfig))
+		} else {
+			lg().Error("notifier not found", "notifier", notifierConfig["notifier"])
 		}
 	}
 	return appConfig

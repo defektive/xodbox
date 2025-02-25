@@ -1,6 +1,8 @@
 package model
 
-import "gorm.io/gorm"
+import (
+	"gorm.io/gorm"
+)
 
 type Project struct {
 	gorm.Model
@@ -10,6 +12,8 @@ type Project struct {
 	Default bool   `gorm:"default:false"`
 }
 
-func DefaultProject() Project {
+//var defaultProject *Project
+
+func DefaultProject() *Project {
 	return defaultProject
 }

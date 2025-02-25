@@ -31,7 +31,7 @@ var XodboxCmd = &cobra.Command{
 			xlog.LogLevel(slog.LevelDebug)
 		}
 		lg().Debug("debug mode", "debug", debug)
-		appConfig = app.LoadAppConfig(configFile)
+		appConfig = app.LoadApp(configFile)
 		return nil
 	},
 }

@@ -4,8 +4,12 @@ description: HTTPX Handler
 weight: 1
 ---
 
-## Configuration
+## Purpose
 
+Speak HTTP to other computers you may or may not control....
+
+
+## Configuration
 
 | Key                 | Values                                                                             |
 |---------------------|------------------------------------------------------------------------------------|
@@ -16,62 +20,18 @@ weight: 1
 | acme_directory_url  | Override URL                                                                       |
 | autocert_accept_tos | Boolean. Do you accept the CAs TOS?                                                |
 
-## Responses
 
-### Built-In
+## Additional Information
 
-#### `/inspect`
+Things are still being created, documented, and fine-tuned.
 
-Inspect or reflect the request back in various formats.
-
-- [x] Plain Text (default, .txt)
-- [x] HTML (.html, .html)
-- [x] GIF (.gif)
-- [x] JPEG (.jpg)
-- [x] PNG (.png)
-- [ ] MP4 (.mp4)
-- [ ] XML (.xml)
-
-##### Examples
-
-- http://localhost/inspect
-- http://localhost/some/random/path/inspect.gif
-
-#### `/wpad.dat`
-
-Returns a WPAD config file (Javascript).
-
-#### `/sh`
-
-Returns an XXE payload that attempt to get the contents of `/etc/hostname`.
-
-#### `/dt`
-
-Returns an XXE payload that attempts to load a xodbox URL as an external entitiy.
-
-#### `/evil.dtd`
-
-Returns a DTD that attempts to grab `/ets/passwd`.
-
-#### `/js`
-
-Returns a JavaScript payload that will embed an image that calls back to xodbox. 
-
-#### `/ht`
-
-Returns an HTML payload with an iframe source to `/etc/passwd`.
-
-#### `/sv`
-
-Returns an SVG payload with XXE to call back to xodbox.
-
-#### New Features
+### New Features
 
 - [ ] Let's Encrypt Auto Cert
 
 #### Legacy Functionality to be implemented.
 
-- [ ] robots.txt
+- [x] robots.txt
 - [ ] unfurly
 - [ ] json
     - [ ] b64
@@ -84,3 +44,18 @@ Returns an SVG payload with XXE to call back to xodbox.
 - [ ] breakfastbot
 - [ ] allow origin *
 
+
+
+response.setHeader('Content-Type', 'text/html')
+response.end([
+`<html><head>`,
+`<meta property="og:title" content="Unfurly" />`,
+`<meta property="og:description" content="${userAgent}" />`,
+//`<meta name="twitter:image:src" value="" />`,
+`<meta name="twitter:label1" value="IP Address" />`,
+`<meta name="twitter:data1" value="${remoteAddr}" />`,
+`<meta name="twitter:label2" value="" />`,
+`<meta name="twitter:data2" value="" />`,
+`</head><body>`,
+`</body></html>`,
+].join("\n"))

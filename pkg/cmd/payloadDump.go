@@ -17,7 +17,7 @@ var payloadDumpCmd = &cobra.Command{
 	// has an action associated with it:
 
 	Run: func(cmd *cobra.Command, args []string) {
-		appConfig := app.LoadAppConfig("xodbox.yaml")
+		appConfig := app.LoadApp("xodbox.yaml")
 		xodbox = app.NewXodbox(appConfig)
 
 		payloads := model.SortedPayloads()
