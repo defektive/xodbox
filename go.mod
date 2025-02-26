@@ -4,7 +4,7 @@ go 1.23.4
 
 require (
 	github.com/adrg/frontmatter v0.2.0
-	github.com/analog-substance/util v1.1.4
+	github.com/analog-substance/util v1.1.5
 	github.com/factomproject/basen v0.0.0-20150613233007-fe3947df716e
 	github.com/glebarez/sqlite v1.11.0
 	github.com/miekg/dns v1.1.63
@@ -62,5 +62,5 @@ require (
 	modernc.org/libc v1.61.13 // indirect
 	modernc.org/mathutil v1.7.1 // indirect
 	modernc.org/memory v1.8.2 // indirect
-	modernc.org/sqlite v1.35.0 // indirect
+	modernc.org/sqlite v1.36.0 // indirect
 )
