@@ -1,3 +1,17 @@
 *.env
 static/*
 !static/default-logo.svg
+.idea
+/xodbox.yaml
+*.exe
+
+.hugo/public
+.hugo/resources/
+node_modules/
+.hugo_build.lock
+certs/
+*.db
+dist/
+
+xodbox_static
+xodbox
