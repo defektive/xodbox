@@ -130,15 +130,6 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 	return nil
 }
 
-type wrappedEvent struct {
-	W            *http.ResponseWriter
-	r            *http.Request
-	app          types.App
-	handler      types.Handler
-	body         []byte
-	templateData map[string]string
-}
-
 func autocertListener(staging bool, domains ...string) net.Listener {
 
 	letsEncryptStaging := "https://acme-staging-v02.api.letsencrypt.org/directory"
