@@ -1,13 +1,14 @@
 ---
-title: Default Header
+title: Default PAge
 description: Adds the default header to all HTTP responses.
-weight: -1000
+weight: 9999
 payloads:
-  - sort_order: -1000
+  - sort_order: 9999
     pattern: ^/
     data:
       headers:
-        Server: BreakfastBot/{{.Version}}
+        content-type: text/plain
+      body: hi
 ---
 
 Adds an HTTP header to all HTTP responses.
@@ -21,5 +22,5 @@ curl -i http://xodbox.test/
 ### Example Response
 
 ```txt
-Server: BreakfastBot/1.0.0
+hi
 ```

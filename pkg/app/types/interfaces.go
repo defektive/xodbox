@@ -18,7 +18,7 @@ type InteractionEvent interface {
 
 type Handler interface {
 	Name() string
-	Start(chan InteractionEvent, App) error
+	Start(App, chan InteractionEvent) error
 }
 
 type Notifier interface {

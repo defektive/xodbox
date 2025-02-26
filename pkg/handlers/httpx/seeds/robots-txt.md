@@ -1,17 +1,15 @@
 ---
 title: Robots TXT
 description: Adds the default header to all HTTP responses.
-weight: -999
+weight: -900
 payloads:
-  - type: HTTPX
-    sort_order: -999
+  - sort_order: -900
     pattern: ^/robots\.txt
-    data: 
-        body: "User-agent: *\nDisallow: /\n"
+    data:
+      body: "User-agent: *\nDisallow: /\n"
 ---
 
 Simple robots txt to prevent indexing.
-
 
 ### Example Request
 

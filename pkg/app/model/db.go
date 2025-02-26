@@ -11,9 +11,31 @@ import (
 
 var db *gorm.DB
 
-func DB() *gorm.DB {
-	if db == nil {
+type DBOptions struct {
+	Reset bool
+	Path  string
+}
 
+const defaultDBPath = "xodbox.db"
+
+var defaultDBOptions = DBOptions{
+	Reset: false,
+	Path:  defaultDBPath,
+}
+
+func (o *DBOptions) DBPath() string {
+	if o.Path != "" {
+		return o.Path
+	}
+	return defaultDBPath
+}
+
+func (o *DBOptions) ShouldReset() bool {
+	return o.Reset
+}
+
+func LoadDBWithOptions(options DBOptions) {
+	if db == nil {
 		newLogger := logger.New(
 			log.New(os.Stderr, "\r\n", log.LstdFlags), // io writer
 			logger.Config{
@@ -25,8 +47,14 @@ func DB() *gorm.DB {
 			},
 		)
 
+		if options.ShouldReset() {
+			if err := os.Remove(options.DBPath()); err != nil {
+				panic(err)
+			}
+		}
+
 		var err error
-		db, err = gorm.Open(sqlite.Open("xodbox.db"), &gorm.Config{
+		db, err = gorm.Open(sqlite.Open(options.DBPath()), &gorm.Config{
 			Logger: newLogger,
 		})
 		if err != nil {
@@ -46,6 +74,12 @@ func DB() *gorm.DB {
 		}
 
 		seed(db)
+	}
+}
+
+func DB() *gorm.DB {
+	if db == nil {
+		LoadDBWithOptions(defaultDBOptions)
 	}
 	return db
 }

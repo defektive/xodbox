@@ -6,13 +6,9 @@ import (
 	"github.com/defektive/xodbox/pkg/app/model"
 	"gorm.io/gorm"
 	"io/fs"
-	"log"
 )
 
 const InternalFnInspect = "inspect"
-
-//go:embed seeds
-var embeddedFS embed.FS
 
 func getAllFilenames(efs *embed.FS) (files []string, err error) {
 	if err := fs.WalkDir(efs, ".", func(path string, d fs.DirEntry, err error) error {
@@ -30,24 +26,24 @@ func getAllFilenames(efs *embed.FS) (files []string, err error) {
 	return files, nil
 }
 
-func getSeedsFromFiles() []*HTTPPayload {
+func getSeedsFromFiles() []*Payload {
 
-	embeddedFiles, err := getAllFilenames(&embeddedFS)
+	embeddedFiles, err := getAllFilenames(&embeddedSeedFS)
 	if err != nil {
 		panic(err)
 	}
 
-	seedPayloads := []*HTTPPayload{}
+	seedPayloads := []*Payload{}
 
 	for _, embeddedFile := range embeddedFiles {
-		f, err := embeddedFS.Open(embeddedFile)
+		f, err := embeddedSeedFS.Open(embeddedFile)
 		if err != nil {
 			panic(err)
 		}
 
 		var seedData = matter{}
 		if _, err := frontmatter.Parse(f, &seedData); err != nil {
-			log.Println("failed to get front matter from:", embeddedFile)
+			lg().Error("failed to get front matter from:", "embeddedFile", embeddedFile)
 			panic(err)
 		}
 
@@ -57,25 +53,20 @@ func getSeedsFromFiles() []*HTTPPayload {
 	return seedPayloads
 }
 
-func Seed(dbh *gorm.DB) {
-	seedPayloads := getSeedsFromFiles()
+var seeded = false
 
-	for _, seedPayload := range seedPayloads {
-		seedPayload.Project = model.DefaultProject()
-		tx := dbh.Create(seedPayload)
-		if tx.Error != nil {
-			lg().Error("failed to seed", tx.Error, "type", seedPayload.Type, "pattern", seedPayload.Pattern)
+func Seed(dbh *gorm.DB) {
+	if !seeded {
+		seeded = true
+		seedPayloads := getSeedsFromFiles()
+		for _, seedPayload := range seedPayloads {
+			seedPayload.Project = model.DefaultProject()
+			tx := dbh.Create(seedPayload)
+			if tx.Error != nil {
+				lg().Error("failed to seed", tx.Error, "type", seedPayload.Type, "pattern", seedPayload.Pattern)
+			}
 		}
 	}
-	return
-}
-
-func newDefaultPayload(pattern string, sortOrder int) *HTTPPayload {
-	n := NewHTTPPayload()
-	n.Project = model.DefaultProject()
-	n.Pattern = pattern
-	n.SortOrder = sortOrder
-	return n
 }
 
 type matter struct {
@@ -84,8 +75,8 @@ type matter struct {
 	Payloads    []*SeedPayload `yaml:"payloads"`
 }
 
-func (m matter) ToHTTPPayloads() []*HTTPPayload {
-	httpPayloads := []*HTTPPayload{}
+func (m matter) ToHTTPPayloads() []*Payload {
+	var httpPayloads []*Payload
 	for _, p := range m.Payloads {
 		httpPayloads = append(httpPayloads, p.ToHTTPPayload())
 	}
@@ -98,10 +89,10 @@ type SeedPayload struct {
 	SortOrder        int          `yaml:"sort_order"`
 	Pattern          string       `yaml:"pattern"`
 	InternalFunction string       `yaml:"internal_function"`
-	Data             *PayloadData `json,yaml:"data"`
+	Data             *PayloadData `yaml:"data"`
 }
 
-func (s *SeedPayload) ToHTTPPayload() *HTTPPayload {
+func (s *SeedPayload) ToHTTPPayload() *Payload {
 	n := NewHTTPPayload()
 	n.Project = model.DefaultProject()
 	n.Pattern = s.Pattern
@@ -117,16 +108,3 @@ func (s *SeedPayload) ToHTTPPayload() *HTTPPayload {
 
 	return n
 }
-
-//
-//type HeaderTemplate struct {
-//	HeaderTemplate *template.Template
-//	ValueTemplate  *template.Template
-//}
-//
-//type PayloadData struct {
-//	Headers         map[string]string `json:"headers"`
-//	Body            string            `json:"body"`
-//	headerTemplates []*HeaderTemplate
-//	bodyTemplate    *template.Template
-//}

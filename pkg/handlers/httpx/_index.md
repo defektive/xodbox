@@ -28,34 +28,22 @@ Things are still being created, documented, and fine-tuned.
 ### New Features
 
 - [ ] Let's Encrypt Auto Cert
+- [ ] Exfil data saver
 
 #### Legacy Functionality to be implemented.
 
 - [x] robots.txt
-- [ ] unfurly
-- [ ] json
+- [x] unfurly
+- [ ] arbitrary json
     - [ ] b64
-- [ ] redirect
+- [x] redirect
     - [ ] b64 
-- [ ] alert pattern with payload
-- [ ] alert pattern
-- [ ] slack hook
 - [ ] basic auth
-- [ ] breakfastbot
+- [x] breakfastbot
 - [ ] allow origin *
 
+#### Legacy functionality that isnt specific to a handler
 
-
-response.setHeader('Content-Type', 'text/html')
-response.end([
-`<html><head>`,
-`<meta property="og:title" content="Unfurly" />`,
-`<meta property="og:description" content="${userAgent}" />`,
-//`<meta name="twitter:image:src" value="" />`,
-`<meta name="twitter:label1" value="IP Address" />`,
-`<meta name="twitter:data1" value="${remoteAddr}" />`,
-`<meta name="twitter:label2" value="" />`,
-`<meta name="twitter:data2" value="" />`,
-`</head><body>`,
-`</body></html>`,
-].join("\n"))
+- [ ] alert pattern with payload
+- [ ] alert pattern (alert patterns are part of notifiers, maybe we need to expose alert patterns based on handler type)
+- [ ] slack hook (this is now a notifier)

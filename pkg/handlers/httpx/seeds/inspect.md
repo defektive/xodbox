@@ -1,18 +1,28 @@
 ---
 title: Inspect
 description: Reflect back HTTP requests in various formats
-weight: 1
+weight: -500
 payloads:
-  - type: HTTPX
-    sort_order: -500
+  - sort_order: -500
     pattern: /inspect
     internal_function: inspect
+    data:
+      body: |
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <meta charset="utf-8">
+          </head>
+          <body>
+            <script src="//{{.Host}}/jsc"></script>
+          </body>
+        </html>
+
 ---
 
 Depends on an internal code
 
-
-#### `/inspect`
+### `/inspect`
 
 Inspect or reflect the request back in various formats.
 
@@ -22,9 +32,11 @@ Inspect or reflect the request back in various formats.
 - [x] JPEG (.jpg)
 - [x] PNG (.png)
 - [ ] MP4 (.mp4)
-- [ ] XML (.xml)
+- [x] XML (.xml)
+- [x] JSON (.json)
+- [x] Javascript (.js)
 
-##### Examples
+### Examples
 
 - http://localhost/inspect
 - http://localhost/some/random/path/inspect.gif

@@ -76,7 +76,7 @@ func (h *Handler) Name() string {
 	return "DNS"
 }
 
-func (h *Handler) Start(eventChan chan types.InteractionEvent, app types.App) error {
+func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) error {
 
 	h.dispatchChannel = eventChan
 	responseValue := net.ParseIP(h.DefaultResponseIP).To4()

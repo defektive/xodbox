@@ -31,7 +31,7 @@ func (x *Xodbox) Run() {
 	for _, h := range x.appConfig.Handlers {
 		lg().Debug("Running handler", "handler", h)
 		go (func() {
-			err := h.Start(x.eventChan, x)
+			err := h.Start(x, x.eventChan)
 			if err != nil {
 				lg().Error("error starting handler", "err", err, "handler", h)
 				os.Exit(1)

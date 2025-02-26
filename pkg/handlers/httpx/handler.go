@@ -2,10 +2,13 @@ package httpx
 
 import (
 	"fmt"
+	"github.com/analog-substance/util/fileutil"
+	"github.com/defektive/xodbox/pkg/app/model"
 	"github.com/defektive/xodbox/pkg/app/types"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 	"io"
+	"io/fs"
 	"log"
 	"net"
 	"net/http"
@@ -17,23 +20,36 @@ import (
 	"time"
 )
 
+const EmbeddedMountPoint = "/ixdbxi/"
+
 type Handler struct {
 	name     string
 	Listener string
 	AutoCert bool
 
+	StaticDir       string
 	dispatchChannel chan types.InteractionEvent
+	app             types.App
 }
 
 func NewHandler(handlerConfig map[string]string) types.Handler {
 
+	// I believe interface implementors should own seeding their data models
+	// TODO: add method to interface to facilitate Seeding data.
+	// data seeding cannot happen in an `init` function since we need input from the user
+	// about what db to use
+	// Seed data models
+	Seed(model.DB())
+
+	staticDir := handlerConfig["static_dir"]
 	listener := handlerConfig["listener"]
 	autoCert := handlerConfig["autocert"] == "true"
 
 	return &Handler{
-		name:     "HTTPX",
-		Listener: listener,
-		AutoCert: autoCert,
+		name:      "HTTPX",
+		Listener:  listener,
+		AutoCert:  autoCert,
+		StaticDir: staticDir,
 	}
 }
 
@@ -72,19 +88,38 @@ func (h *Handler) Name() string {
 	return h.name
 }
 
-func (h *Handler) Start(eventChan chan types.InteractionEvent, app types.App) error {
+func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) error {
+
+	// capture these for later
+	h.app = app
 	h.dispatchChannel = eventChan
 
 	mux := &http.ServeMux{}
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	if h.StaticDir != "" {
+		if !fileutil.DirExists(h.StaticDir) {
+			if err := os.MkdirAll(h.StaticDir, 0744); err != nil {
+				lg().Error("Failed to create static directory", "err", err)
+			}
+		}
+		fs := http.FileServer(http.Dir(h.StaticDir))
 
+		mux.Handle("/static/", http.StripPrefix("/static", noIndex(fs)))
+	}
+
+	subFs, err := fs.Sub(embeddedStaticFS, "static")
+	if err != nil {
+		lg().Error("Failed to subfs embedded files", "err", err)
+	}
+	mux.Handle(EmbeddedMountPoint, http.StripPrefix(EmbeddedMountPoint[:len(EmbeddedMountPoint)-1], noIndex(http.FileServer(http.FS(subFs)))))
+
+	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		loadStart := time.Now()
 		body, _ := io.ReadAll(r.Body)
 		defer r.Body.Close()
 		go h.dispatchEvent(r, body)
 
 		for _, payload := range SortedPayloads() {
-			if payload.ShouldHandle(r) {
+			if payload.ShouldProcess(r) {
 				payload.Process(w, r, body, app.GetTemplateData())
 			}
 		}
@@ -153,4 +188,15 @@ func autocertListener(staging bool, domains ...string) net.Listener {
 		m.Cache = autocert.DirCache(dir)
 	}
 	return m.Listener()
+}
+
+func noIndex(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "/") {
+			http.NotFound(w, r)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }

@@ -24,29 +24,29 @@ func (rh RequestStruct) MarshalXML(e *xml.Encoder, start xml.StartElement) error
 
 	requestTag := []xml.Token{start}
 
-	method := xml.StartElement{Name: xml.Name{"", "method"}}
-	requestTag = append(requestTag, method, xml.CharData(rh.Method), xml.EndElement{method.Name})
+	method := xml.StartElement{Name: xml.Name{Local: "method"}}
+	requestTag = append(requestTag, method, xml.CharData(rh.Method), xml.EndElement{Name: method.Name})
 
-	path := xml.StartElement{Name: xml.Name{"", "path"}}
-	requestTag = append(requestTag, path, xml.CharData(rh.Path), xml.EndElement{path.Name})
+	path := xml.StartElement{Name: xml.Name{Local: "path"}}
+	requestTag = append(requestTag, path, xml.CharData(rh.Path), xml.EndElement{Name: path.Name})
 
-	remoteAddr := xml.StartElement{Name: xml.Name{"", "remoteAddr"}}
-	requestTag = append(requestTag, remoteAddr, xml.CharData(rh.RemoteAddr), xml.EndElement{remoteAddr.Name})
+	remoteAddr := xml.StartElement{Name: xml.Name{Local: "remoteAddr"}}
+	requestTag = append(requestTag, remoteAddr, xml.CharData(rh.RemoteAddr), xml.EndElement{Name: remoteAddr.Name})
 
-	body := xml.StartElement{Name: xml.Name{"", "body"}}
-	requestTag = append(requestTag, body, xml.CharData(rh.Body), xml.EndElement{body.Name})
+	body := xml.StartElement{Name: xml.Name{Local: "body"}}
+	requestTag = append(requestTag, body, xml.CharData(rh.Body), xml.EndElement{Name: body.Name})
 
-	headersTag := xml.StartElement{Name: xml.Name{"", "headers"}}
+	headersTag := xml.StartElement{Name: xml.Name{Local: "headers"}}
 	requestTag = append(requestTag, headersTag)
 	for key, values := range rh.Headers {
 		for _, value := range values {
-			t := xml.StartElement{Name: xml.Name{"", key}}
-			requestTag = append(requestTag, t, xml.CharData(value), xml.EndElement{t.Name})
+			t := xml.StartElement{Name: xml.Name{Local: key}}
+			requestTag = append(requestTag, t, xml.CharData(value), xml.EndElement{Name: t.Name})
 		}
 	}
 
-	requestTag = append(requestTag, xml.EndElement{headersTag.Name})
-	requestTag = append(requestTag, xml.EndElement{start.Name})
+	requestTag = append(requestTag, xml.EndElement{Name: headersTag.Name})
+	requestTag = append(requestTag, xml.EndElement{Name: start.Name})
 
 	for _, t := range requestTag {
 		err := e.EncodeToken(t)
@@ -112,7 +112,6 @@ func Inspect(w http.ResponseWriter, r *http.Request, body []byte, requestStr str
 			return err
 		}
 		outputString = string(jsonBytes)
-
 	} else if strings.HasSuffix(r.URL.Path, ".xml") {
 		contentType = "text/xml; charset=utf-8"
 		fmtString = "%s"
@@ -151,7 +150,7 @@ func createImage(w http.ResponseWriter, r *http.Request, requestStr string) *ima
 	}
 
 	img := image.NewCMYK(image.Rect(0, 0, (2*lineHeight)+(maxLen*characterWidth), (2*lineHeight)+(len(resData)*lineHeight)))
-	draw.Draw(img, img.Bounds(), &image.Uniform{color.White}, image.Point{0, 0}, draw.Src)
+	draw.Draw(img, img.Bounds(), &image.Uniform{C: color.White}, image.Point{}, draw.Src)
 	for i, v := range resData {
 		addLabel(img, lineHeight, (i*lineHeight)+30, v)
 	}
@@ -179,8 +178,8 @@ func toGIF(w http.ResponseWriter, r *http.Request, requestStr string) error {
 }
 
 func addLabel(img *image.CMYK, x, y int, label string) {
-	col := color.RGBA{0, 0, 0, 255}
-	point := fixed.Point26_6{fixed.I(x), fixed.I(y)}
+	col := color.RGBA{A: 255}
+	point := fixed.Point26_6{X: fixed.I(x), Y: fixed.I(y)}
 
 	d := &font.Drawer{
 		Dst:  img,
