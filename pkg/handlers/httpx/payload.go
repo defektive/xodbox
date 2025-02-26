@@ -133,6 +133,7 @@ func (h *Payload) Process(w http.ResponseWriter, r *http.Request, body []byte, t
 	}
 
 	templateData["Version"] = build_info.GetLoadedVersion().Version
+	templateData["NotifyString"] = "l"
 	templateData["RemoteAddr"] = strings.Join(remoteAddrs, ", ")
 	templateData["UserAgent"] = r.UserAgent()
 

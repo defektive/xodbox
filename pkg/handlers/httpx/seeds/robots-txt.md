@@ -5,6 +5,7 @@ weight: -900
 payloads:
   - sort_order: -900
     pattern: ^/robots\.txt
+    is_final: true
     data:
       body: "User-agent: *\nDisallow: /\n"
 ---

@@ -3,6 +3,7 @@ handlers:
     listener: 127.0.10.1:53
     default_ip: 127.0.0.1
   - handler: HTTPX
+
     listener: :80
 notifiers:
   #    - notifier: slack

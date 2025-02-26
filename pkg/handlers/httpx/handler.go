@@ -121,6 +121,10 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 		for _, payload := range SortedPayloads() {
 			if payload.ShouldProcess(r) {
 				payload.Process(w, r, body, app.GetTemplateData())
+				lg().Debug("Processing payload", "payload", payload, "IsFinal", payload.IsFinal)
+				if payload.IsFinal {
+					break
+				}
 			}
 		}
 

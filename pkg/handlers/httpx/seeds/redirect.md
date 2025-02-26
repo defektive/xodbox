@@ -5,6 +5,7 @@ weight: -900
 payloads:
   - sort_order: -980
     pattern: ^/redir
+    is_final: true
     data:
       status_code: "{{.GET_s}}"
       headers:

@@ -6,6 +6,7 @@ payloads:
   - sort_order: -500
     pattern: /inspect
     internal_function: inspect
+    is_final: true
     data:
       body: |
         <!DOCTYPE html>

@@ -14,7 +14,7 @@ func NewXodbox(config *AppConfig) *Xodbox {
 	}
 
 	for _, notifier := range config.Notifiers {
-		lg().Debug("notifier: ", notifier.Name())
+		lg().Debug("notifier: ", "notifier", notifier.Name())
 		xodbox.RegisterNotificationHandler(notifier)
 	}
 

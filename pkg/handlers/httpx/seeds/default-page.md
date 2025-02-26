@@ -1,10 +1,11 @@
 ---
-title: Default PAge
+title: Default Page
 description: Adds the default header to all HTTP responses.
 weight: 9999
 payloads:
   - sort_order: 9999
     pattern: ^/
+    is_final: true
     data:
       headers:
         content-type: text/plain

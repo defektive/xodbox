@@ -237,6 +237,11 @@ module:
     excludeFiles: "blog/**"
     target: content/docs
 
+
+  - source: ../cmd/xodbox-validator/README.md
+    target: content/docs/cmd/xodbox-validator/_index.md
+    excludeFiles: "**.go"
+
   - source: ../pkg/
     target: content/docs/pkg/
     excludeFiles: "**.go"

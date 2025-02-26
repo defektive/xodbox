@@ -5,6 +5,7 @@ weight: 1
 payloads:
   - sort_order: 1
     pattern: /sh$
+    is_final: true
     data:
       headers:
         Content-Type: text/xml
@@ -18,6 +19,7 @@ payloads:
 
   - sort_order: 1
     pattern: /sp$
+    is_final: true
     data:
       headers:
         Content-Type: image/svg+xml
@@ -31,6 +33,7 @@ payloads:
 
   - sort_order: 1
     pattern: /sv$
+    is_final: true
     data:
       headers:
         Content-Type: image/svg+xml

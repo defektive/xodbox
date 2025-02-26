@@ -5,6 +5,7 @@ weight: -500
 payloads:
   - sort_order: -500
     pattern: /jsc$
+    is_final: true
     data:
       headers:
         "Content-Type": "text/javascript"
@@ -16,6 +17,7 @@ payloads:
         })()
   - sort_order: -500
     pattern: /jsc.html$
+    is_final: true
     data: 
       headers:
         "Content-Type": "text/html"

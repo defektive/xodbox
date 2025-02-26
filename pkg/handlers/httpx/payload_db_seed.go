@@ -47,6 +47,10 @@ func getSeedsFromFiles() []*Payload {
 			panic(err)
 		}
 
+		for _, payload := range seedData.Payloads {
+
+			lg().Debug("found seed", "file", embeddedFile, "pattern", payload.Pattern, "isfinal", payload.IsFinal)
+		}
 		seedPayloads = append(seedPayloads, seedData.ToHTTPPayloads()...)
 	}
 
@@ -89,6 +93,7 @@ type SeedPayload struct {
 	SortOrder        int          `yaml:"sort_order"`
 	Pattern          string       `yaml:"pattern"`
 	InternalFunction string       `yaml:"internal_function"`
+	IsFinal          bool         `yaml:"is_final"`
 	Data             *PayloadData `yaml:"data"`
 }
 
@@ -97,6 +102,7 @@ func (s *SeedPayload) ToHTTPPayload() *Payload {
 	n.Project = model.DefaultProject()
 	n.Pattern = s.Pattern
 	n.SortOrder = s.SortOrder
+	n.IsFinal = s.IsFinal
 
 	if s.InternalFunction != "" {
 		n.InternalFunction = s.InternalFunction
