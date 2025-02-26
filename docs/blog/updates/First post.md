@@ -1,5 +1,5 @@
 ---
-title: Project Love
+title: Rewrite Started
 date: 2025-01-30
 description: Updates and plans
 categories: [xodbox]
@@ -28,7 +28,8 @@ I've encountered a few issues while using it.
 
 Rather than refactoring the JS, I wanted to port it over to Golang. In the process I wanted to add some new features:
 
-- Request reflection with multiple response formats (txt, html, xml, jpg, png, gif).
-- Built in Let's Encrypt cert setup (no more docker).
-- Support for DNS.
-- Add Discord notifications. 
+- [x] Request reflection with multiple response formats (txt, html, xml, jpg, png, gif).
+- [ ] Built in Let's Encrypt cert setup (no more docker).
+- [ ] Support for DNS. (started)
+- [x] Add Discord notifications.
+
