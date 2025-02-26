@@ -16,4 +16,4 @@ notifiers:
   #      author: PirateVirus
   #      author_image: https://s3-us-west-2.amazonaws.com/slack-f...72.png
   #      filter: "/l"
-  - notifier: log
+  - notifier: app_log

@@ -1,7 +1,7 @@
 ---
-title: HTTPX In Development Seeds
+title: In Development Seeds
 description: These seeds are not ready for production and may never be.
-weight: 1
+weight: 9999
 ---
 
-Seeds that are not tested or finished
+Seeds that are not tested or finished.

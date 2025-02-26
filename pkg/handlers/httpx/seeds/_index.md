@@ -1,5 +1,5 @@
 ---
-title: HTTPX Seeds
+title: Default Payloads Seeds
 description: seed data
 weight: 1
 ---

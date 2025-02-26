@@ -16,26 +16,13 @@ how applications consume data from network sources.
 Multiple listening protocols:
 
 - [x] HTTP/HTTPS
-- [x] DNS
+- [ ] DNS (WIP not finished)
 - [ ] FTP
 - [ ] SMTP
 - [ ] SMB
 - [ ] IMAP
 - [ ] POP3
 - [ ] SSH
-
-Payloads
-
-- [ ] XML XXE
-- [ ] JS XSS callback
-
-Notifiers
-
-- [x] Text Log
-- [ ] JSON Log
-- [X] Slack Webhook
-- [X] Discord Webhook
-- [ ] Keybase Webhook
 
 ## Installation
 
@@ -59,8 +46,29 @@ Configuration information for each HAndler is documented alongside it's code in 
 
 Configuration information for each Notifier is documented alongside it's code in the [notifiers](pkg/notifiers) directory.
 
-## Usage
+## Server Usage
 
 ```sh
 ./xodbox
 ```
+
+## Client Usage
+
+[Handlers](pkg/handlers) are responsible for seeding their own default data.
+
+- [httpx/seeds/](pkg/handlers/httpx/seeds/)
+
+
+## Feedback
+
+### I have an issue or feature request
+
+Sweet! [Open an issue](https://github.com/defektive/xodbox/issues/new) to start the conversation.
+
+* * *
+
+## Wait... I want the old node version
+
+Really? ok we made a tag just for you.
+
+https://github.com/defektive/xodbox/releases/tag/legacy-nodejs
