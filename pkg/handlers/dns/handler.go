@@ -148,6 +148,6 @@ func encodeIP(rawIP string) string {
 	}
 	fmt.Println(rawIP, "-> ip:", ip, " net:", ipNet)
 	s := ip2int(ip)
-	b := []byte(string(s))
+	b := []byte(strconv.Itoa(int(s)))
 	return base36.EncodeToString(b)
 }

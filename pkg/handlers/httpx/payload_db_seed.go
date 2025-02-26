@@ -67,7 +67,7 @@ func Seed(dbh *gorm.DB) {
 			seedPayload.Project = model.DefaultProject()
 			tx := dbh.Create(seedPayload)
 			if tx.Error != nil {
-				lg().Error("failed to seed", tx.Error, "type", seedPayload.Type, "pattern", seedPayload.Pattern)
+				lg().Error("failed to seed", "tx.Error", tx.Error, "type", seedPayload.Type, "pattern", seedPayload.Pattern)
 			}
 		}
 	}
