@@ -4,6 +4,9 @@ description: Slack notifications
 weight: 1
 ---
 
+
+![Slack Notification](notifier-slack.png)
+
 ## Configuration
 
 | Key          | Values                                             |

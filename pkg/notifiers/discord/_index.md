@@ -5,6 +5,8 @@ weight: 1
 ---
 
 
+![Discord Notification](notifier-discord.png)
+
 ## Configuration
 
 | Key          | Values                                          |

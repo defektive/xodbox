@@ -1,7 +1,7 @@
 ---
 title: HTTPX
 description: HTTPX Handler
-weight: 1
+weight: 10
 ---
 
 ## Purpose

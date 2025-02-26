@@ -40,7 +40,7 @@ cp example.xodbox.yaml xodbox.yaml
 
 ### Handler Configuration
 
-Configuration information for each HAndler is documented alongside it's code in the [handlers](pkg/handlers) directory.
+Configuration information for each Handler is documented alongside it's code in the [handlers](pkg/handlers) directory.
 
 ### Notifier Configuration
 

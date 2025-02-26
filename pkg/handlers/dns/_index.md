@@ -1,7 +1,7 @@
 ---
 title: DNS
 description: DNS Handler
-weight: 1
+weight: 10
 ---
 
 ## Configuration
