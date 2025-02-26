@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/analog-substance/util/cli/build_info"
-	"github.com/defektive/xodbox/pkg/app/model"
-	"github.com/defektive/xodbox/pkg/app/util"
+	model2 "github.com/defektive/xodbox/pkg/model"
+	"github.com/defektive/xodbox/pkg/util"
 	"net/http"
 	"net/http/httputil"
 	"strconv"
@@ -21,7 +21,7 @@ var payloads = []*Payload{}
 
 // Payload is the HTTPX specific payload database model
 type Payload struct {
-	model.Payload
+	model2.Payload
 	Data PayloadData `json,yaml:"data" gorm:"serializer:json"`
 
 	headerTemplates []*HeaderTemplate
@@ -46,7 +46,7 @@ type HeaderTemplate struct {
 }
 
 func NewHTTPPayload() *Payload {
-	return &Payload{Payload: model.Payload{Type: PayloadName}}
+	return &Payload{Payload: model2.Payload{Type: PayloadName}}
 }
 
 // TableName tells gorm to the payloads table
@@ -207,7 +207,7 @@ func SortedPayloads() []*Payload {
 	if len(payloads) == 0 {
 		loadStart := time.Now()
 		lg().Warn("Loading payloads")
-		model.DB().Where("type = ?", PayloadName).Order("sort_order, project_id, pattern asc").Find(&payloads)
+		model2.DB().Where("type = ?", PayloadName).Order("sort_order, project_id, pattern asc").Find(&payloads)
 		timeTaken := time.Now().Sub(loadStart)
 		lg().Debug("Loading payloads", "timeTaken", timeTaken)
 	}

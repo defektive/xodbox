@@ -3,7 +3,7 @@ package dns
 import (
 	"encoding/binary"
 	"fmt"
-	"github.com/defektive/xodbox/pkg/app/types"
+	types2 "github.com/defektive/xodbox/pkg/types"
 	"github.com/factomproject/basen"
 	"github.com/miekg/dns"
 	"net"
@@ -19,10 +19,10 @@ type Handler struct {
 	Listener          string
 	DefaultResponseIP string
 
-	dispatchChannel chan types.InteractionEvent
+	dispatchChannel chan types2.InteractionEvent
 }
 
-func NewHandler(handlerConfig map[string]string) types.Handler {
+func NewHandler(handlerConfig map[string]string) types2.Handler {
 	listener := handlerConfig["listener"]
 	defaultResponseIP := handlerConfig["default_ip"]
 
@@ -34,18 +34,18 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 }
 
 type Event struct {
-	*types.BaseEvent
+	*types2.BaseEvent
 	msg *dns.Msg
 }
 
-func newEvent(w dns.ResponseWriter, req *dns.Msg) types.InteractionEvent {
+func newEvent(w dns.ResponseWriter, req *dns.Msg) types2.InteractionEvent {
 	remoteAddr := w.RemoteAddr().String()
 	remoteAddrURL := fmt.Sprintf("dns://%s", remoteAddr)
 	parsedURL, _ := url.Parse(remoteAddrURL)
 	portNum, _ := strconv.Atoi(parsedURL.Port())
 
 	return &Event{
-		BaseEvent: &types.BaseEvent{
+		BaseEvent: &types2.BaseEvent{
 			RemoteAddr:       parsedURL.Hostname(),
 			RemotePortNumber: portNum,
 			UserAgentString:  "unknown",
@@ -76,7 +76,7 @@ func (h *Handler) Name() string {
 	return "DNS"
 }
 
-func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) error {
+func (h *Handler) Start(app types2.App, eventChan chan types2.InteractionEvent) error {
 
 	h.dispatchChannel = eventChan
 	responseValue := net.ParseIP(h.DefaultResponseIP).To4()

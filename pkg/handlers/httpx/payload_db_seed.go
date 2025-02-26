@@ -3,7 +3,7 @@ package httpx
 import (
 	"embed"
 	"github.com/adrg/frontmatter"
-	"github.com/defektive/xodbox/pkg/app/model"
+	"github.com/defektive/xodbox/pkg/model"
 	"gorm.io/gorm"
 	"io/fs"
 )

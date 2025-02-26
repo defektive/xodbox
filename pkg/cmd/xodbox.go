@@ -2,7 +2,7 @@ package cmd
 
 import (
 	"github.com/defektive/xodbox/pkg/app"
-	"github.com/defektive/xodbox/pkg/app/model"
+	"github.com/defektive/xodbox/pkg/model"
 	"github.com/defektive/xodbox/pkg/xlog"
 	"log/slog"
 	"os"

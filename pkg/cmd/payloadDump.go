@@ -3,7 +3,7 @@ package cmd
 import (
 	"fmt"
 	"github.com/defektive/xodbox/pkg/app"
-	"github.com/defektive/xodbox/pkg/app/model"
+	"github.com/defektive/xodbox/pkg/model"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )

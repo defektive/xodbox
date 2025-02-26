@@ -3,8 +3,8 @@ package httpx
 import (
 	"fmt"
 	"github.com/analog-substance/util/fileutil"
-	"github.com/defektive/xodbox/pkg/app/model"
-	"github.com/defektive/xodbox/pkg/app/types"
+	"github.com/defektive/xodbox/pkg/model"
+	types2 "github.com/defektive/xodbox/pkg/types"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
 	"io"
@@ -28,11 +28,11 @@ type Handler struct {
 	AutoCert bool
 
 	StaticDir       string
-	dispatchChannel chan types.InteractionEvent
-	app             types.App
+	dispatchChannel chan types2.InteractionEvent
+	app             types2.App
 }
 
-func NewHandler(handlerConfig map[string]string) types.Handler {
+func NewHandler(handlerConfig map[string]string) types2.Handler {
 
 	// I believe interface implementors should own seeding their data models
 	// TODO: add method to interface to facilitate Seeding data.
@@ -54,11 +54,11 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 }
 
 type Event struct {
-	*types.BaseEvent
+	*types2.BaseEvent
 	req *http.Request
 }
 
-func newHTTPEvent(req *http.Request, body []byte) types.InteractionEvent {
+func newHTTPEvent(req *http.Request, body []byte) types2.InteractionEvent {
 	remoteAddrURL := fmt.Sprintf("https://%s", req.RemoteAddr)
 	parsedURL, _ := url.Parse(remoteAddrURL)
 	portNum, _ := strconv.Atoi(parsedURL.Port())
@@ -66,7 +66,7 @@ func newHTTPEvent(req *http.Request, body []byte) types.InteractionEvent {
 	dump = append(dump, body...)
 
 	return &Event{
-		BaseEvent: &types.BaseEvent{
+		BaseEvent: &types2.BaseEvent{
 			RemoteAddr:       parsedURL.Hostname(),
 			RemotePortNumber: portNum,
 			UserAgentString:  req.UserAgent(),
@@ -88,7 +88,7 @@ func (h *Handler) Name() string {
 	return h.name
 }
 
-func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) error {
+func (h *Handler) Start(app types2.App, eventChan chan types2.InteractionEvent) error {
 
 	// capture these for later
 	h.app = app

@@ -1,13 +1,13 @@
 package app
 
 import (
-	"github.com/defektive/xodbox/pkg/app/types"
 	"github.com/defektive/xodbox/pkg/handlers/dns"
 	"github.com/defektive/xodbox/pkg/handlers/httpx"
 	"github.com/defektive/xodbox/pkg/notifiers/app_log"
 	"github.com/defektive/xodbox/pkg/notifiers/discord"
 	"github.com/defektive/xodbox/pkg/notifiers/slack"
 	"github.com/defektive/xodbox/pkg/static"
+	"github.com/defektive/xodbox/pkg/types"
 	"gopkg.in/yaml.v3"
 	"os"
 	"path"

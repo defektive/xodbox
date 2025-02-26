@@ -1,7 +1,7 @@
 package app_log
 
 import (
-	"github.com/defektive/xodbox/pkg/app/types"
+	"github.com/defektive/xodbox/pkg/types"
 	"regexp"
 )
 
