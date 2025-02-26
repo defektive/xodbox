@@ -30,7 +30,7 @@ func NewNotifier(notifierConfig map[string]string) types.Notifier {
 	filter := notifierConfig["filter"]
 
 	return &Notifier{
-		Notifier: webhook.NewWebhookNotifier(url, filter),
+		Notifier: webhook.NewNotifier(url, filter),
 		Channel:  channel,
 		User:     user,
 		Icon:     icon,

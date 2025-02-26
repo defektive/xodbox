@@ -26,3 +26,9 @@ func (e *BaseEvent) UserAgent() string {
 func (e *BaseEvent) Data() string {
 	return string(e.RawData)
 }
+
+func (e *BaseEvent) Dispatch(cc chan InteractionEvent) {
+	go func() {
+		cc <- e
+	}()
+}

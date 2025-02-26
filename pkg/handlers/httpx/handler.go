@@ -4,18 +4,14 @@ import (
 	"fmt"
 	"github.com/analog-substance/util/fileutil"
 	"github.com/defektive/xodbox/pkg/model"
-	types2 "github.com/defektive/xodbox/pkg/types"
+	"github.com/defektive/xodbox/pkg/types"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
-	"io"
 	"io/fs"
 	"log"
 	"net"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -28,11 +24,11 @@ type Handler struct {
 	AutoCert bool
 
 	StaticDir       string
-	dispatchChannel chan types2.InteractionEvent
-	app             types2.App
+	dispatchChannel chan types.InteractionEvent
+	app             types.App
 }
 
-func NewHandler(handlerConfig map[string]string) types2.Handler {
+func NewHandler(handlerConfig map[string]string) types.Handler {
 
 	// I believe interface implementors should own seeding their data models
 	// TODO: add method to interface to facilitate Seeding data.
@@ -53,42 +49,11 @@ func NewHandler(handlerConfig map[string]string) types2.Handler {
 	}
 }
 
-type Event struct {
-	*types2.BaseEvent
-	req *http.Request
-}
-
-func newHTTPEvent(req *http.Request, body []byte) types2.InteractionEvent {
-	remoteAddrURL := fmt.Sprintf("https://%s", req.RemoteAddr)
-	parsedURL, _ := url.Parse(remoteAddrURL)
-	portNum, _ := strconv.Atoi(parsedURL.Port())
-	dump, _ := httputil.DumpRequest(req, false)
-	dump = append(dump, body...)
-
-	return &Event{
-		BaseEvent: &types2.BaseEvent{
-			RemoteAddr:       parsedURL.Hostname(),
-			RemotePortNumber: portNum,
-			UserAgentString:  req.UserAgent(),
-			RawData:          dump,
-		},
-		req: req,
-	}
-}
-
-func (e *Event) Details() string {
-	return fmt.Sprintf("HTTPX: %s %s://%s%s from %s", e.req.Method, "http", e.req.Host, e.req.URL.String(), e.req.RemoteAddr)
-}
-
-func (h *Handler) dispatchEvent(r *http.Request, body []byte) {
-	h.dispatchChannel <- newHTTPEvent(r, body)
-}
-
 func (h *Handler) Name() string {
 	return h.name
 }
 
-func (h *Handler) Start(app types2.App, eventChan chan types2.InteractionEvent) error {
+func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) error {
 
 	// capture these for later
 	h.app = app
@@ -114,22 +79,22 @@ func (h *Handler) Start(app types2.App, eventChan chan types2.InteractionEvent) 
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		loadStart := time.Now()
-		body, _ := io.ReadAll(r.Body)
-		defer r.Body.Close()
-		go h.dispatchEvent(r, body)
+		defer func() {
+			lg().Debug("http response completed", "timeTaken", fmt.Sprintf("%dµs", time.Since(loadStart).Microseconds()))
+		}()
+		e := NewEvent(r)
+
+		e.Dispatch(h.dispatchChannel)
 
 		for _, payload := range SortedPayloads() {
 			if payload.ShouldProcess(r) {
-				payload.Process(w, r, body, app.GetTemplateData())
+				payload.Process(w, e, app.GetTemplateData())
 				lg().Debug("Processing payload", "payload", payload, "IsFinal", payload.IsFinal)
 				if payload.IsFinal {
 					break
 				}
 			}
 		}
-
-		timeTaken := time.Now().Sub(loadStart)
-		lg().Debug("http response completed", "timeTaken", timeTaken)
 	})
 
 	domains := ""
@@ -163,6 +128,15 @@ func (h *Handler) Start(app types2.App, eventChan chan types2.InteractionEvent) 
 	}
 
 	return nil
+}
+
+type wrappedEvent struct {
+	W            *http.ResponseWriter
+	r            *http.Request
+	app          types.App
+	handler      types.Handler
+	body         []byte
+	templateData map[string]string
 }
 
 func autocertListener(staging bool, domains ...string) net.Listener {

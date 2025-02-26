@@ -67,7 +67,12 @@ type RequestStruct struct {
 	Body       string              `xml:"body" json:"body"`
 }
 
-func Inspect(w http.ResponseWriter, r *http.Request, body []byte, requestStr string) error {
+func Inspect(w http.ResponseWriter, e *Event) error {
+
+	r := e.Request()
+
+	fullRequestBytes := e.RawRequest()
+	requestStr := string(fullRequestBytes)
 
 	if strings.HasSuffix(r.URL.Path, ".png") {
 		return toPNG(w, r, requestStr)
@@ -91,7 +96,7 @@ func Inspect(w http.ResponseWriter, r *http.Request, body []byte, requestStr str
 		Path:       r.URL.Path,
 		RemoteAddr: r.RemoteAddr,
 		Headers:    r.Header,
-		Body:       string(body),
+		Body:       string(e.Body()),
 	}
 
 	if strings.HasSuffix(r.URL.Path, ".html") || strings.HasSuffix(r.URL.Path, ".htm") {

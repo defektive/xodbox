@@ -7,8 +7,8 @@ weight: 1
 ## Configuration
 
 
-| Key      | Values                                                                       |
-|----------|------------------------------------------------------------------------------|
-| notifier | Must be `log`                                                                |
+| Key      | Values            |
+|----------|-------------------|
+| notifier | Must be `app_log` |
 
 

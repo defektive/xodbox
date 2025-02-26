@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/analog-substance/util/cli/build_info"
-	model2 "github.com/defektive/xodbox/pkg/model"
-	"github.com/defektive/xodbox/pkg/util"
+	"github.com/defektive/xodbox/pkg/model"
 	"net/http"
-	"net/http/httputil"
 	"strconv"
 	"strings"
 	"text/template"
@@ -21,9 +19,8 @@ var payloads = []*Payload{}
 
 // Payload is the HTTPX specific payload database model
 type Payload struct {
-	model2.Payload
-	Data PayloadData `json,yaml:"data" gorm:"serializer:json"`
-
+	model.Payload
+	Data            PayloadData `json,yaml:"data" gorm:"serializer:json"`
 	headerTemplates []*HeaderTemplate
 	bodyTemplate    *template.Template
 	statusTemplate  *template.Template
@@ -46,7 +43,7 @@ type HeaderTemplate struct {
 }
 
 func NewHTTPPayload() *Payload {
-	return &Payload{Payload: model2.Payload{Type: PayloadName}}
+	return &Payload{Payload: model.Payload{Type: PayloadName}}
 }
 
 // TableName tells gorm to the payloads table
@@ -61,8 +58,8 @@ func (h *Payload) HeaderTemplates() []*HeaderTemplate {
 		var i = 0
 		for header, value := range h.Data.Headers {
 			t := &HeaderTemplate{
-				HeaderTemplate: util.CreateTemplate(fmt.Sprintf("HTTP_PAYLOAD_%d_h_header_%d", h.ID, i), header),
-				ValueTemplate:  util.CreateTemplate(fmt.Sprintf("HTTP_PAYLOAD_%d_h_value_%d", h.ID, i), value),
+				HeaderTemplate: template.Must(template.New(fmt.Sprintf("HTTP_PAYLOAD_%d_h_header_%d", h.ID, i)).Parse(header)),
+				ValueTemplate:  template.Must(template.New(fmt.Sprintf("HTTP_PAYLOAD_%d_h_value_%d", h.ID, i)).Parse(value)),
 			}
 			h.headerTemplates = append(h.headerTemplates, t)
 		}
@@ -74,7 +71,7 @@ func (h *Payload) HeaderTemplates() []*HeaderTemplate {
 // BodyTemplate initialize and/or return already initialized body template
 func (h *Payload) BodyTemplate() *template.Template {
 	if h.bodyTemplate == nil {
-		h.bodyTemplate = util.CreateTemplate(fmt.Sprintf("HTTP_PAYLOAD_%d_body", h.ID), h.Data.Body)
+		h.bodyTemplate = template.Must(template.New(fmt.Sprintf("HTTP_PAYLOAD_%d_body", h.ID)).Parse(h.Data.Body))
 	}
 
 	return h.bodyTemplate
@@ -83,7 +80,7 @@ func (h *Payload) BodyTemplate() *template.Template {
 // StatusTemplate initialize and/or return already initialized status template
 func (h *Payload) StatusTemplate() *template.Template {
 	if h.statusTemplate == nil {
-		h.statusTemplate = util.CreateTemplate(fmt.Sprintf("%s_status_code", PayloadName), h.Data.StatusCode)
+		h.statusTemplate = template.Must(template.New(fmt.Sprintf("%s_status_code", PayloadName)).Parse(h.Data.StatusCode))
 	}
 	return h.statusTemplate
 }
@@ -117,10 +114,9 @@ func (h *Payload) ShouldProcess(r *http.Request) bool {
 }
 
 // Process this is where the magic happens.
-func (h *Payload) Process(w http.ResponseWriter, r *http.Request, body []byte, templateData map[string]string) {
+func (h *Payload) Process(w http.ResponseWriter, e *Event, templateData map[string]string) {
 
-	fullRequestBytes, _ := httputil.DumpRequest(r, true)
-	requestStr := string(fullRequestBytes)
+	r := e.Request()
 
 	remoteAddrs := []string{r.RemoteAddr}
 	headerIP := r.Header.Get("X-Forwarded-For")
@@ -141,7 +137,10 @@ func (h *Payload) Process(w http.ResponseWriter, r *http.Request, body []byte, t
 
 	templateData["Host"] = r.Host
 	templateData["Path"] = r.URL.Path
-	templateData["Body"] = requestStr
+
+	fullRequestBytes := e.RawRequest()
+
+	templateData["Body"] = string(fullRequestBytes)
 
 	templateData["CallBackImageURL"] = fmt.Sprintf("http://%s%s?&xdbxImage", r.Host, r.RequestURI)
 	templateData["CallBackURL"] = fmt.Sprintf("http://%s%s?&xdbx", r.Host, r.RequestURI)
@@ -189,7 +188,7 @@ func (h *Payload) Process(w http.ResponseWriter, r *http.Request, body []byte, t
 
 	if h.InternalFunction == InternalFnInspect {
 		// ghetto hack cause I am lazy
-		err := Inspect(w, r, body, requestStr)
+		err := Inspect(w, e)
 		if err != nil {
 			lg().Error("Error executing inspect template: ", "err", err)
 		}
@@ -207,7 +206,7 @@ func SortedPayloads() []*Payload {
 	if len(payloads) == 0 {
 		loadStart := time.Now()
 		lg().Warn("Loading payloads")
-		model2.DB().Where("type = ?", PayloadName).Order("sort_order, project_id, pattern asc").Find(&payloads)
+		model.DB().Where("type = ?", PayloadName).Order("sort_order, project_id, pattern asc").Find(&payloads)
 		timeTaken := time.Now().Sub(loadStart)
 		lg().Debug("Loading payloads", "timeTaken", timeTaken)
 	}

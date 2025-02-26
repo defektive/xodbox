@@ -1,7 +1,6 @@
 package cmd
 
 import (
-	"github.com/defektive/xodbox/cmd/xodbox-validator/tests"
 	"github.com/spf13/cobra"
 	"os"
 )
@@ -13,10 +12,10 @@ var RootCmd = &cobra.Command{
 	Use:   "xodbox-validator",
 	Short: "A vulnerable application validator for xodbox",
 	Long:  `A vulnerable application validator for xodbox`,
-	Run: func(cmd *cobra.Command, args []string) {
-
-		tests.XXE()
-	},
+	//Run: func(cmd *cobra.Command, args []string) {
+	//
+	//	//tests.XXE()
+	//},
 }
 
 // Execute adds all child commands to the root command and sets flags appropriately.
