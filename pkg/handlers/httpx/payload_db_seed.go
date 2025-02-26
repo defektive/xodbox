@@ -3,7 +3,7 @@ package httpx
 import (
 	"embed"
 	"github.com/adrg/frontmatter"
-	"github.com/defektive/xodbox/pkg/app/model"
+	"github.com/defektive/xodbox/pkg/model"
 	"gorm.io/gorm"
 	"io/fs"
 )
@@ -67,7 +67,7 @@ func Seed(dbh *gorm.DB) {
 			seedPayload.Project = model.DefaultProject()
 			tx := dbh.Create(seedPayload)
 			if tx.Error != nil {
-				lg().Error("failed to seed", tx.Error, "type", seedPayload.Type, "pattern", seedPayload.Pattern)
+				lg().Error("failed to seed", "tx.Error", tx.Error, "type", seedPayload.Type, "pattern", seedPayload.Pattern)
 			}
 		}
 	}

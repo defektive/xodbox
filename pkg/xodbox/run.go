@@ -1,13 +1,14 @@
-package app
+package xodbox
 
 import (
-	"github.com/defektive/xodbox/pkg/app/types"
+	"github.com/defektive/xodbox/pkg/types"
+	"maps"
 	"os"
 )
 
-func NewXodbox(config *AppConfig) *Xodbox {
+func NewApp(config *Config) *App {
 
-	xodbox := &Xodbox{
+	newApp := &App{
 		appConfig:            config,
 		eventChan:            make(chan types.InteractionEvent),
 		notificationHandlers: []types.Notifier{},
@@ -15,19 +16,19 @@ func NewXodbox(config *AppConfig) *Xodbox {
 
 	for _, notifier := range config.Notifiers {
 		lg().Debug("notifier: ", "notifier", notifier.Name())
-		xodbox.RegisterNotificationHandler(notifier)
+		newApp.RegisterNotificationHandler(notifier)
 	}
 
-	return xodbox
+	return newApp
 }
 
-type Xodbox struct {
-	appConfig            *AppConfig
+type App struct {
+	appConfig            *Config
 	eventChan            chan types.InteractionEvent
 	notificationHandlers []types.Notifier
 }
 
-func (x *Xodbox) Run() {
+func (x *App) Run() {
 	for _, h := range x.appConfig.Handlers {
 		lg().Debug("Running handler", "handler", h)
 		go (func() {
@@ -42,15 +43,15 @@ func (x *Xodbox) Run() {
 	x.waitForEvents()
 }
 
-func (x *Xodbox) RegisterNotificationHandler(n types.Notifier) {
+func (x *App) RegisterNotificationHandler(n types.Notifier) {
 	x.notificationHandlers = append(x.notificationHandlers, n)
 }
 
-func (x *Xodbox) GetTemplateData() map[string]string {
-	return x.appConfig.TemplateData
+func (x *App) GetTemplateData() map[string]string {
+	return maps.Clone(x.appConfig.TemplateData)
 }
 
-func (x *Xodbox) waitForEvents() {
+func (x *App) waitForEvents() {
 	lg().Debug("Waiting for events...")
 	for {
 		newEvent := <-x.eventChan

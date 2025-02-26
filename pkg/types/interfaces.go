@@ -14,6 +14,7 @@ type InteractionEvent interface {
 	RemotePort() int
 	UserAgent() string
 	Data() string
+	Dispatch(cc chan InteractionEvent)
 }
 
 type Handler interface {

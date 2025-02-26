@@ -3,10 +3,8 @@ package webhook
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
-	"github.com/defektive/xodbox/pkg/app/types"
+	"github.com/defektive/xodbox/pkg/types"
 	"io"
-	"log"
 	"net/http"
 	"regexp"
 )
@@ -17,7 +15,7 @@ type Notifier struct {
 	filter *regexp.Regexp
 }
 
-func NewWebhookNotifier(url string, filter string) *Notifier {
+func NewNotifier(url string, filter string) *Notifier {
 
 	if filter == "" {
 		filter = ".*"
@@ -38,14 +36,7 @@ func (wh *Notifier) Filter() *regexp.Regexp {
 	return wh.filter
 }
 
-func (wh *Notifier) Endpoint() string {
-	return wh.URL
-}
-
 func (wh *Notifier) Send(event types.InteractionEvent) error {
-
-	log.Println("here")
-
 	jsonBody, err := wh.Payload(event)
 	if err != nil {
 		lg().Error("error marshaling JSON", "err", err)
@@ -58,22 +49,39 @@ func (wh *Notifier) Send(event types.InteractionEvent) error {
 func SendPost(url string, payload []byte) error {
 	res, err := http.Post(url, "application/json", bytes.NewBuffer(payload))
 	if err != nil {
-		lg().Error("Slack notification error", "err", err)
+		lg().Error("Webhook notification error", "err", err)
 		return err
 	}
 
 	if res.StatusCode > 399 {
 		b, _ := io.ReadAll(res.Body)
-		lg().Error("Slack notification error", "StatusCode", res.StatusCode, "body", string(b))
+		lg().Error("Webhook notification error", "StatusCode", res.StatusCode, "body", string(b))
 		return err
 	}
 
-	lg().Info("Slack notification sent", "status", res.StatusCode)
+	lg().Info("Webhook notification sent", "status", res.StatusCode)
 	return nil
 }
 
+type jsonEvent struct {
+	RemoteAddr string
+	RemotePort int
+	UserAgent  string
+	Data       interface{}
+	Details    string
+}
+
 func (wh *Notifier) Payload(e types.InteractionEvent) ([]byte, error) {
-	return json.Marshal(fmt.Sprintf("%s\n```%s\n```", e.Details(), e.Data()))
+
+	res := jsonEvent{
+		RemoteAddr: e.RemoteIP(),
+		RemotePort: e.RemotePort(),
+		UserAgent:  e.UserAgent(),
+		Data:       e.Data(),
+		Details:    e.Details(),
+	}
+
+	return json.Marshal(res)
 }
 
 func FilterMatches(filter *regexp.Regexp, data string) bool {

@@ -4,6 +4,7 @@ go 1.23.5
 
 require (
 	github.com/analog-substance/util v1.1.3
+	github.com/lestrrat-go/libxml2 v0.0.0-20240905100032-c934e3fcb9d3
 	github.com/spf13/cobra v1.8.1
 )
 
@@ -18,7 +19,6 @@ require (
 	github.com/dlclark/regexp2 v1.11.4 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
-	github.com/lestrrat-go/libxml2 v0.0.0-20240905100032-c934e3fcb9d3 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect

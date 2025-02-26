@@ -3,8 +3,8 @@ package discord
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/defektive/xodbox/pkg/app/types"
 	"github.com/defektive/xodbox/pkg/notifiers/webhook"
+	"github.com/defektive/xodbox/pkg/types"
 )
 
 type POSTData struct {
@@ -27,7 +27,7 @@ func NewNotifier(notifierConfig map[string]string) types.Notifier {
 	filter := notifierConfig["filter"]
 
 	return &Notifier{
-		Notifier: webhook.NewWebhookNotifier(url, filter),
+		Notifier: webhook.NewNotifier(url, filter),
 		User:     user,
 		Icon:     icon,
 	}

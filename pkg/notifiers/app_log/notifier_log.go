@@ -1,7 +1,7 @@
 package app_log
 
 import (
-	"github.com/defektive/xodbox/pkg/app/types"
+	"github.com/defektive/xodbox/pkg/types"
 	"regexp"
 )
 
@@ -28,15 +28,12 @@ func (wh *Notifier) Name() string {
 	return "app_log"
 }
 
-func (wh *Notifier) Endpoint() string {
-	return "file"
-}
-
-func (wh *Notifier) Payload(e types.InteractionEvent) ([]byte, error) {
-	return []byte{}, nil
+func (wh *Notifier) Payload(e types.InteractionEvent) (string, []any) {
+	return "InteractionEvent received", []any{"details", e.Details()}
 }
 
 func (wh *Notifier) Send(e types.InteractionEvent) error {
-	lg().Info("InteractionEvent received", "details", e.Details())
+	msg, args := wh.Payload(e)
+	lg().Info(msg, args...)
 	return nil
 }

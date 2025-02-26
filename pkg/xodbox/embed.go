@@ -1,4 +1,4 @@
-package static
+package xodbox
 
 import (
 	"embed"

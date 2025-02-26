@@ -3,19 +3,15 @@ package httpx
 import (
 	"fmt"
 	"github.com/analog-substance/util/fileutil"
-	"github.com/defektive/xodbox/pkg/app/model"
-	"github.com/defektive/xodbox/pkg/app/types"
+	"github.com/defektive/xodbox/pkg/model"
+	"github.com/defektive/xodbox/pkg/types"
 	"golang.org/x/crypto/acme"
 	"golang.org/x/crypto/acme/autocert"
-	"io"
 	"io/fs"
 	"log"
 	"net"
 	"net/http"
-	"net/http/httputil"
-	"net/url"
 	"os"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -53,37 +49,6 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	}
 }
 
-type Event struct {
-	*types.BaseEvent
-	req *http.Request
-}
-
-func newHTTPEvent(req *http.Request, body []byte) types.InteractionEvent {
-	remoteAddrURL := fmt.Sprintf("https://%s", req.RemoteAddr)
-	parsedURL, _ := url.Parse(remoteAddrURL)
-	portNum, _ := strconv.Atoi(parsedURL.Port())
-	dump, _ := httputil.DumpRequest(req, false)
-	dump = append(dump, body...)
-
-	return &Event{
-		BaseEvent: &types.BaseEvent{
-			RemoteAddr:       parsedURL.Hostname(),
-			RemotePortNumber: portNum,
-			UserAgentString:  req.UserAgent(),
-			RawData:          dump,
-		},
-		req: req,
-	}
-}
-
-func (e *Event) Details() string {
-	return fmt.Sprintf("HTTPX: %s %s://%s%s from %s", e.req.Method, "http", e.req.Host, e.req.URL.String(), e.req.RemoteAddr)
-}
-
-func (h *Handler) dispatchEvent(r *http.Request, body []byte) {
-	h.dispatchChannel <- newHTTPEvent(r, body)
-}
-
 func (h *Handler) Name() string {
 	return h.name
 }
@@ -114,22 +79,22 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		loadStart := time.Now()
-		body, _ := io.ReadAll(r.Body)
-		defer r.Body.Close()
-		go h.dispatchEvent(r, body)
+		defer func() {
+			lg().Debug("http response completed", "timeTaken", fmt.Sprintf("%dµs", time.Since(loadStart).Microseconds()))
+		}()
+		e := NewEvent(r)
+
+		e.Dispatch(h.dispatchChannel)
 
 		for _, payload := range SortedPayloads() {
 			if payload.ShouldProcess(r) {
-				payload.Process(w, r, body, app.GetTemplateData())
+				payload.Process(w, e, app.GetTemplateData())
 				lg().Debug("Processing payload", "payload", payload, "IsFinal", payload.IsFinal)
 				if payload.IsFinal {
 					break
 				}
 			}
 		}
-
-		timeTaken := time.Now().Sub(loadStart)
-		lg().Debug("http response completed", "timeTaken", timeTaken)
 	})
 
 	domains := ""

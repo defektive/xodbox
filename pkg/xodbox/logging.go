@@ -1,4 +1,4 @@
-package app
+package xodbox
 
 import (
 	"github.com/defektive/xodbox/pkg/xlog"

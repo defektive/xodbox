@@ -1,9 +1,9 @@
 package cmd
 
 import (
-	"github.com/defektive/xodbox/pkg/app"
-	"github.com/defektive/xodbox/pkg/app/model"
+	"github.com/defektive/xodbox/pkg/model"
 	"github.com/defektive/xodbox/pkg/xlog"
+	"github.com/defektive/xodbox/pkg/xodbox"
 	"log/slog"
 	"os"
 
@@ -11,8 +11,8 @@ import (
 )
 
 var configFile string
-var appConfig *app.AppConfig
-var xodbox *app.Xodbox
+var xdbxConfig *xodbox.Config
+var xdbx *xodbox.App
 var resetDB = false
 var debug = false
 
@@ -40,7 +40,7 @@ var XodboxCmd = &cobra.Command{
 			model.LoadDBWithOptions(model.DBOptions{Reset: true})
 		}
 
-		appConfig = app.LoadApp(configFile)
+		xdbxConfig = xodbox.LoadConfig(configFile)
 		return nil
 	},
 }
@@ -55,7 +55,7 @@ func Execute() {
 }
 
 func init() {
-	XodboxCmd.PersistentFlags().StringVar(&configFile, "config", app.ConfigFileName, "Config file path")
+	XodboxCmd.PersistentFlags().StringVar(&configFile, "config", xodbox.ConfigFileName, "Config file path")
 	XodboxCmd.PersistentFlags().BoolVar(&resetDB, "reset-db", false, "Reset database")
 	XodboxCmd.PersistentFlags().BoolVar(&debug, "debug", false, "Debug mode")
 }
