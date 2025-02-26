@@ -1,0 +1,20 @@
+handlers:
+  - handler: DNS
+    listener: 127.0.10.1:53
+    default_ip: 127.0.0.1
+  - handler: HTTPX
+
+    listener: :80
+notifiers:
+  #    - notifier: slack
+  #      url: https://hooks.slack.com/services/T0...N
+  #      channel: D1KJU4C0H
+  #      author: PirateVirus
+  #      author_image: ':pirate:'
+  #      filter: "/l"
+  #    - notifier: discord
+  #      url: https://discord.com/api/webhooks/133...6C
+  #      author: PirateVirus
+  #      author_image: https://s3-us-west-2.amazonaws.com/slack-f...72.png
+  #      filter: "/l"
+  - notifier: app_log
