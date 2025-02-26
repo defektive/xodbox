@@ -15,7 +15,7 @@ var configCmd = &cobra.Command{
 	// has an action associated with it:
 
 	Run: func(cmd *cobra.Command, args []string) {
-		bytes, err := yaml.Marshal(appConfig)
+		bytes, err := yaml.Marshal(xdbxConfig)
 
 		if err != nil {
 			panic(err)

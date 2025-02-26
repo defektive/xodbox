@@ -1,7 +1,7 @@
 package cmd
 
 import (
-	"github.com/defektive/xodbox/pkg/app"
+	"github.com/defektive/xodbox/pkg/xodbox"
 	"github.com/spf13/cobra"
 )
 
@@ -14,9 +14,9 @@ var serveCmd = &cobra.Command{
 	// has an action associated with it:
 
 	Run: func(cmd *cobra.Command, args []string) {
-		xodbox = app.NewXodbox(appConfig)
+		xdbx = xodbox.NewApp(xdbxConfig)
 
-		xodbox.Run()
+		xdbx.Run()
 	},
 }
 

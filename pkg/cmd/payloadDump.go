@@ -2,8 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"github.com/defektive/xodbox/pkg/app"
 	"github.com/defektive/xodbox/pkg/model"
+	"github.com/defektive/xodbox/pkg/xodbox"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
 )
@@ -17,8 +17,8 @@ var payloadDumpCmd = &cobra.Command{
 	// has an action associated with it:
 
 	Run: func(cmd *cobra.Command, args []string) {
-		appConfig := app.LoadApp("xodbox.yaml")
-		xodbox = app.NewXodbox(appConfig)
+		appConfig := xodbox.LoadConfig("xodbox.yaml")
+		xdbx = xodbox.NewApp(appConfig)
 
 		payloads := model.SortedPayloads()
 
