@@ -38,8 +38,14 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	Seed(model.DB())
 
 	staticDir := handlerConfig["static_dir"]
+	payloadDir := handlerConfig["payload_dir"]
 	listener := handlerConfig["listener"]
 	autoCert := handlerConfig["autocert"] == "true"
+
+	if payloadDir != "" {
+		lg().Debug("payload dir supplied", "payload_dir", payloadDir)
+		CreatePayloadsFromDir(payloadDir, model.DB())
+	}
 
 	return &Handler{
 		name:      "HTTPX",

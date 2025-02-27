@@ -11,11 +11,12 @@ Speak HTTP to other computers you may or may not control....
 
 ## Configuration
 
-| Key                 | Values                                                                            |
-|---------------------|-----------------------------------------------------------------------------------|
-| handler             | Must be `HTTPX`                                                                   |
-| listener            | Default `:80`                                                                     |
-| static_dir          | Directory to host static files from                                               |
+| Key         | Values                              |
+|-------------|-------------------------------------|
+| handler     | Must be `HTTPX`                     |
+| listener    | Default `:80`                       |
+| static_dir  | Directory to host static files from |
+| payload_dir | Directory to import payloads from   |
 
 
 ### WIP configs that are not fully implemented
