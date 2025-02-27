@@ -23,12 +23,11 @@ func Seed(dbh *gorm.DB) {
 
 func CreatePayloadsFromDir(dir string, dbh *gorm.DB) {
 	fsDir := os.DirFS(dir)
-	newPayloads := getPayloadsFromFS(fsDir)
-	CreatePayloads(newPayloads, dbh)
+	CreatePayloadsFromFS(fsDir, dbh)
 }
 
 func CreatePayloadsFromFS(fsDir fs.FS, dbh *gorm.DB) {
-	seedPayloads := getPayloadsFromFS(&embeddedSeedFS)
+	seedPayloads := getPayloadsFromFS(fsDir)
 	CreatePayloads(seedPayloads, dbh)
 }
 
