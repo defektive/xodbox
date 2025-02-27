@@ -6,6 +6,7 @@ require (
 	github.com/adrg/frontmatter v0.2.0
 	github.com/analog-substance/util v1.1.5
 	github.com/factomproject/basen v0.0.0-20150613233007-fe3947df716e
+	github.com/fsnotify/fsnotify v1.8.0
 	github.com/glebarez/sqlite v1.11.0
 	github.com/miekg/dns v1.1.63
 	github.com/spf13/cobra v1.9.1
