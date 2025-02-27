@@ -6,6 +6,8 @@ menu: {main: {weight: 20}}
 > Network interaction listening post
 > https://defektive.github.io/xodbox/
 
+[![Go Tests](https://github.com/defektive/xodbox/actions/workflows/go-tests.yml/badge.svg)](https://github.com/defektive/xodbox/actions/workflows/go-tests.yml)
+
 ## Purpose
 
 Quickly determine if an application reaches out to remote network based services. Easily create custom responses to test
