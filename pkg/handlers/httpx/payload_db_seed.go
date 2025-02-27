@@ -37,7 +37,7 @@ func CreatePayloads(payloads []*Payload, dbh *gorm.DB) {
 		payload.Project = model.DefaultProject()
 		tx := dbh.Create(payload)
 		if tx.Error != nil {
-			lg().Error("failed to seed", "tx.Error", tx.Error, "type", payload.Type, "pattern", payload.Pattern)
+			lg().Error("failed to create payload", "tx.Error", tx.Error, "name", payload.Name, "type", payload.Type, "pattern", payload.Pattern)
 		}
 	}
 }
@@ -73,40 +73,26 @@ func getPayloadsFromFS(fsToCheck fs.FS) []*Payload {
 			panic(err)
 		}
 
-		newPayloads = append(newPayloads, getPayloadsFromFrontmatter(f)...)
+		newPayloads = append(newPayloads, getPayloadsFromFrontmatter(f))
 	}
 
 	return newPayloads
 }
 
-func getPayloadsFromFrontmatter(f io.Reader) []*Payload {
-	var seedData = matter{}
+func getPayloadsFromFrontmatter(f io.Reader) *Payload {
+	var seedData = &SeedPayload{}
 	if _, err := frontmatter.Parse(f, &seedData); err != nil {
 		lg().Error("failed to get front matter from:", "reader", f)
 		panic(err)
 	}
 
-	return seedData.ToHTTPPayloads()
-}
-
-type matter struct {
-	Title       string         `yaml:"title"`
-	Description string         `yaml:"description"`
-	Payloads    []*SeedPayload `yaml:"payloads"`
-}
-
-func (m matter) ToHTTPPayloads() []*Payload {
-	var httpPayloads []*Payload
-	for _, p := range m.Payloads {
-		httpPayloads = append(httpPayloads, p.ToHTTPPayload())
-	}
-
-	return httpPayloads
+	return seedData.ToHTTPPayload()
 }
 
 type SeedPayload struct {
-	Type             string       `yaml:"type"`
-	SortOrder        int          `yaml:"sort_order"`
+	Title            string       `yaml:"title"`
+	Description      string       `yaml:"description"`
+	Weight           int          `yaml:"weight"`
 	Pattern          string       `yaml:"pattern"`
 	InternalFunction string       `yaml:"internal_function"`
 	IsFinal          bool         `yaml:"is_final"`
@@ -116,8 +102,10 @@ type SeedPayload struct {
 func (s *SeedPayload) ToHTTPPayload() *Payload {
 	n := NewHTTPPayload()
 	n.Project = model.DefaultProject()
+	n.Name = s.Title
+	n.Description = s.Description
 	n.Pattern = s.Pattern
-	n.SortOrder = s.SortOrder
+	n.SortOrder = s.Weight
 	n.IsFinal = s.IsFinal
 
 	if s.InternalFunction != "" {

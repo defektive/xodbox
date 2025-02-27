@@ -2,22 +2,20 @@
 title: Inspect
 description: Reflect back HTTP requests in various formats
 weight: -500
-payloads:
-  - sort_order: -500
-    pattern: /inspect
-    internal_function: inspect
-    is_final: true
-    data:
-      body: |
-        <!DOCTYPE html>
-        <html>
-          <head>
-            <meta charset="utf-8">
-          </head>
-          <body>
-            <script src="//{{.Host}}/jsc"></script>
-          </body>
-        </html>
+pattern: /inspect
+internal_function: inspect
+is_final: true
+data:
+  body: |
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <meta charset="utf-8">
+      </head>
+      <body>
+        <script src="//{{.Host}}/jsc"></script>
+      </body>
+    </html>
 
 ---
 

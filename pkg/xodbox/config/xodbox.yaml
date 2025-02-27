@@ -3,12 +3,13 @@ handlers:
     listener: 127.0.10.1:53
     default_ip: 127.0.0.1
   - handler: HTTPX
-
+#    payload_dir: custom-payloads/http
+#    static_dir: xodbox-static
     listener: :80
 notifiers:
   #    - notifier: slack
   #      url: https://hooks.slack.com/services/T0...N
-  #      channel: D1KJU4C0H
+  #      channel: general
   #      author: PirateVirus
   #      author_image: ':pirate:'
   #      filter: "/l"

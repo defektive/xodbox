@@ -3,7 +3,8 @@ title: WPAD
 description: Returns a WPAD config file (Javascript).
 weight: 1
 payloads:
-  - type: HTTPX
+  - name: WPAD
+    type: HTTPX
     project_id: 1
     sort_order: 1
     pattern: /wpad\.dat
