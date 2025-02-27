@@ -2,15 +2,13 @@
 title: Redirect
 description: HTTP Redirects
 weight: -900
-payloads:
-  - sort_order: -980
-    pattern: ^/redir
-    is_final: true
-    data:
-      status_code: "{{.GET_s}}"
-      headers:
-        Location: "{{.GET_l}}"
-      body: "so long!"
+pattern: ^/redir
+is_final: true
+data:
+  status_code: "{{.GET_s}}"
+  headers:
+    Location: "{{.GET_l}}"
+  body: "so long!"
 ---
 
 HTTP Redirects to the query parameter `l` using the query param `s` as the status code.

@@ -28,14 +28,14 @@ type Payload struct {
 	ProjectID uint     `json,yaml:"project_id"`
 	Project   *Project `yaml:"-" yaml:"-"`
 
-	SortOrder int `yaml:"sort_order"`
-
+	Name             string `json,yaml:"name" gorm:"unique"`
+	Description      string `json,yaml:"description"`
 	Pattern          string `json,yaml:"pattern"`
 	InternalFunction string `json,yaml:"internal_function"`
 	IsFinal          bool   `json,yaml:"is_final"`
+	SortOrder        int    `yaml:"sort_order"`
 
-	Data string `json,yaml:"data"`
-
+	Data          string `json,yaml:"data"`
 	patternRegexp *regexp.Regexp
 }
 

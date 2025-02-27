@@ -1,13 +1,11 @@
 ---
 title: Robots TXT
-description: Adds the default header to all HTTP responses.
+description: A restrictive robots.txt
 weight: -900
-payloads:
-  - sort_order: -900
-    pattern: ^/robots\.txt
-    is_final: true
-    data:
-      body: "User-agent: *\nDisallow: /\n"
+pattern: ^/robots\.txt
+is_final: true
+data:
+  body: "User-agent: *\nDisallow: /\n"
 ---
 
 Simple robots txt to prevent indexing.

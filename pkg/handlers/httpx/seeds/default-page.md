@@ -1,15 +1,13 @@
 ---
 title: Default Page
-description: Adds the default header to all HTTP responses.
+description: returns a simple page if nothing is matched
 weight: 9999
-payloads:
-  - sort_order: 9999
-    pattern: ^/
-    is_final: true
-    data:
-      headers:
-        content-type: text/plain
-      body: hi
+pattern: ^/
+is_final: true
+data:
+  headers:
+    content-type: text/plain
+  body: hi
 ---
 
 Adds an HTTP header to all HTTP responses.

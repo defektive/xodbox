@@ -1,16 +1,48 @@
 package httpx
 
 import (
-	"embed"
 	"github.com/adrg/frontmatter"
 	"github.com/defektive/xodbox/pkg/model"
 	"gorm.io/gorm"
+	"io"
 	"io/fs"
+	"os"
 )
 
 const InternalFnInspect = "inspect"
 
-func getAllFilenames(efs *embed.FS) (files []string, err error) {
+var seeded = false
+
+func Seed(dbh *gorm.DB) {
+	if !seeded {
+		seeded = true
+		CreatePayloadsFromFS(&embeddedSeedFS, dbh)
+
+	}
+}
+
+func CreatePayloadsFromDir(dir string, dbh *gorm.DB) {
+	fsDir := os.DirFS(dir)
+	CreatePayloadsFromFS(fsDir, dbh)
+}
+
+func CreatePayloadsFromFS(fsDir fs.FS, dbh *gorm.DB) {
+	seedPayloads := getPayloadsFromFS(fsDir)
+	CreatePayloads(seedPayloads, dbh)
+}
+
+// CreatePayloads creates new payloads.
+func CreatePayloads(payloads []*Payload, dbh *gorm.DB) {
+	for _, payload := range payloads {
+		payload.Project = model.DefaultProject()
+		tx := dbh.Create(payload)
+		if tx.Error != nil {
+			lg().Error("failed to create payload", "tx.Error", tx.Error, "name", payload.Name, "type", payload.Type, "pattern", payload.Pattern)
+		}
+	}
+}
+
+func getAllFilenames(efs fs.FS) (files []string, err error) {
 	if err := fs.WalkDir(efs, ".", func(path string, d fs.DirEntry, err error) error {
 		if d.IsDir() {
 			return nil
@@ -26,71 +58,41 @@ func getAllFilenames(efs *embed.FS) (files []string, err error) {
 	return files, nil
 }
 
-func getSeedsFromFiles() []*Payload {
+func getPayloadsFromFS(fsToCheck fs.FS) []*Payload {
 
-	embeddedFiles, err := getAllFilenames(&embeddedSeedFS)
+	files, err := getAllFilenames(fsToCheck)
 	if err != nil {
 		panic(err)
 	}
 
-	seedPayloads := []*Payload{}
+	newPayloads := []*Payload{}
 
-	for _, embeddedFile := range embeddedFiles {
-		f, err := embeddedSeedFS.Open(embeddedFile)
+	for _, nextFile := range files {
+		f, err := fsToCheck.Open(nextFile)
 		if err != nil {
 			panic(err)
 		}
 
-		var seedData = matter{}
-		if _, err := frontmatter.Parse(f, &seedData); err != nil {
-			lg().Error("failed to get front matter from:", "embeddedFile", embeddedFile)
-			panic(err)
-		}
-
-		for _, payload := range seedData.Payloads {
-
-			lg().Debug("found seed", "file", embeddedFile, "pattern", payload.Pattern, "isfinal", payload.IsFinal)
-		}
-		seedPayloads = append(seedPayloads, seedData.ToHTTPPayloads()...)
+		newPayloads = append(newPayloads, getPayloadsFromFrontmatter(f))
 	}
 
-	return seedPayloads
+	return newPayloads
 }
 
-var seeded = false
-
-func Seed(dbh *gorm.DB) {
-	if !seeded {
-		seeded = true
-		seedPayloads := getSeedsFromFiles()
-		for _, seedPayload := range seedPayloads {
-			seedPayload.Project = model.DefaultProject()
-			tx := dbh.Create(seedPayload)
-			if tx.Error != nil {
-				lg().Error("failed to seed", "tx.Error", tx.Error, "type", seedPayload.Type, "pattern", seedPayload.Pattern)
-			}
-		}
-	}
-}
-
-type matter struct {
-	Title       string         `yaml:"title"`
-	Description string         `yaml:"description"`
-	Payloads    []*SeedPayload `yaml:"payloads"`
-}
-
-func (m matter) ToHTTPPayloads() []*Payload {
-	var httpPayloads []*Payload
-	for _, p := range m.Payloads {
-		httpPayloads = append(httpPayloads, p.ToHTTPPayload())
+func getPayloadsFromFrontmatter(f io.Reader) *Payload {
+	var seedData = &SeedPayload{}
+	if _, err := frontmatter.Parse(f, &seedData); err != nil {
+		lg().Error("failed to get front matter from:", "reader", f)
+		panic(err)
 	}
 
-	return httpPayloads
+	return seedData.ToHTTPPayload()
 }
 
 type SeedPayload struct {
-	Type             string       `yaml:"type"`
-	SortOrder        int          `yaml:"sort_order"`
+	Title            string       `yaml:"title"`
+	Description      string       `yaml:"description"`
+	Weight           int          `yaml:"weight"`
 	Pattern          string       `yaml:"pattern"`
 	InternalFunction string       `yaml:"internal_function"`
 	IsFinal          bool         `yaml:"is_final"`
@@ -100,8 +102,10 @@ type SeedPayload struct {
 func (s *SeedPayload) ToHTTPPayload() *Payload {
 	n := NewHTTPPayload()
 	n.Project = model.DefaultProject()
+	n.Name = s.Title
+	n.Description = s.Description
 	n.Pattern = s.Pattern
-	n.SortOrder = s.SortOrder
+	n.SortOrder = s.Weight
 	n.IsFinal = s.IsFinal
 
 	if s.InternalFunction != "" {
