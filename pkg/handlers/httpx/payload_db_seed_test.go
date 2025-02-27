@@ -2,6 +2,8 @@ package httpx
 
 import (
 	"io/fs"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -19,6 +21,14 @@ func Test_compileEmbeddedPayloadTemplates(t *testing.T) {
 			name: "Embedded payloads templates compile",
 			args: args{
 				&embeddedSeedFS,
+			},
+			want:    nil,
+			wantErr: false,
+		},
+		{
+			name: "Example payloads templates compile",
+			args: args{
+				os.DirFS(filepath.Join("examples")),
 			},
 			want:    nil,
 			wantErr: false,

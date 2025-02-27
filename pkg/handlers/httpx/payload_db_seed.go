@@ -53,6 +53,9 @@ func getAllFilenames(efs fs.FS) (files []string, err error) {
 		if d.IsDir() {
 			return nil
 		}
+		if d.Name() == "_index.md" {
+			return nil
+		}
 
 		files = append(files, path)
 
