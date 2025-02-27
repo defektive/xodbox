@@ -19,7 +19,7 @@ data:
 
 ---
 
-List Payloods
+List Payloads
 
 ```yaml
 ---
