@@ -162,7 +162,7 @@ func autocertListener(staging bool, domains ...string) net.Listener {
 
 	dir := "certs"
 	if err := os.MkdirAll(dir, 0700); err != nil {
-		lg().Warn("autocert.NewListener not using a cache: %v", err)
+		lg().Warn("autocert.NewListener not using a cache: %v", "err", err)
 	} else {
 		m.Cache = autocert.DirCache(dir)
 	}
@@ -198,7 +198,7 @@ func watchForChanges(dirToWatch string) {
 			case event := <-watcher.Events:
 				lg().Debug("watcher.Error", "event", event)
 
-				fileMods[event.Name] = true
+				modifiedFiles[event.Name] = true
 				go dbncr(handleFileEvent)
 
 			case err := <-watcher.Errors:
@@ -210,7 +210,7 @@ func watchForChanges(dirToWatch string) {
 	<-done
 }
 
-var fileMods = map[string]bool{}
+var modifiedFiles = map[string]bool{}
 
 func watchDir(path string, fi os.FileInfo, err error) error {
 	if fi.Mode().IsDir() {
@@ -221,15 +221,19 @@ func watchDir(path string, fi os.FileInfo, err error) error {
 }
 
 func handleFileEvent() {
-	for fileMod := range fileMods {
-		delete(fileMods, fileMod)
-		f, err := os.Open(fileMod)
+	for modifiedFile := range modifiedFiles {
+		delete(modifiedFiles, modifiedFile)
+		f, err := os.Open(modifiedFile)
 		if err != nil {
-			lg().Error("error opening file", "err", err)
+			lg().Error("error opening file", "file", modifiedFile, "err", err)
 			continue
 		}
 
 		p, err := getPayloadsFromFrontmatter(f)
+		if err != nil {
+			lg().Error("error getting frontmatter", "file", modifiedFile, "err", err)
+			continue
+		}
 
 		p.Project = model.DefaultProject()
 
