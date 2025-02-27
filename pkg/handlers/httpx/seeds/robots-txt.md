@@ -5,7 +5,9 @@ weight: -900
 pattern: ^/robots\.txt
 is_final: true
 data:
-  body: "User-agent: *\nDisallow: /\n"
+  body: |
+    User-agent: *
+    Disallow: /
 ---
 
 Simple robots txt to prevent indexing.

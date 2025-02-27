@@ -3,8 +3,8 @@ package httpx
 import (
 	"bytes"
 	"fmt"
-	"github.com/analog-substance/util/cli/build_info"
 	"github.com/defektive/xodbox/pkg/model"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -69,12 +69,22 @@ func (h *Payload) HeaderTemplates() []*HeaderTemplate {
 }
 
 // BodyTemplate initialize and/or return already initialized body template
-func (h *Payload) BodyTemplate() *template.Template {
+func (h *Payload) BodyTemplate() (*template.Template, error) {
 	if h.bodyTemplate == nil {
-		h.bodyTemplate = template.Must(template.New(fmt.Sprintf("HTTP_PAYLOAD_%d_body", h.ID)).Parse(h.Data.Body))
+		tp := template.New(fmt.Sprintf("HTTP_PAYLOAD_%d_body", h.ID))
+		return tp.Parse(h.Data.Body)
 	}
 
-	return h.bodyTemplate
+	return h.bodyTemplate, nil
+}
+
+func (h *Payload) ExecuteBodyTemplate(wr io.Writer, data any) error {
+	bt, err := h.BodyTemplate()
+	if err != nil {
+		return err
+	}
+
+	return bt.Execute(wr, data)
 }
 
 // StatusTemplate initialize and/or return already initialized status template
@@ -116,55 +126,18 @@ func (h *Payload) ShouldProcess(r *http.Request) bool {
 // Process this is where the magic happens.
 func (h *Payload) Process(w http.ResponseWriter, e *Event, templateData map[string]string) {
 
-	r := e.Request()
-
-	remoteAddrs := []string{r.RemoteAddr}
-	headerIP := r.Header.Get("X-Forwarded-For")
-	if headerIP != "" {
-		remoteAddrs = append(remoteAddrs, headerIP)
-	}
-	headerIP = r.Header.Get("X-Real-IP")
-	if headerIP != "" {
-		remoteAddrs = append(remoteAddrs, headerIP)
-	}
-
-	templateData["Version"] = build_info.GetLoadedVersion().Version
-	templateData["NotifyString"] = "l"
-	templateData["RemoteAddr"] = strings.Join(remoteAddrs, ", ")
-	templateData["UserAgent"] = r.UserAgent()
-
-	templateData["UserAgent"] = r.RemoteAddr
-
-	templateData["Host"] = r.Host
-	templateData["Path"] = r.URL.Path
-
-	fullRequestBytes := e.RawRequest()
-
-	templateData["Body"] = string(fullRequestBytes)
-
-	templateData["CallBackImageURL"] = fmt.Sprintf("http://%s%s?&xdbxImage", r.Host, r.RequestURI)
-	templateData["CallBackURL"] = fmt.Sprintf("http://%s%s?&xdbx", r.Host, r.RequestURI)
-
-	for param, vals := range r.URL.Query() {
-		if len(vals) > 1 {
-			for idx, val := range vals {
-				templateData[fmt.Sprintf("GET_%s_%d", param, idx)] = val
-			}
-		} else if len(vals) == 1 {
-			templateData[fmt.Sprintf("GET_%s", param)] = vals[0]
-		}
-	}
+	tc := e.TemplateContext(templateData)
 
 	for _, headTemplates := range h.HeaderTemplates() {
 		var hdrBytes bytes.Buffer
 		var valBytes bytes.Buffer
-		err := headTemplates.HeaderTemplate.Execute(&hdrBytes, templateData)
+		err := headTemplates.HeaderTemplate.Execute(&hdrBytes, tc)
 		if err != nil {
-			lg().Error("Error executing header template: ", "err", err)
+			lg().Error("Error executing header template", "err", err)
 		}
-		err = headTemplates.ValueTemplate.Execute(&valBytes, templateData)
+		err = headTemplates.ValueTemplate.Execute(&valBytes, tc)
 		if err != nil {
-			lg().Error("Error executing header value template: ", "err", err)
+			lg().Error("Error executing header value template", "err", err)
 		}
 
 		w.Header().Set(hdrBytes.String(), valBytes.String())
@@ -172,14 +145,14 @@ func (h *Payload) Process(w http.ResponseWriter, e *Event, templateData map[stri
 
 	if h.HasStatusCode() {
 		var statusBytes bytes.Buffer
-		err := h.StatusTemplate().Execute(&statusBytes, templateData)
+		err := h.StatusTemplate().Execute(&statusBytes, tc)
 		if err != nil {
-			lg().Error("Error executing body template: ", "err", err)
+			lg().Error("Error executing body template", "err", err)
 		}
 
 		responseStatus, err := strconv.Atoi(statusBytes.String())
 		if err != nil {
-			lg().Error("Error converting response status to int: ", "err", err)
+			lg().Error("Error converting response status to int", "err", err)
 			responseStatus = 500
 		}
 
@@ -190,14 +163,16 @@ func (h *Payload) Process(w http.ResponseWriter, e *Event, templateData map[stri
 		// ghetto hack cause I am lazy
 		err := Inspect(w, e)
 		if err != nil {
-			lg().Error("Error executing inspect template: ", "err", err)
+			lg().Error("Error executing inspect template", "err", err)
 		}
 		return
 	}
 
-	err := h.BodyTemplate().Execute(w, templateData)
+	err := h.ExecuteBodyTemplate(w, tc)
 	if err != nil {
-		lg().Error("Error executing body template: ", "err", err)
+		lg().Error("Error executing body template", "err", err)
+		fmt.Fprint(w, "that was unexpected")
+
 	}
 }
 

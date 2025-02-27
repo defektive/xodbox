@@ -6,7 +6,7 @@ pattern: /jsc$
 is_final: true
 data:
   headers:
-    "Content-Type": "text/javascript"
+    Content-Type: text/javascript
   body: |
     (function (){
         var s = document.createElement("img");

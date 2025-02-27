@@ -17,7 +17,6 @@ func Seed(dbh *gorm.DB) {
 	if !seeded {
 		seeded = true
 		CreatePayloadsFromFS(&embeddedSeedFS, dbh)
-
 	}
 }
 
@@ -27,7 +26,11 @@ func CreatePayloadsFromDir(dir string, dbh *gorm.DB) {
 }
 
 func CreatePayloadsFromFS(fsDir fs.FS, dbh *gorm.DB) {
-	seedPayloads := getPayloadsFromFS(fsDir)
+	seedPayloads, err := getPayloadsFromFS(fsDir)
+	if err != nil {
+		lg().Error("Error getting payloads from FS:", "err", err, "file", fsDir)
+		return
+	}
 	CreatePayloads(seedPayloads, dbh)
 }
 
@@ -44,6 +47,9 @@ func CreatePayloads(payloads []*Payload, dbh *gorm.DB) {
 
 func getAllFilenames(efs fs.FS) (files []string, err error) {
 	if err := fs.WalkDir(efs, ".", func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
 		if d.IsDir() {
 			return nil
 		}
@@ -58,35 +64,47 @@ func getAllFilenames(efs fs.FS) (files []string, err error) {
 	return files, nil
 }
 
-func getPayloadsFromFS(fsToCheck fs.FS) []*Payload {
+func getPayloadsFromFS(fsToCheck fs.FS) ([]*Payload, error) {
 
 	files, err := getAllFilenames(fsToCheck)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 
-	newPayloads := []*Payload{}
+	var newPayloads []*Payload
+
+	var errorFiles = map[string]error{}
 
 	for _, nextFile := range files {
 		f, err := fsToCheck.Open(nextFile)
 		if err != nil {
-			panic(err)
+			errorFiles[nextFile] = err
+			continue
 		}
 
-		newPayloads = append(newPayloads, getPayloadsFromFrontmatter(f))
+		p, err := getPayloadsFromFrontmatter(f)
+		if err != nil {
+			errorFiles[nextFile] = err
+			continue
+		}
+		newPayloads = append(newPayloads, p)
 	}
 
-	return newPayloads
+	for errFile, e := range errorFiles {
+		lg().Error("error processing file", "errFile", errFile, "err", e)
+	}
+
+	return newPayloads, nil
 }
 
-func getPayloadsFromFrontmatter(f io.Reader) *Payload {
+func getPayloadsFromFrontmatter(f io.Reader) (*Payload, error) {
 	var seedData = &SeedPayload{}
 	if _, err := frontmatter.Parse(f, &seedData); err != nil {
 		lg().Error("failed to get front matter from:", "reader", f)
-		panic(err)
+		return nil, err
 	}
 
-	return seedData.ToHTTPPayload()
+	return seedData.ToHTTPPayload(), nil
 }
 
 type SeedPayload struct {
