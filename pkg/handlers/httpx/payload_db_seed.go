@@ -31,6 +31,7 @@ func CreatePayloadsFromFS(fsDir fs.FS, dbh *gorm.DB) {
 	CreatePayloads(seedPayloads, dbh)
 }
 
+// CreatePayloads creates new payloads
 func CreatePayloads(payloads []*Payload, dbh *gorm.DB) {
 	for _, payload := range payloads {
 		payload.Project = model.DefaultProject()
