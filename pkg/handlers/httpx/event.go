@@ -2,12 +2,15 @@ package httpx
 
 import (
 	"fmt"
+	"github.com/analog-substance/util/cli/build_info"
+	"github.com/defektive/xodbox/pkg/model"
 	"github.com/defektive/xodbox/pkg/types"
 	"io"
 	"net/http"
 	"net/http/httputil"
 	"net/url"
 	"strconv"
+	"time"
 )
 
 type Event struct {
@@ -69,4 +72,80 @@ func (e *Event) Dispatch(cc chan types.InteractionEvent) {
 	go func() {
 		cc <- e
 	}()
+}
+
+func (e *Event) TemplateContext(templateData map[string]string) *TemplateContext {
+	r := e.Request()
+
+	remoteAddrs := []string{r.RemoteAddr}
+	headerIP := r.Header.Get("X-Forwarded-For")
+	if headerIP != "" {
+		remoteAddrs = append(remoteAddrs, headerIP)
+	}
+	headerIP = r.Header.Get("X-Real-IP")
+	if headerIP != "" {
+		remoteAddrs = append(remoteAddrs, headerIP)
+	}
+
+	fullRequestBytes := e.RawRequest()
+
+	tcr := &TemplateRequestContext{
+		RemoteAddr:  remoteAddrs,
+		UserAgent:   r.UserAgent(),
+		Host:        r.Host,
+		Path:        r.URL.Path,
+		FullRequest: fullRequestBytes,
+		Body:        e.Body(),
+		Headers:     r.Header,
+		GetParams:   r.URL.Query(),
+		PostParams:  r.PostForm,
+	}
+
+	for param, vals := range r.URL.Query() {
+		if len(vals) > 1 {
+			for idx, val := range vals {
+				templateData[fmt.Sprintf("GET_%s_%d", param, idx)] = val
+			}
+		} else if len(vals) == 1 {
+			templateData[fmt.Sprintf("GET_%s", param)] = vals[0]
+		}
+	}
+
+	tc := &TemplateContext{
+		Version:          build_info.GetLoadedVersion().Version,
+		NotifyString:     "l",
+		CallBackImageURL: fmt.Sprintf("http://%s%s?&xdbxImage", r.Host, r.RequestURI),
+		CallBackURL:      fmt.Sprintf("http://%s%s?&xdbx", r.Host, r.RequestURI),
+		Extra:            templateData,
+		Payloads:         model.SortedPayloads(),
+		Request:          tcr,
+	}
+
+	return tc
+
+}
+
+type TemplateRequestContext struct {
+	RemoteAddr  []string
+	Host        string
+	Path        string
+	UserAgent   string
+	FullRequest []byte
+	Body        []byte
+
+	Headers    map[string][]string
+	GetParams  map[string][]string
+	PostParams map[string][]string
+}
+
+type TemplateContext struct {
+	Version          string
+	NotifyString     string
+	Uptime           time.Duration
+	Payloads         []model.Payload
+	CallBackImageURL string
+	CallBackURL      string
+	Extra            map[string]string
+
+	Request *TemplateRequestContext
 }

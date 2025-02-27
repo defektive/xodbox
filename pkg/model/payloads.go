@@ -22,20 +22,19 @@ import (
 //}
 
 type Payload struct {
-	gorm.Model
+	Name             string `json,yaml:"name" gorm:"unique"`
+	Description      string `json,yaml:"description"`
+	Type             string `json,yaml:"type"`
+	IsFinal          bool   `json,yaml:"is_final"`
+	SortOrder        int    `yaml:"sort_order"`
+	Pattern          string `json,yaml:"pattern"`
+	InternalFunction string `json,yaml:"internal_function"`
+	Data             string `json,yaml:"data"`
 
-	Type      string   `json,yaml:"type"`
 	ProjectID uint     `json,yaml:"project_id"`
 	Project   *Project `yaml:"-" yaml:"-"`
 
-	Name             string `json,yaml:"name" gorm:"unique"`
-	Description      string `json,yaml:"description"`
-	Pattern          string `json,yaml:"pattern"`
-	InternalFunction string `json,yaml:"internal_function"`
-	IsFinal          bool   `json,yaml:"is_final"`
-	SortOrder        int    `yaml:"sort_order"`
-
-	Data          string `json,yaml:"data"`
+	gorm.Model
 	patternRegexp *regexp.Regexp
 }
 

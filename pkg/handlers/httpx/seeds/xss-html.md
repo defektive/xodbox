@@ -6,7 +6,7 @@ pattern: /jsc.html$
 is_final: true
 data: 
   headers:
-    "Content-Type": "text/html"
+    Content-Type: text/html
   body: |
     <!DOCTYPE html>
     <html>

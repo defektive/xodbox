@@ -6,7 +6,7 @@ pattern: /dt$
 is_final: true
 data:
   headers:
-  Content-Type: text/xml
+    Content-Type: text/xml
   body: |-
     <?xml version="1.0" encoding="ISO-8859-1"?>
     <!DOCTYPE foo [
