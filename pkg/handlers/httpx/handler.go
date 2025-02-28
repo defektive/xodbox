@@ -36,6 +36,9 @@ type Handler struct {
 	mux             *http.ServeMux
 }
 
+const LetsEncryptProdURL = "https://acme-v02.api.letsencrypt.org/directory"
+const LetsEncryptStagingURL = "https://acme-staging-v02.api.letsencrypt.org/directory"
+
 func NewHandler(handlerConfig map[string]string) types.Handler {
 
 	// I believe interface implementors should own seeding their data models
@@ -54,7 +57,16 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	domains := handlerConfig["domains"]
 	certCacheDir := handlerConfig["cert_cache_dir"]
 	certEmail := handlerConfig["cert_email"]
+	acmeStaging := handlerConfig["acme_staging"] == "true"
 	acmeDirectoryURL := handlerConfig["acme_dir_url"]
+
+	if acmeStaging {
+		acmeDirectoryURL = LetsEncryptStagingURL
+	}
+
+	if acmeDirectoryURL == "" {
+		acmeDirectoryURL = LetsEncryptProdURL
+	}
 
 	// https://godoc.org/github.com/go-acme/lego/providers/dns
 	// https://go-acme.github.io/lego/dns/
@@ -184,8 +196,10 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 		cfg.Domains = h.Domains
 		cfg.CacheDir = h.CertCacheDir
 		cfg.SSLEmail = h.CertEmail
-		cfg.DNSProvider = h.CertDNSProvider
 		cfg.DirectoryURL = h.AcmeDirectoryURL
+		if h.CertDNSProvider != "" {
+			cfg.DNSProvider = h.CertDNSProvider
+		}
 
 		// if we fail to renew, we should send a special notification
 		cfg.FailedToRenewCertificate = func(err error) {
