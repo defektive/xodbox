@@ -1,16 +1,17 @@
 package httpx
 
 import (
+	"context"
 	"fmt"
 	"github.com/analog-substance/util/fileutil"
 	"github.com/defektive/xodbox/pkg/model"
 	"github.com/defektive/xodbox/pkg/types"
+	"github.com/foomo/simplecert"
+	"github.com/foomo/tlsconfig"
 	"github.com/fsnotify/fsnotify"
-	"golang.org/x/crypto/acme"
-	"golang.org/x/crypto/acme/autocert"
 	"gorm.io/gorm/clause"
 	"io/fs"
-	"net"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -22,11 +23,18 @@ import (
 const EmbeddedMountPoint = "/ixdbxi/"
 
 type Handler struct {
-	name     string
-	Listener string
-	AutoCert bool
+	name       string
+	Listener   string
+	StaticDir  string
+	PayloadDir string
 
-	StaticDir       string
+	AutoCert         bool
+	Domains          []string
+	CertCacheDir     string
+	CertEmail        string
+	AcmeDirectoryURL string
+	CertDNSProvider  string
+
 	dispatchChannel chan types.InteractionEvent
 	app             types.App
 }
@@ -43,7 +51,25 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	staticDir := handlerConfig["static_dir"]
 	payloadDir := handlerConfig["payload_dir"]
 	listener := handlerConfig["listener"]
+
 	autoCert := handlerConfig["autocert"] == "true"
+	domains := handlerConfig["domains"]
+	certCacheDir := handlerConfig["cert_cache_dir"]
+	certEmail := handlerConfig["cert_email"]
+	acmeDirectoryURL := handlerConfig["acme_dir_url"]
+
+	// https://godoc.org/github.com/go-acme/lego/providers/dns
+	// https://go-acme.github.io/lego/dns/
+	dnsProvider := handlerConfig["cert_dns_provider"]
+
+	envVars := handlerConfig["cert_dns_provider_env"]
+	if envVars != "" {
+		envVarsSlice := strings.Split(envVars, "\n")
+		for _, envVar := range envVarsSlice {
+			e := strings.Split(envVar, "=")
+			os.Setenv(e[0], e[1])
+		}
+	}
 
 	if payloadDir != "" {
 		lg().Debug("payload dir supplied", "payload_dir", payloadDir)
@@ -52,10 +78,16 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	}
 
 	return &Handler{
-		name:      "HTTPX",
-		Listener:  listener,
-		AutoCert:  autoCert,
-		StaticDir: staticDir,
+		name:             "HTTPX",
+		Listener:         listener,
+		StaticDir:        staticDir,
+		PayloadDir:       payloadDir,
+		AutoCert:         autoCert,
+		Domains:          strings.Split(domains, ","),
+		CertCacheDir:     certCacheDir,
+		CertEmail:        certEmail,
+		AcmeDirectoryURL: acmeDirectoryURL,
+		CertDNSProvider:  dnsProvider,
 	}
 }
 
@@ -64,7 +96,6 @@ func (h *Handler) Name() string {
 }
 
 func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) error {
-
 	// capture these for later
 	h.app = app
 	h.dispatchChannel = eventChan
@@ -107,18 +138,82 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 		}
 	})
 
-	domains := ""
-	tlsDomains := strings.Split(domains, ",")
+	if h.AutoCert {
+		var (
+			// the structure that handles reloading the certificate
+			certReloader *simplecert.CertReloader
+			numRenews    int
+			ctx, cancel  = context.WithCancel(context.Background())
+			tlsConf      = tlsconfig.NewServerTLSConfig(tlsconfig.TLSModeServerStrict)
+			makeServer   = func() *http.Server {
+				return &http.Server{
+					ReadTimeout:  5 * time.Second,
+					WriteTimeout: 5 * time.Second,
+					IdleTimeout:  120 * time.Second,
+					Addr:         h.Listener,
+					Handler:      mux,
+					TLSConfig:    tlsConf,
+				}
+			}
+			srv = makeServer()
+			cfg = simplecert.Default
+		)
 
-	if len(domains) > 0 {
-		lg().Info("Listening on TLS Domains", "domains", tlsDomains)
-		err := http.Serve(autocertListener(true, tlsDomains...), mux)
-		if err != nil {
-			lg().Error("error starting autocert HTTP server", "tlsDomains", tlsDomains, "err", err)
-			return err
+		// configure
+		cfg.Domains = h.Domains
+		cfg.CacheDir = h.CertCacheDir
+		cfg.SSLEmail = h.CertEmail
+		cfg.DNSProvider = h.CertDNSProvider
+		cfg.DirectoryURL = h.AcmeDirectoryURL
+
+		// disable HTTP challenges - we will only use the TLS challenge for this example.
+		//cfg.HTTPAddress = ""
+
+		// this function will be called just before certificate renewal starts and is used to gracefully stop the service
+		// (we need to temporarily free port 443 in order to complete the TLS challenge)
+		cfg.WillRenewCertificate = func() {
+			// stop server
+			cancel()
 		}
 
+		// this function will be called after the certificate has been renewed, and is used to restart your service.
+		cfg.DidRenewCertificate = func() {
+			numRenews++
+
+			// restart server: both context and server instance need to be recreated!
+			ctx, cancel = context.WithCancel(context.Background())
+			srv = makeServer()
+
+			// force reload the updated cert from disk
+			certReloader.ReloadNow()
+
+			// here we go again
+			go serve(ctx, srv)
+		}
+
+		// init simplecert configuration
+		// this will block initially until the certificate has been obtained for the first time.
+		// on subsequent runs, simplecert will load the certificate from the cache directory on disk.
+		certReloader, err = simplecert.Init(cfg, func() {
+			os.Exit(0)
+		})
+
+		if err != nil {
+			log.Fatal("simplecert init failed: ", err)
+		}
+
+		// redirect HTTP to HTTPS
+		//log.Println("starting HTTP Listener on Port 80")
+		//go http.ListenAndServe(":80", http.HandlerFunc(simplecert.Redirect))
+
+		// enable hot reload
+		tlsConf.GetCertificate = certReloader.GetCertificateFunc()
+		serve(ctx, srv)
+
+		fmt.Println("waiting forever")
+		<-make(chan bool)
 	} else {
+		lg().Debug("http server listening on " + h.Listener)
 
 		httpSrv := &http.Server{
 			ReadTimeout:  5 * time.Second,
@@ -130,7 +225,7 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 		httpSrv.Addr = h.Listener
 		lg().Info("Starting HTTP server", "listener", httpSrv.Addr)
 
-		err := httpSrv.ListenAndServe()
+		err = httpSrv.ListenAndServe()
 		if err != nil {
 			lg().Error("error starting HTTP server", "listener", httpSrv.Addr, "err", err)
 			return err
@@ -138,35 +233,6 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 	}
 
 	return nil
-}
-
-func autocertListener(staging bool, domains ...string) net.Listener {
-
-	letsEncryptStaging := "https://acme-staging-v02.api.letsencrypt.org/directory"
-	acmeDirectoryURL := autocert.DefaultACMEDirectory
-
-	if staging {
-		acmeDirectoryURL = letsEncryptStaging
-	}
-
-	m := &autocert.Manager{
-		Prompt: autocert.AcceptTOS,
-		Client: &acme.Client{
-			DirectoryURL: acmeDirectoryURL,
-		},
-	}
-
-	if len(domains) > 0 {
-		m.HostPolicy = autocert.HostWhitelist(domains...)
-	}
-
-	dir := "certs"
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		lg().Warn("autocert.NewListener not using a cache: %v", "err", err)
-	} else {
-		m.Cache = autocert.DirCache(dir)
-	}
-	return m.Listener()
 }
 
 func noIndex(next http.Handler) http.Handler {
@@ -279,4 +345,41 @@ func (d *debouncer) add(f func()) {
 		d.timer.Stop()
 	}
 	d.timer = time.AfterFunc(d.after, f)
+}
+
+//type HTTPServerHandler struct{}
+//
+//func (h HTTPServerHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+//	w.WriteHeader(http.StatusOK)
+//	w.Write([]byte("hello from simplecert!"))
+//}
+
+func dumbServer(mux *http.ServeMux, listener string, domains []string, cacheDir, email, dnsProvider, directoryURL string) {
+
+}
+
+func serve(ctx context.Context, srv *http.Server) {
+
+	// lets go
+	go func() {
+		if err := srv.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("listen: %+s\n", err)
+		}
+	}()
+
+	log.Printf("server started")
+	<-ctx.Done()
+	log.Printf("server stopped")
+
+	ctxShutDown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer func() {
+		cancel()
+	}()
+
+	err := srv.Shutdown(ctxShutDown)
+	if err == http.ErrServerClosed {
+		log.Printf("server exited properly")
+	} else if err != nil {
+		log.Printf("server encountered an error on exit: %+s\n", err)
+	}
 }
