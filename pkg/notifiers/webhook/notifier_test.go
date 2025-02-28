@@ -45,14 +45,14 @@ func TestWebhookNotifier_Payload(t *testing.T) {
 				filter: regexp.MustCompile(",*"),
 			},
 			args: args{
-				&types.BaseEvent{
-					RemoteAddr:       "123.456.789.2",
-					RemotePortNumber: 90872,
-					UserAgentString:  "dumb test event",
-					RawData:          []byte("pizza"),
-				},
+				types.NewEvent(
+					"123.456.789.2",
+					90872,
+					"dumb test event",
+					[]byte("pizza"),
+				),
 			},
-			want: []byte(`{"RemoteAddr":"123.456.789.2","RemotePort":90872,"UserAgent":"dumb test event","Data":"pizza","Details":"Default Event"}`),
+			want: []byte(`{"RemoteAddr":"123.456.789.2","RemotePort":90872,"UserAgent":"dumb test event","Data":"pizza","Details":"Base Event"}`),
 		},
 		{
 			name: "HTTP Request",
@@ -95,7 +95,7 @@ func TestWebhookNotifier_Payload(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			wh := &Notifier{
 				name:   tt.fields.name,
-				URL:    tt.fields.URL,
+				url:    tt.fields.URL,
 				filter: tt.fields.filter,
 			}
 			got, err := wh.Payload(tt.args.e)
