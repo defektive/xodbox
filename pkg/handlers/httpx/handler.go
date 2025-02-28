@@ -66,8 +66,10 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	if envVars != "" {
 		envVarsSlice := strings.Split(envVars, "\n")
 		for _, envVar := range envVarsSlice {
-			e := strings.Split(envVar, "=")
-			os.Setenv(e[0], e[1])
+			if strings.Contains(envVar, "=") {
+				e := strings.Split(envVar, "=")
+				os.Setenv(e[0], e[1])
+			}
 		}
 	}
 
