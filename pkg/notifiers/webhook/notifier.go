@@ -9,17 +9,9 @@ import (
 	"regexp"
 )
 
-type HTTPNotifier interface {
-	Name() string
-	Payload(types.InteractionEvent) ([]byte, error)
-	Send(types.InteractionEvent) error
-	Filter() *regexp.Regexp
-	URL() string
-}
-
 type Notifier struct {
 	name   string
-	url    string
+	URL    string
 	filter *regexp.Regexp
 }
 
@@ -31,7 +23,7 @@ func NewNotifier(url string, filter string) *Notifier {
 
 	return &Notifier{
 		name:   "WebhookNotifier",
-		url:    url,
+		URL:    url,
 		filter: regexp.MustCompile(filter),
 	}
 }
@@ -40,30 +32,18 @@ func (wh *Notifier) Name() string {
 	return wh.name
 }
 
-func (wh *Notifier) URL() string {
-	return wh.url
-}
-
 func (wh *Notifier) Filter() *regexp.Regexp {
 	return wh.filter
 }
 
 func (wh *Notifier) Send(event types.InteractionEvent) error {
-	return Send(wh, event)
-}
-
-func Send(wh HTTPNotifier, event types.InteractionEvent) error {
-	if FilterMatches(wh.Filter(), event.Data()) || event.IsApp() {
-		jsonBody, err := wh.Payload(event)
-		if err != nil {
-			lg().Error("error marshaling JSON", "err", err)
-			return err
-		}
-
-		return SendPost(wh.URL(), jsonBody)
+	jsonBody, err := wh.Payload(event)
+	if err != nil {
+		lg().Error("error marshaling JSON", "err", err)
+		return err
 	}
 
-	return nil
+	return SendPost(wh.URL, jsonBody)
 }
 
 func SendPost(url string, payload []byte) error {

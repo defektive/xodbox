@@ -44,14 +44,14 @@ func TestDiscordNotifier_Payload(t *testing.T) {
 				Icon:     "icon",
 			},
 			args: args{
-				types.NewEvent(
-					"123.456.789.2",
-					90872,
-					"dumb test event",
-					[]byte("pizza"),
-				),
+				&types.BaseEvent{
+					RemoteAddr:       "123.456.789.2",
+					RemotePortNumber: 90872,
+					UserAgentString:  "dumb test event",
+					RawData:          []byte("pizza"),
+				},
 			},
-			want: []byte(`{"username":"user","avatar_url":"icon","content":"Base Event\n` + "```pizza\\n```" + `"}`),
+			want: []byte(`{"username":"user","avatar_url":"icon","content":"Default Event\n` + "```pizza\\n```" + `"}`),
 		},
 		{
 			name: "HTTP Request",

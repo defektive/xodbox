@@ -17,7 +17,7 @@ func XXE() {
 }
 
 func VulnProcessURLXML(url string) string {
-	log.Println("Getting XML from url:", url)
+	log.Println("Getting XML from URL:", url)
 	b, err := http.Get(url)
 	if err != nil {
 		panic(err)
