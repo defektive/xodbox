@@ -48,15 +48,5 @@ func (wh *Notifier) Payload(e types.InteractionEvent) ([]byte, error) {
 }
 
 func (wh *Notifier) Send(event types.InteractionEvent) error {
-	if webhook.FilterMatches(wh.Filter(), event.Data()) {
-		jsonBody, err := wh.Payload(event)
-		if err != nil {
-			lg().Error("error marshaling JSON", "err", err)
-			return err
-		}
-
-		return webhook.SendPost(wh.URL, jsonBody)
-	}
-
-	return nil
+	return webhook.Send(wh, event)
 }

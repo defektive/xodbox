@@ -1,35 +1,43 @@
 package httpx
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"github.com/analog-substance/util/fileutil"
 	"github.com/defektive/xodbox/pkg/model"
 	"github.com/defektive/xodbox/pkg/types"
-	"github.com/fsnotify/fsnotify"
-	"golang.org/x/crypto/acme"
-	"golang.org/x/crypto/acme/autocert"
-	"gorm.io/gorm/clause"
+	"github.com/foomo/simplecert"
+	"github.com/foomo/tlsconfig"
 	"io/fs"
-	"net"
 	"net/http"
 	"os"
-	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 )
 
 const EmbeddedMountPoint = "/ixdbxi/"
 
 type Handler struct {
-	name     string
-	Listener string
-	AutoCert bool
+	name       string
+	Listener   string
+	StaticDir  string
+	PayloadDir string
 
-	StaticDir       string
+	AutoCert         bool
+	Domains          []string
+	CertCacheDir     string
+	CertEmail        string
+	AcmeDirectoryURL string
+	CertDNSProvider  string
+
 	dispatchChannel chan types.InteractionEvent
 	app             types.App
+	mux             *http.ServeMux
 }
+
+const LetsEncryptProdURL = "https://acme-v02.api.letsencrypt.org/directory"
+const LetsEncryptStagingURL = "https://acme-staging-v02.api.letsencrypt.org/directory"
 
 func NewHandler(handlerConfig map[string]string) types.Handler {
 
@@ -43,7 +51,37 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	staticDir := handlerConfig["static_dir"]
 	payloadDir := handlerConfig["payload_dir"]
 	listener := handlerConfig["listener"]
-	autoCert := handlerConfig["autocert"] == "true"
+
+	listenerIsHTTPS := strings.HasSuffix(listener, ":443") || strings.HasSuffix(listener, ":https")
+	autoCert := listenerIsHTTPS && handlerConfig["autocert"] == "true"
+	domains := handlerConfig["domains"]
+	certCacheDir := handlerConfig["cert_cache_dir"]
+	certEmail := handlerConfig["cert_email"]
+	acmeStaging := handlerConfig["acme_staging"] == "true"
+	acmeDirectoryURL := handlerConfig["acme_dir_url"]
+
+	if acmeStaging {
+		acmeDirectoryURL = LetsEncryptStagingURL
+	}
+
+	if acmeDirectoryURL == "" {
+		acmeDirectoryURL = LetsEncryptProdURL
+	}
+
+	// https://godoc.org/github.com/go-acme/lego/providers/dns
+	// https://go-acme.github.io/lego/dns/
+	dnsProvider := handlerConfig["cert_dns_provider"]
+
+	envVars := handlerConfig["cert_dns_provider_env"]
+	if envVars != "" {
+		envVarsSlice := strings.Split(envVars, "\n")
+		for _, envVar := range envVarsSlice {
+			if strings.Contains(envVar, "=") {
+				e := strings.Split(envVar, "=")
+				os.Setenv(e[0], e[1])
+			}
+		}
+	}
 
 	if payloadDir != "" {
 		lg().Debug("payload dir supplied", "payload_dir", payloadDir)
@@ -52,10 +90,16 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	}
 
 	return &Handler{
-		name:      "HTTPX",
-		Listener:  listener,
-		AutoCert:  autoCert,
-		StaticDir: staticDir,
+		name:             "HTTPX",
+		Listener:         listener,
+		StaticDir:        staticDir,
+		PayloadDir:       payloadDir,
+		AutoCert:         autoCert,
+		Domains:          strings.Split(domains, ","),
+		CertCacheDir:     certCacheDir,
+		CertEmail:        certEmail,
+		AcmeDirectoryURL: acmeDirectoryURL,
+		CertDNSProvider:  dnsProvider,
 	}
 }
 
@@ -63,110 +107,192 @@ func (h *Handler) Name() string {
 	return h.name
 }
 
-func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) error {
+func (h *Handler) ServerMux() *http.ServeMux {
+	if h.mux == nil {
 
+		h.mux = &http.ServeMux{}
+		if h.StaticDir != "" {
+			if !fileutil.DirExists(h.StaticDir) {
+				if err := os.MkdirAll(h.StaticDir, 0744); err != nil {
+					lg().Error("Failed to create static directory", "err", err)
+				}
+			}
+			fs := http.FileServer(http.Dir(h.StaticDir))
+
+			h.mux.Handle("/static/", http.StripPrefix("/static", noIndex(fs)))
+		}
+
+		subFs, err := fs.Sub(embeddedStaticFS, "static")
+		if err != nil {
+			lg().Error("Failed to subfs embedded files", "err", err)
+		}
+		h.mux.Handle(EmbeddedMountPoint, http.StripPrefix(EmbeddedMountPoint[:len(EmbeddedMountPoint)-1], noIndex(http.FileServer(http.FS(subFs)))))
+
+		h.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			loadStart := time.Now()
+			defer func() {
+				lg().Debug("http response completed", "timeTaken", fmt.Sprintf("%dµs", time.Since(loadStart).Microseconds()))
+			}()
+			e := NewEvent(r)
+
+			e.Dispatch(h.dispatchChannel)
+
+			for _, payload := range SortedPayloads() {
+				if payload.ShouldProcess(r) {
+					payload.Process(w, e, h.app.GetTemplateData())
+					lg().Debug("Processing payload", "payload", payload, "IsFinal", payload.IsFinal)
+					if payload.IsFinal {
+						break
+					}
+				}
+			}
+		})
+	}
+	return h.mux
+}
+
+func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) error {
 	// capture these for later
 	h.app = app
 	h.dispatchChannel = eventChan
 
-	mux := &http.ServeMux{}
-	if h.StaticDir != "" {
-		if !fileutil.DirExists(h.StaticDir) {
-			if err := os.MkdirAll(h.StaticDir, 0744); err != nil {
-				lg().Error("Failed to create static directory", "err", err)
-			}
-		}
-		fs := http.FileServer(http.Dir(h.StaticDir))
-
-		mux.Handle("/static/", http.StripPrefix("/static", noIndex(fs)))
-	}
-
-	subFs, err := fs.Sub(embeddedStaticFS, "static")
-	if err != nil {
-		lg().Error("Failed to subfs embedded files", "err", err)
-	}
-	mux.Handle(EmbeddedMountPoint, http.StripPrefix(EmbeddedMountPoint[:len(EmbeddedMountPoint)-1], noIndex(http.FileServer(http.FS(subFs)))))
-
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		loadStart := time.Now()
-		defer func() {
-			lg().Debug("http response completed", "timeTaken", fmt.Sprintf("%dµs", time.Since(loadStart).Microseconds()))
-		}()
-		e := NewEvent(r)
-
-		e.Dispatch(h.dispatchChannel)
-
-		for _, payload := range SortedPayloads() {
-			if payload.ShouldProcess(r) {
-				payload.Process(w, e, app.GetTemplateData())
-				lg().Debug("Processing payload", "payload", payload, "IsFinal", payload.IsFinal)
-				if payload.IsFinal {
-					break
-				}
-			}
-		}
-	})
-
-	domains := ""
-	tlsDomains := strings.Split(domains, ",")
-
-	if len(domains) > 0 {
-		lg().Info("Listening on TLS Domains", "domains", tlsDomains)
-		err := http.Serve(autocertListener(true, tlsDomains...), mux)
-		if err != nil {
-			lg().Error("error starting autocert HTTP server", "tlsDomains", tlsDomains, "err", err)
-			return err
-		}
-
-	} else {
-
-		httpSrv := &http.Server{
+	var makeBaseServer = func() *http.Server {
+		lg().Info("Starting HTTP server", "listener", h.Listener)
+		return &http.Server{
 			ReadTimeout:  5 * time.Second,
 			WriteTimeout: 5 * time.Second,
 			IdleTimeout:  120 * time.Second,
-			Handler:      mux,
+			Handler:      h.ServerMux(),
+			Addr:         h.Listener,
+		}
+	}
+
+	var srv *http.Server
+
+	if h.AutoCert {
+		var (
+			// the structure that handles reloading the certificate
+			err          error
+			certReloader *simplecert.CertReloader
+			numRenews    int
+			ctx, cancel  = context.WithCancel(context.Background())
+			tlsConf      = tlsconfig.NewServerTLSConfig(tlsconfig.TLSModeServerStrict)
+			makeServer   = func() *http.Server {
+				srv := makeBaseServer()
+				srv.TLSConfig = tlsConf
+				return srv
+			}
+
+			cfg = simplecert.Default
+		)
+
+		srv = makeServer()
+
+		// Useful for testing auto-renewals
+		//cfg.RenewBefore = 2159
+		//cfg.CheckInterval = 25 * time.Second
+
+		// configure
+		cfg.Domains = h.Domains
+		cfg.CacheDir = h.CertCacheDir
+		cfg.SSLEmail = h.CertEmail
+		cfg.DirectoryURL = h.AcmeDirectoryURL
+		if h.CertDNSProvider != "" {
+			cfg.DNSProvider = h.CertDNSProvider
 		}
 
-		httpSrv.Addr = h.Listener
-		lg().Info("Starting HTTP server", "listener", httpSrv.Addr)
+		// if we fail to renew, we should send a special notification
+		cfg.FailedToRenewCertificate = func(err error) {
+			e := types.NewInternalEvent([]byte(err.Error()))
+			e.RemoteAddr = fmt.Sprintf("xodbox-error-%s-%s", h.name, h.Listener)
+			e.UserAgentString = fmt.Sprintf("user-agent-xodbox-error-%s-%s", h.name, h.Listener)
 
-		err := httpSrv.ListenAndServe()
+			// failed to renew cert
+			h.dispatchChannel <- e
+		}
+
+		// if we specified a DNS Provider, lets use that
+		if cfg.DNSProvider != "" {
+			// disable HTTP and TLS challenges
+			cfg.HTTPAddress = ""
+			cfg.TLSAddress = ""
+		}
+
+		if cfg.DNSProvider == "" && cfg.HTTPAddress == "" {
+			// cant do DNS or HTTP challenges
+			// this means we'll have to stop the server
+			// so we can listen on 443 for the challenge
+
+			// this function will be called just before certificate renewal starts and is used to gracefully stop the service
+			// (we need to temporarily free port 443 in order to complete the TLS challenge)
+			// this is dumb. why not use port 80 and not disrupt the service that is running?
+			// also if using DNS challenge why force TLS challenge for non-wildcard domains
+			cfg.WillRenewCertificate = func() {
+				lg().Info("certs will renew")
+				if cfg.DNSProvider == "" && cfg.HTTPAddress == "" {
+					// stop server
+					cancel()
+				}
+			}
+		}
+
+		// this function will be called after the certificate has been renewed, and is used to restart your service.
+		cfg.DidRenewCertificate = func() {
+			lg().Info("certs renewed", "certReloader", certReloader)
+			if certReloader == nil {
+				// this only seemed to happen when a renewal was required at the time of the server start
+				lg().Error("certs renewer is nil", "certReloader", certReloader)
+				return
+			}
+			numRenews++
+
+			if cfg.DNSProvider == "" && cfg.HTTPAddress == "" {
+				// restart server: both context and server instance need to be recreated!
+				ctx, cancel = context.WithCancel(context.Background())
+				srv = makeServer()
+
+				// force reload the updated cert from disk
+				certReloader.ReloadNow()
+
+				// here we go again
+				go serveTLS(ctx, srv)
+			} else {
+				//
+				//	// force reload the updated cert from disk
+				certReloader.ReloadNow()
+			}
+		}
+
+		// init simplecert configuration
+		// this will block initially until the certificate has been obtained for the first time.
+		// on subsequent runs, simplecert will load the certificate from the cache directory on disk.
+		certReloader, err = simplecert.Init(cfg, func() {
+			os.Exit(0)
+		})
+
 		if err != nil {
-			lg().Error("error starting HTTP server", "listener", httpSrv.Addr, "err", err)
+			lg().Error("simplecert init failed", "err", err)
+		}
+
+		// redirect HTTP to HTTPS
+		//log.Println("starting HTTP Listener on Port 80")
+		//go http.ListenAndServe(":80", http.HandlerFunc(simplecert.Redirect))
+
+		// enable hot reload
+		tlsConf.GetCertificate = certReloader.GetCertificateFunc()
+		serveTLS(ctx, srv)
+		<-make(chan bool)
+	} else {
+		srv = makeBaseServer()
+
+		err := srv.ListenAndServe()
+		if err != nil {
+			lg().Error("error starting HTTP server", "listener", srv.Addr, "err", err)
 			return err
 		}
 	}
 
 	return nil
-}
-
-func autocertListener(staging bool, domains ...string) net.Listener {
-
-	letsEncryptStaging := "https://acme-staging-v02.api.letsencrypt.org/directory"
-	acmeDirectoryURL := autocert.DefaultACMEDirectory
-
-	if staging {
-		acmeDirectoryURL = letsEncryptStaging
-	}
-
-	m := &autocert.Manager{
-		Prompt: autocert.AcceptTOS,
-		Client: &acme.Client{
-			DirectoryURL: acmeDirectoryURL,
-		},
-	}
-
-	if len(domains) > 0 {
-		m.HostPolicy = autocert.HostWhitelist(domains...)
-	}
-
-	dir := "certs"
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		lg().Warn("autocert.NewListener not using a cache: %v", "err", err)
-	} else {
-		m.Cache = autocert.DirCache(dir)
-	}
-	return m.Listener()
 }
 
 func noIndex(next http.Handler) http.Handler {
@@ -180,103 +306,27 @@ func noIndex(next http.Handler) http.Handler {
 	})
 }
 
-var watcher *fsnotify.Watcher
-
-func watchForChanges(dirToWatch string) {
-	watcher, _ = fsnotify.NewWatcher()
-	defer watcher.Close()
-
-	if err := filepath.Walk(dirToWatch, watchDir); err != nil {
-		lg().Error("error watching for changes", "err", err)
-	}
-	done := make(chan bool)
-	dbncr := Debounce(1 * time.Second)
-
+func serveTLS(ctx context.Context, srv *http.Server) {
+	// start server in goroutine
 	go func() {
-		for {
-			select {
-			case event := <-watcher.Events:
-				lg().Debug("watcher.Error", "event", event)
-
-				modifiedFiles[event.Name] = true
-				go dbncr(handleFileEvent)
-
-			case err := <-watcher.Errors:
-				lg().Error("watcher.Error", "err", err)
-			}
+		if err := srv.ListenAndServeTLS("", ""); err != nil && err != http.ErrServerClosed {
+			lg().Error("failed to setup HTTPS server", "err", err)
 		}
 	}()
 
-	<-done
-}
+	// wait for server to be stopped
+	<-ctx.Done()
+	// server has been stopped
 
-var modifiedFiles = map[string]bool{}
+	ctxShutDown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer func() {
+		cancel()
+	}()
 
-func watchDir(path string, fi os.FileInfo, err error) error {
-	if fi.Mode().IsDir() {
-		return watcher.Add(path)
+	err := srv.Shutdown(ctxShutDown)
+	if errors.Is(err, http.ErrServerClosed) {
+		lg().Info("server exited properly")
+	} else if err != nil {
+		lg().Info("server exited with error", "err", err)
 	}
-
-	return nil
-}
-
-func handleFileEvent() {
-	for modifiedFile := range modifiedFiles {
-		delete(modifiedFiles, modifiedFile)
-		f, err := os.Open(modifiedFile)
-		if err != nil {
-			lg().Error("error opening file", "file", modifiedFile, "err", err)
-			continue
-		}
-
-		p, err := getPayloadsFromFrontmatter(f)
-		if err != nil {
-			lg().Error("error getting frontmatter", "file", modifiedFile, "err", err)
-			continue
-		}
-
-		p.Project = model.DefaultProject()
-
-		tx := model.DB().Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "name"}}, // key colume
-			DoUpdates: clause.AssignmentColumns([]string{
-				"description",
-				"pattern",
-				"is_final",
-				"data",
-				"sort_order",
-				"internal_function",
-			}), // column needed to be updated
-		}).Create(&p)
-
-		if tx.Error != nil {
-			lg().Error("error creating payload", "err", tx.Error)
-		} else {
-			payloads = []*Payload{}
-		}
-	}
-}
-
-func Debounce(after time.Duration) func(f func()) {
-	d := &debouncer{after: after}
-
-	return func(f func()) {
-		d.add(f)
-	}
-}
-
-type debouncer struct {
-	mu    sync.Mutex
-	after time.Duration
-	timer *time.Timer
-}
-
-func (d *debouncer) add(f func()) {
-	d.mu.Lock()
-	defer d.mu.Unlock()
-
-	if d.timer != nil {
-		d.timer.Stop()
-	}
-	d.timer = time.AfterFunc(d.after, f)
 }

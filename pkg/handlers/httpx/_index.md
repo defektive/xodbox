@@ -11,22 +11,19 @@ Speak HTTP to other computers you may or may not control....
 
 ## Configuration
 
-| Key         | Values                              |
-|-------------|-------------------------------------|
-| handler     | Must be `HTTPX`                     |
-| listener    | Default `:80`                       |
-| static_dir  | Directory to host static files from |
-| payload_dir | Directory to import payloads from   |
-
-
-### WIP configs that are not fully implemented
-
-| Key                 | Values                                                                            |
-|---------------------|-----------------------------------------------------------------------------------|
-| tls_domains         | Comma seperated list of domains                                                   |
-| acme_staging        | Boolean. Shortcut to use `https://acme-staging-v02.api.letsencrypt.org/directory` |
-| acme_directory_url  | Override URL                                                                      |
-| autocert_accept_tos | Boolean. Do you accept the CAs TOS?                                               |
+| Key                   | Values                                                                             |
+|-----------------------|------------------------------------------------------------------------------------|
+| handler               | Must be `HTTPX`                                                                    |
+| listener              | Default `:80`                                                                      |
+| static_dir            | Directory to host static files from                                                |
+| payload_dir           | Directory to import payloads from                                                  |
+| domains               | Comma seperated list of domains                                                    |
+| cert_cache_dir        | directory to cache cert information in                                             |
+| cert_email            | email to use for let's encrypt requests                                            |
+| acme_staging          | Boolean. Shortcut to use `https://acme-staging-v02.api.letsencrypt.org/directory`  |
+| acme_dir_url          | ACME Directory URL                                                                 |
+| cert_dns_provider     | DNS provider for DNS challenges. see: https://go-acme.github.io/lego/dns/          |
+| cert_dns_provider_env | ENV vars required for DNS challenge providers                                      |
 
 
 ## Additional Information

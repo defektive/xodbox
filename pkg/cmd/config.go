@@ -26,14 +26,14 @@ var configCmd = &cobra.Command{
 }
 
 func init() {
-	//startCmd.Flags().String("slack-webhook", "", "Slack Webhook URL")
+	//startCmd.Flags().String("slack-webhook", "", "Slack Webhook url")
 	//startCmd.Flags().String("slack-user", "Pirate Virus", "Slack user")
 	//startCmd.Flags().String("slack-channel", "", "Slack channel")
 	//startCmd.Flags().String("slack-avatar", "", "Slack avatar emoji")
 	//
-	//startCmd.Flags().String("discord-webhook", "", "Discord webhook URL")
+	//startCmd.Flags().String("discord-webhook", "", "Discord webhook url")
 	//startCmd.Flags().String("discord-user", "Pirate Virus", "Discord user")
-	//startCmd.Flags().String("discord-avatar", "", "Discord avatar URL")
+	//startCmd.Flags().String("discord-avatar", "", "Discord avatar url")
 	//startCmd.Flags().BoolP("log", "l", false, "Print a log of interaction events")
 	//startCmd.Flags().BoolP("log", "l", false, "Print a log of interaction events")
 	XodboxCmd.AddCommand(configCmd)
