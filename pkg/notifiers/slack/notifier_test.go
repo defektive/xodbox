@@ -45,14 +45,14 @@ func TestSlackNotifier_Payload(t *testing.T) {
 				Icon:     "icon",
 			},
 			args: args{
-				types.NewEvent(
-					"123.456.789.2",
-					90872,
-					"dumb test event",
-					[]byte("pizza"),
-				),
+				&types.BaseEvent{
+					RemoteAddr:       "123.456.789.2",
+					RemotePortNumber: 90872,
+					UserAgentString:  "dumb test event",
+					RawData:          []byte("pizza"),
+				},
 			},
-			want: []byte(`{"channel":"","username":"user","icon_emoji":"icon","text":"Base Event\n` + "```pizza\\n```" + `"}`),
+			want: []byte(`{"channel":"","username":"user","icon_emoji":"icon","text":"Default Event\n` + "```pizza\\n```" + `"}`),
 		},
 		{
 			name: "HTTP Request",
