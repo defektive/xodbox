@@ -76,7 +76,7 @@ func configFromFile(configFile string) (*ConfigFile, error) {
 	if err != nil {
 		if ConfigFileName == configFile {
 			// no file, load from self
-			b, err = ReadFile(path.Join("config", ConfigFileName))
+			b, err = EmbeddedConfigReadFile(path.Join("config", ConfigFileName))
 			if err != nil {
 				return nil, err
 			}

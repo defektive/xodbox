@@ -40,7 +40,7 @@ func CreatePayloads(payloads []*Payload, dbh *gorm.DB) {
 		payload.Project = model.DefaultProject()
 		tx := dbh.Create(payload)
 		if tx.Error != nil {
-			lg().Error("failed to create payload", "tx.Error", tx.Error, "name", payload.Name, "type", payload.Type, "pattern", payload.Pattern)
+			lg().Debug("failed to create payload", "tx.Error", tx.Error, "name", payload.Name, "type", payload.Type, "pattern", payload.Pattern)
 		}
 	}
 }
