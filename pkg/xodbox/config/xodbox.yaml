@@ -1,21 +1,28 @@
+---
+## Docs: https://defektive.github.io/xodbox/docs/pkg/handlers/
 handlers:
-  - handler: DNS
-    listener: 127.0.10.1:53
-    default_ip: 127.0.0.1
+  ## Docs: https://defektive.github.io/xodbox/docs/pkg/handlers/dns/
+#  - handler: DNS
+#    listener: 127.0.10.1:53
+#    default_ip: 127.0.0.1
+  ## Docs: https://defektive.github.io/xodbox/docs/pkg/handlers/httpx/
   - handler: HTTPX
-#    payload_dir: custom-payloads/http
-#    static_dir: xodbox-static
+#    payload_dir: payloads/httpx
+#    static_dir: static
     listener: :80
+## Docs: https://defektive.github.io/xodbox/docs/pkg/notifiers/
 notifiers:
-  #    - notifier: slack
-  #      url: https://hooks.slack.com/services/T0...N
-  #      channel: general
-  #      author: PirateVirus
-  #      author_image: ':pirate:'
-  #      filter: "/l"
-  #    - notifier: discord
-  #      url: https://discord.com/api/webhooks/133...6C
-  #      author: PirateVirus
-  #      author_image: https://s3-us-west-2.amazonaws.com/slack-f...72.png
-  #      filter: "/l"
+#  ## Docs: https://defektive.github.io/xodbox/docs/pkg/notifiers/slack/
+#  - notifier: slack
+#    url: https://hooks.slack.com/services/T0...N
+#    channel: general
+#    author: PirateVirus
+#    author_image: ':pirate:'
+#    filter: "/l"
+#  ## Docs: https://defektive.github.io/xodbox/docs/pkg/notifiers/discord/
+#  - notifier: discord
+#    url: https://discord.com/api/webhooks/133...6C
+#    author: PirateVirus
+#    author_image: https://s3-us-west-2.amazonaws.com/slack-f...72.png
+#    filter: "/l"
   - notifier: app_log

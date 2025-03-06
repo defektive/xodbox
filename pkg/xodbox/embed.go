@@ -6,16 +6,16 @@ import (
 )
 
 //go:embed config
-var embeddedFS embed.FS
+var EmbeddedConfig embed.FS
 
 func ReadDir(name string) ([]fs.DirEntry, error) {
-	return embeddedFS.ReadDir(name)
+	return EmbeddedConfig.ReadDir(name)
 }
 
-func ReadFile(name string) ([]byte, error) {
-	return embeddedFS.ReadFile(name)
+func EmbeddedConfigReadFile(name string) ([]byte, error) {
+	return EmbeddedConfig.ReadFile(name)
 }
 
 func Open(name string) (fs.File, error) {
-	return embeddedFS.Open(name)
+	return EmbeddedConfig.Open(name)
 }
