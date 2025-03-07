@@ -40,7 +40,7 @@ go install github.com/defektive/xodbox@latest
 ## Configuration
 
 ```sh
-cp example.xodbox.yaml xodbox.yaml
+./xodbox config -e > xodbox.yaml
 ```
 
 ### Handler Configuration

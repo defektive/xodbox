@@ -9,6 +9,13 @@ handlers:
   - handler: HTTPX
 #    payload_dir: payloads/httpx
 #    static_dir: static
+#    acme_email: youremail.real.place
+#    acme_accept: false # this should be true. you must accept :D
+#    acme_url: https://acme-staging-v02.api.letsencrypt.org/directory # when ready use real URL https://acme-v02.api.letsencrypt.org/directory
+#    tls_names: "*.example.com,example.com"
+#    dns_provider: namecheap # or route53
+#    dns_provider_api_user: namecheap-user
+#    dns_provider_api_key: namecheap-secret
     listener: :80
 ## Docs: https://defektive.github.io/xodbox/docs/pkg/notifiers/
 notifiers:
