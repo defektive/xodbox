@@ -22,6 +22,7 @@ require (
 	github.com/BurntSushi/toml v1.5.0 // indirect
 	github.com/NoF0rte/cmd-builder v0.0.0-20220305223538-e35bfeabbbff // indirect
 	github.com/alecthomas/chroma/v2 v2.15.0 // indirect
+	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/aws/aws-sdk-go-v2 v1.36.3 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.29.9 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.62 // indirect
@@ -49,6 +50,7 @@ require (
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/glebarez/go-sqlite v1.22.0 // indirect
+	github.com/gliderlabs/ssh v0.3.8 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
