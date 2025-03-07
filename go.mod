@@ -3,6 +3,7 @@ module github.com/defektive/xodbox
 go 1.23.4
 
 require (
+	github.com/NoF0rte/cmd-builder v0.0.0-20220305223538-e35bfeabbbff
 	github.com/adrg/frontmatter v0.2.0
 	github.com/analog-substance/util v1.1.6
 	github.com/caddyserver/certmagic v0.22.2
@@ -34,7 +35,6 @@ exclude github.com/libdns/libdns v1.0.0
 
 require (
 	github.com/BurntSushi/toml v1.5.0 // indirect
-	github.com/NoF0rte/cmd-builder v0.0.0-20220305223538-e35bfeabbbff // indirect
 	github.com/alecthomas/chroma/v2 v2.18.0 // indirect
 	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/aws/aws-sdk-go-v2 v1.36.5 // indirect
