@@ -1,15 +1,19 @@
 package httpx
 
 import (
+	"context"
+	"crypto/tls"
 	"fmt"
 	"github.com/analog-substance/util/fileutil"
+	"github.com/caddyserver/certmagic"
 	"github.com/defektive/xodbox/pkg/model"
 	"github.com/defektive/xodbox/pkg/types"
 	"github.com/fsnotify/fsnotify"
-	"golang.org/x/crypto/acme"
-	"golang.org/x/crypto/acme/autocert"
+	"github.com/libdns/namecheap"
+	"github.com/libdns/route53"
 	"gorm.io/gorm/clause"
 	"io/fs"
+	"log"
 	"net"
 	"net/http"
 	"os"
@@ -22,13 +26,21 @@ import (
 const EmbeddedMountPoint = "/ixdbxi/"
 
 type Handler struct {
-	name     string
-	Listener string
-	AutoCert bool
+	name               string
+	Listener           string
+	AutoCert           bool
+	ACMEAccept         bool
+	ACMEEmail          string
+	ACMEURL            string
+	DNSProvider        string
+	DNSProviderAPIUser string
+	DNSProviderAPIKey  string
+	TLSNames           []string
 
 	StaticDir       string
 	dispatchChannel chan types.InteractionEvent
 	app             types.App
+	mux             *http.ServeMux
 }
 
 func NewHandler(handlerConfig map[string]string) types.Handler {
@@ -43,7 +55,13 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	staticDir := handlerConfig["static_dir"]
 	payloadDir := handlerConfig["payload_dir"]
 	listener := handlerConfig["listener"]
-	autoCert := handlerConfig["autocert"] == "true"
+	tlsNamesOpt := handlerConfig["tls_names"]
+	dnsProvider := handlerConfig["dns_provider"]
+	dnsProviderAPIUser := handlerConfig["dns_provider_api_user"]
+	dnsProviderAPIKey := handlerConfig["dns_provider_api_key"]
+	acmeEmail := handlerConfig["acme_email"]
+	acmeAccept := handlerConfig["acme_accept"] == "true"
+	acmeURL := handlerConfig["acme_url"]
 
 	if payloadDir != "" {
 		lg().Debug("payload dir supplied", "payload_dir", payloadDir)
@@ -51,122 +69,131 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 		go watchForChanges(payloadDir)
 	}
 
+	tlsNames := []string{}
+	if tlsNamesOpt != "" {
+		tlsNames = strings.Split(tlsNamesOpt, ",")
+	}
+
 	return &Handler{
-		name:      "HTTPX",
-		Listener:  listener,
-		AutoCert:  autoCert,
-		StaticDir: staticDir,
+		name:               "HTTPX",
+		Listener:           listener,
+		StaticDir:          staticDir,
+		AutoCert:           len(tlsNames) > 0,
+		ACMEEmail:          acmeEmail,
+		ACMEAccept:         acmeAccept,
+		ACMEURL:            acmeURL,
+		TLSNames:           tlsNames,
+		DNSProvider:        dnsProvider,
+		DNSProviderAPIUser: dnsProviderAPIUser,
+		DNSProviderAPIKey:  dnsProviderAPIKey,
 	}
 }
 
 func (h *Handler) Name() string {
 	return h.name
 }
+func (h *Handler) serverMux() *http.ServeMux {
+	if h.mux == nil {
+		h.mux = &http.ServeMux{}
+		if h.StaticDir != "" {
+			if !fileutil.DirExists(h.StaticDir) {
+				if err := os.MkdirAll(h.StaticDir, 0744); err != nil {
+					lg().Error("Failed to create static directory", "err", err)
+				}
+			}
+			httpFS := http.FileServer(http.Dir(h.StaticDir))
+
+			h.mux.Handle("/static/", http.StripPrefix("/static", noIndex(httpFS)))
+		}
+
+		subFs, err := fs.Sub(embeddedStaticFS, "static")
+		if err != nil {
+			lg().Error("Failed to subfs embedded files", "err", err)
+		}
+		h.mux.Handle(EmbeddedMountPoint, http.StripPrefix(EmbeddedMountPoint[:len(EmbeddedMountPoint)-1], noIndex(http.FileServer(http.FS(subFs)))))
+
+		h.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+			loadStart := time.Now()
+			defer func() {
+				lg().Debug("http response completed", "timeTaken", fmt.Sprintf("%dµs", time.Since(loadStart).Microseconds()))
+			}()
+			e := NewEvent(r)
+
+			e.Dispatch(h.dispatchChannel)
+
+			for _, payload := range SortedPayloads() {
+				if payload.ShouldProcess(r) {
+					payload.Process(w, e, h.app.GetTemplateData())
+					lg().Debug("Processing payload", "payload", payload, "IsFinal", payload.IsFinal)
+					if payload.IsFinal {
+						break
+					}
+				}
+			}
+		})
+
+	}
+	return h.mux
+}
+
+func (h *Handler) serveHTTP() error {
+	httpSrv := &http.Server{
+		ReadTimeout:  5 * time.Second,
+		WriteTimeout: 5 * time.Second,
+		IdleTimeout:  120 * time.Second,
+		Handler:      h.serverMux(),
+		Addr:         h.Listener,
+	}
+
+	return httpSrv.ListenAndServe()
+}
+
+func (h *Handler) serveHTTPS() error {
+	certmagic.DefaultACME.Agreed = h.ACMEAccept
+	certmagic.DefaultACME.Email = h.ACMEEmail
+	certmagic.DefaultACME.CA = h.ACMEURL
+
+	var provider certmagic.DNSProvider
+
+	switch h.DNSProvider {
+	case "namecheap":
+		provider = &namecheap.Provider{
+			User:   h.DNSProviderAPIUser,
+			APIKey: h.DNSProviderAPIKey,
+		}
+	case "route53":
+		provider = &route53.Provider{}
+	}
+
+	if provider != nil {
+		certmagic.DefaultACME.DisableHTTPChallenge = true
+		certmagic.DefaultACME.DisableTLSALPNChallenge = true
+		certmagic.DefaultACME.DNS01Solver = &certmagic.DNS01Solver{
+			DNSManager: certmagic.DNSManager{
+				DNSProvider: provider,
+			},
+		}
+	}
+
+	certmagic.Default.DefaultServerName = "oxo.pw"
+	certmagic.Default.FallbackServerName = "failed.oxo.pw"
+
+	// eventually we'll figure out what config options we want
+	return HTTPS(h.TLSNames, h.serverMux(), false)
+}
 
 func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) error {
-
 	// capture these for later
 	h.app = app
 	h.dispatchChannel = eventChan
 
-	mux := &http.ServeMux{}
-	if h.StaticDir != "" {
-		if !fileutil.DirExists(h.StaticDir) {
-			if err := os.MkdirAll(h.StaticDir, 0744); err != nil {
-				lg().Error("Failed to create static directory", "err", err)
-			}
-		}
-		fs := http.FileServer(http.Dir(h.StaticDir))
-
-		mux.Handle("/static/", http.StripPrefix("/static", noIndex(fs)))
+	if h.AutoCert {
+		lg().Info("Starting HTTPS server", "listener", h.Listener)
+		return h.serveHTTPS()
 	}
 
-	subFs, err := fs.Sub(embeddedStaticFS, "static")
-	if err != nil {
-		lg().Error("Failed to subfs embedded files", "err", err)
-	}
-	mux.Handle(EmbeddedMountPoint, http.StripPrefix(EmbeddedMountPoint[:len(EmbeddedMountPoint)-1], noIndex(http.FileServer(http.FS(subFs)))))
-
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		loadStart := time.Now()
-		defer func() {
-			lg().Debug("http response completed", "timeTaken", fmt.Sprintf("%dµs", time.Since(loadStart).Microseconds()))
-		}()
-		e := NewEvent(r)
-
-		e.Dispatch(h.dispatchChannel)
-
-		for _, payload := range SortedPayloads() {
-			if payload.ShouldProcess(r) {
-				payload.Process(w, e, app.GetTemplateData())
-				lg().Debug("Processing payload", "payload", payload, "IsFinal", payload.IsFinal)
-				if payload.IsFinal {
-					break
-				}
-			}
-		}
-	})
-
-	domains := ""
-	tlsDomains := strings.Split(domains, ",")
-
-	if len(domains) > 0 {
-		lg().Info("Listening on TLS Domains", "domains", tlsDomains)
-		err := http.Serve(autocertListener(true, tlsDomains...), mux)
-		if err != nil {
-			lg().Error("error starting autocert HTTP server", "tlsDomains", tlsDomains, "err", err)
-			return err
-		}
-
-	} else {
-
-		httpSrv := &http.Server{
-			ReadTimeout:  5 * time.Second,
-			WriteTimeout: 5 * time.Second,
-			IdleTimeout:  120 * time.Second,
-			Handler:      mux,
-		}
-
-		httpSrv.Addr = h.Listener
-		lg().Info("Starting HTTP server", "listener", httpSrv.Addr)
-
-		err := httpSrv.ListenAndServe()
-		if err != nil {
-			lg().Error("error starting HTTP server", "listener", httpSrv.Addr, "err", err)
-			return err
-		}
-	}
-
-	return nil
-}
-
-func autocertListener(staging bool, domains ...string) net.Listener {
-
-	letsEncryptStaging := "https://acme-staging-v02.api.letsencrypt.org/directory"
-	acmeDirectoryURL := autocert.DefaultACMEDirectory
-
-	if staging {
-		acmeDirectoryURL = letsEncryptStaging
-	}
-
-	m := &autocert.Manager{
-		Prompt: autocert.AcceptTOS,
-		Client: &acme.Client{
-			DirectoryURL: acmeDirectoryURL,
-		},
-	}
-
-	if len(domains) > 0 {
-		m.HostPolicy = autocert.HostWhitelist(domains...)
-	}
-
-	dir := "certs"
-	if err := os.MkdirAll(dir, 0700); err != nil {
-		lg().Warn("autocert.NewListener not using a cache: %v", "err", err)
-	} else {
-		m.Cache = autocert.DirCache(dir)
-	}
-	return m.Listener()
+	lg().Info("Starting HTTP server", "listener", h.Listener)
+	return h.serveHTTP()
 }
 
 func noIndex(next http.Handler) http.Handler {
@@ -279,4 +306,126 @@ func (d *debouncer) add(f func()) {
 		d.timer.Stop()
 	}
 	d.timer = time.AfterFunc(d.after, f)
+}
+
+// From Certmagic, since I am also opinionated... :D
+// Variables for conveniently serving HTTPS.
+var (
+	httpLn, httpsLn net.Listener
+	lnMu            sync.Mutex
+	httpWg          sync.WaitGroup
+)
+
+func HTTPS(domainNames []string, mux http.Handler, forwardHTTP bool) error {
+	ctx := context.Background()
+
+	if mux == nil {
+		mux = http.DefaultServeMux
+	}
+
+	cfg := certmagic.NewDefault()
+
+	err := cfg.ManageSync(ctx, domainNames)
+	if err != nil {
+		return err
+	}
+
+	httpWg.Add(1)
+	defer httpWg.Done()
+
+	// if we haven't made listeners yet, do so now,
+	// and clean them up when all servers are done
+	lnMu.Lock()
+	if httpLn == nil && httpsLn == nil {
+		httpLn, err = net.Listen("tcp", fmt.Sprintf(":%d", certmagic.HTTPPort))
+		if err != nil {
+			lnMu.Unlock()
+			return err
+		}
+
+		tlsConfig := cfg.TLSConfig()
+		tlsConfig.NextProtos = append([]string{"h2", "http/1.1"}, tlsConfig.NextProtos...)
+
+		httpsLn, err = tls.Listen("tcp", fmt.Sprintf(":%d", certmagic.HTTPSPort), tlsConfig)
+		if err != nil {
+			httpLn.Close()
+			httpLn = nil
+			lnMu.Unlock()
+			return err
+		}
+
+		go func() {
+			httpWg.Wait()
+			lnMu.Lock()
+			httpLn.Close()
+			httpsLn.Close()
+			lnMu.Unlock()
+		}()
+	}
+	hln, hsln := httpLn, httpsLn
+	//hsln := httpsLn
+	lnMu.Unlock()
+
+	// create HTTP/S servers that are configured
+	// with sane default timeouts and appropriate
+	// handlers (the HTTP server solves the HTTP
+	// challenge and issues redirects to HTTPS,
+	// while the HTTPS server simply serves the
+	// user's handler)
+	httpServer := &http.Server{
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      5 * time.Second,
+		IdleTimeout:       5 * time.Second,
+		BaseContext:       func(listener net.Listener) context.Context { return ctx },
+	}
+
+	if len(cfg.Issuers) > 0 {
+		if am, ok := cfg.Issuers[0].(*certmagic.ACMEIssuer); ok {
+			if forwardHTTP {
+				httpServer.Handler = am.HTTPChallengeHandler(http.HandlerFunc(httpRedirectHandler))
+			} else {
+				httpServer.Handler = am.HTTPChallengeHandler(mux)
+
+			}
+		}
+	}
+
+	httpsServer := &http.Server{
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      2 * time.Minute,
+		IdleTimeout:       5 * time.Minute,
+		Handler:           mux,
+		BaseContext:       func(listener net.Listener) context.Context { return ctx },
+	}
+
+	log.Printf("%v Serving HTTP->HTTPS on %s and %s", domainNames, hln.Addr(), hsln.Addr())
+
+	go httpServer.Serve(hln)
+	return httpsServer.Serve(hsln)
+}
+
+func httpRedirectHandler(w http.ResponseWriter, r *http.Request) {
+	toURL := "https://"
+
+	// since we redirect to the standard HTTPS port, we
+	// do not need to include it in the redirect URL
+	requestHost := hostOnly(r.Host)
+
+	toURL += requestHost
+	toURL += r.URL.RequestURI()
+
+	// get rid of this disgusting unencrypted HTTP connection 🤢
+	w.Header().Set("Connection", "close")
+
+	http.Redirect(w, r, toURL, http.StatusMovedPermanently)
+}
+
+func hostOnly(hostport string) string {
+	host, _, err := net.SplitHostPort(hostport)
+	if err != nil {
+		return hostport // OK; probably had no port to begin with
+	}
+	return host
 }
