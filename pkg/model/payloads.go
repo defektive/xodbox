@@ -50,7 +50,7 @@ func SortedPayloads() []Payload {
 
 	var payloads = []Payload{}
 
-	db.Order("sort_order, project_id, pattern asc").Find(&payloads)
+	DB().Order("sort_order, project_id, pattern asc").Find(&payloads)
 
 	return payloads
 }

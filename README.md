@@ -3,10 +3,9 @@ title: xodbox
 linkTitle: Docs
 menu: {main: {weight: 20}}
 ---
-> Network interaction listening post
-> https://defektive.github.io/xodbox/
-
-[![Go Tests](https://github.com/defektive/xodbox/actions/workflows/go-tests.yml/badge.svg)](https://github.com/defektive/xodbox/actions/workflows/go-tests.yml)
+> Network interaction listening post  
+> [Docs](https://defektive.github.io/xodbox/) :: [Releases](https://github.com/defektive/xodbox/releases) :: [Code](https://github.com/defektive/xodbox/)  
+> [![Go Tests](https://github.com/defektive/xodbox/actions/workflows/go-tests.yml/badge.svg)](https://github.com/defektive/xodbox/actions/workflows/go-tests.yml)
 
 ## Purpose
 

@@ -5,9 +5,19 @@ weight: -900
 pattern: ^/redir
 is_final: true
 data:
-  status_code: "{{index .Request.GetParams.s 0}}"
+  status_code: |
+    {{- $statusCode := "301" }}
+    {{- if .Request.GetParams.s }}
+    {{- $statusCode = (index .Request.GetParams.s 0) }}
+    {{- end -}}
+    {{- $statusCode -}}
   headers:
-    Location: "{{index .Request.GetParams.l 0}}"
+    Location: |
+      {{- $location := "https://www.youtube.com/watch?v=dQw4w9WgXcQ" }}
+      {{- if .Request.GetParams.l }}
+      {{- $location = (index .Request.GetParams.l 0) }}
+      {{- end -}}
+      {{- $location -}}
   body: so long!
 ---
 

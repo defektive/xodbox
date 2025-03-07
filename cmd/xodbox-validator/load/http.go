@@ -23,7 +23,7 @@ func Murder() {
 
 func worker(id int) {
 
-	resp, err := http.Get(fmt.Sprintf("http://localhost/l/load/%d", id))
+	resp, err := http.Get(fmt.Sprintf("http://localhost:3000/sv?f=/load/%d", id))
 	if err != nil {
 		//log.Println(err)
 		// retry

@@ -133,11 +133,11 @@ func (h *Payload) Process(w http.ResponseWriter, e *Event, templateData map[stri
 		var valBytes bytes.Buffer
 		err := headTemplates.HeaderTemplate.Execute(&hdrBytes, tc)
 		if err != nil {
-			lg().Error("Error executing header template", "err", err)
+			lg().Error("Error executing header template", "payload", h.Name, "err", err)
 		}
 		err = headTemplates.ValueTemplate.Execute(&valBytes, tc)
 		if err != nil {
-			lg().Error("Error executing header value template", "err", err)
+			lg().Error("Error executing header value template", "payload", h.Name, "err", err)
 		}
 
 		w.Header().Set(hdrBytes.String(), valBytes.String())
@@ -147,12 +147,12 @@ func (h *Payload) Process(w http.ResponseWriter, e *Event, templateData map[stri
 		var statusBytes bytes.Buffer
 		err := h.StatusTemplate().Execute(&statusBytes, tc)
 		if err != nil {
-			lg().Error("Error executing body template", "err", err)
+			lg().Error("Error executing body template", "payload", h.Name, "err", err)
 		}
 
 		responseStatus, err := strconv.Atoi(statusBytes.String())
 		if err != nil {
-			lg().Error("Error converting response status to int", "err", err)
+			lg().Error("Error converting response status to int", "payload", h.Name, "err", err)
 			responseStatus = 500
 		}
 
@@ -163,14 +163,14 @@ func (h *Payload) Process(w http.ResponseWriter, e *Event, templateData map[stri
 		// ghetto hack cause I am lazy
 		err := Inspect(w, e)
 		if err != nil {
-			lg().Error("Error executing inspect template", "err", err)
+			lg().Error("Error executing inspect template", "payload", h.Name, "err", err)
 		}
 		return
 	}
 
 	err := h.ExecuteBodyTemplate(w, tc)
 	if err != nil {
-		lg().Error("Error executing body template", "err", err)
+		lg().Error("Error executing body template", "payload", h.Name, "err", err)
 		fmt.Fprint(w, "that was unexpected")
 
 	}
