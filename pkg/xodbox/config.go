@@ -3,6 +3,7 @@ package xodbox
 import (
 	"github.com/defektive/xodbox/pkg/handlers/dns"
 	"github.com/defektive/xodbox/pkg/handlers/httpx"
+	ssh "github.com/defektive/xodbox/pkg/handlers/ssh"
 	"github.com/defektive/xodbox/pkg/notifiers/app_log"
 	"github.com/defektive/xodbox/pkg/notifiers/discord"
 	"github.com/defektive/xodbox/pkg/notifiers/slack"
@@ -96,6 +97,7 @@ var newNotifierMap = map[string]func(notifierConfig map[string]string) types.Not
 func init() {
 	newHandlerMap["DNS"] = dns.NewHandler
 	newHandlerMap["HTTPX"] = httpx.NewHandler
+	newHandlerMap["SSH"] = ssh.NewHandler
 
 	newNotifierMap["app_log"] = app_log.NewNotifier
 	newNotifierMap["discord"] = discord.NewNotifier
