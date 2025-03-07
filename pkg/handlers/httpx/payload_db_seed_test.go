@@ -2,8 +2,10 @@ package httpx
 
 import (
 	"io/fs"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -46,6 +48,7 @@ func Test_compileEmbeddedPayloadTemplates(t *testing.T) {
 			//}
 
 			for _, payload := range got {
+
 				_, err := payload.BodyTemplate()
 				if err != nil {
 					t.Errorf("unable to compile body template payload = %s error = %v", payload.Name, err)
@@ -54,7 +57,28 @@ func Test_compileEmbeddedPayloadTemplates(t *testing.T) {
 				// make sure we dont panic :D
 				payload.HeaderTemplates()
 				payload.StatusTemplate()
+
+				w := httptest.NewRecorder()
+				event := NewEvent(newHTTPRequest("http://localhost/"))
+				templateContext := map[string]string{
+					"test": "test",
+				}
+
+				payload.Process(w, event, templateContext)
+
+				if strings.Contains(w.Body.String(), "that was unexpected") {
+					t.Errorf("[%s] payload.Process() encountered an error: %s", payload.Name, w.Body.String())
+				}
+				//_, err := payload.BodyTemplate()
+				//if err != nil {
+				//	t.Errorf("unable to compile body template payload = %s error = %v", payload.Name, err)
+				//}
+				//
+				//// make sure we dont panic :D
+				//payload.HeaderTemplates()
+				//payload.StatusTemplate()
 			}
+
 		})
 	}
 }

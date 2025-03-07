@@ -125,6 +125,20 @@ func (e *Event) TemplateContext(templateData map[string]string) *TemplateContext
 
 }
 
+type TemplateContext struct {
+	Version          string
+	NotifyString     string
+	Uptime           time.Duration
+	Payloads         []model.Payload
+	CallBackImageURL string
+	CallBackURL      string
+	Extra            map[string]string
+	ProxySrv         string
+	ProxySrvRegex    string
+
+	Request *TemplateRequestContext
+}
+
 type TemplateRequestContext struct {
 	RemoteAddr  []string
 	Host        string
@@ -136,16 +150,4 @@ type TemplateRequestContext struct {
 	Headers    map[string][]string
 	GetParams  map[string][]string
 	PostParams map[string][]string
-}
-
-type TemplateContext struct {
-	Version          string
-	NotifyString     string
-	Uptime           time.Duration
-	Payloads         []model.Payload
-	CallBackImageURL string
-	CallBackURL      string
-	Extra            map[string]string
-
-	Request *TemplateRequestContext
 }

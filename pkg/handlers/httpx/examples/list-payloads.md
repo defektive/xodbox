@@ -2,7 +2,7 @@
 title: List Payloads
 description: List payloads
 weight: 1
-pattern: /i-forgot-how-things-work$
+pattern: /i-work$
 is_final: true
 data:
   headers:

@@ -14,7 +14,7 @@ data:
         <meta charset="utf-8">
       </head>
       <body>
-        <script src="//{{.Host}}/jsc"></script>
+        <script src="//{{.Request.Host}}/jsc"></script>
       </body>
     </html>
 

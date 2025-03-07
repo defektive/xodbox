@@ -11,7 +11,7 @@ data:
     <?xml version="1.0" encoding="ISO-8859-1"?>
     <!DOCTYPE foo [
       <!ELEMENT foo ANY >
-      <!ENTITY xxe SYSTEM "http://{{ .Host }}/{{ .NotifyString }}/xxe-test" >
+      <!ENTITY xxe SYSTEM "http://{{.Request.Host}}/{{ .NotifyString }}/xxe-test" >
     ]>
     <foo>&xxe;</foo>
 

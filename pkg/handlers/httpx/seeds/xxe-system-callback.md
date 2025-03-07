@@ -7,7 +7,7 @@ is_final: true
 data:
   headers:
     Content-Type: text/plain
-  body: I should be loaded from http://{{ .Host }}/dt
+  body: I should be loaded from http://{{.Request.Host}}/dt
 
 ---
 
