@@ -13,5 +13,6 @@ weight: 1
 |--------------|-------------------------------------------------|
 | notifier     | Must be `discord`                               |
 | url          | Webhook URL                                     |
-| author       | Username to appear in slack. (optional)         |
+| author       | Username to appear in slack. (optional)    d    |
 | author_image | Emoji code to use for user's avatar. (optional) |
+| filter       | Golang regexp.                                  |
