@@ -24,6 +24,24 @@ Speak HTTP to other computers you may or may not control....
 | dns_provider_api_user | Username for API calls. Only used for namecheap ATM.                                                                                                                                                                                                          |
 | dns_provider_api_key  | Key for API calls. Only used for namecheap ATM.                                                                                                                                                                                                               |
 
+## Filters
+
+The entire HTTP request is used to match filters. To alert on a specific prefix the following filter would be used.
+
+```yaml
+"(GET|POST|HEAD|DELETE|PUT|PATCH|TRACE) /myPrefix"
+```
+
+This would match:
+
+- https://test.example/myPrefixexample
+- https://test.example/myPrefix/example
+- https://test.example/myPrefix/asdasd/asdasd/asd/as/d
+
+And would not match:
+
+- https://test.example/robots.txt
+- https://test.example/asd/myPrefix/example
 
 ## Additional Information
 

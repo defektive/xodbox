@@ -25,11 +25,11 @@ notifiers:
 #    channel: general
 #    author: PirateVirus
 #    author_image: ':pirate:'
-#    filter: "/l"
+#    filter: "(GET|POST|HEAD|DELETE|PUT|PATCH|TRACE) /x/"
 #  ## Docs: https://defektive.github.io/xodbox/docs/pkg/notifiers/discord/
 #  - notifier: discord
 #    url: https://discord.com/api/webhooks/133...6C
 #    author: PirateVirus
 #    author_image: https://s3-us-west-2.amazonaws.com/slack-f...72.png
-#    filter: "/l"
+#    filter: "(GET|POST|HEAD|DELETE|PUT|PATCH|TRACE) /x/"
   - notifier: app_log
