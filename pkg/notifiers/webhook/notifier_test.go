@@ -10,8 +10,8 @@ import (
 	"testing"
 )
 
-func newHTTPRequest(url string) *http.Request {
-	r, err := http.NewRequest("DELETE", url, bytes.NewReader([]byte("pizza")))
+func newHTTPMethodRequest(method, url string) *http.Request {
+	r, err := http.NewRequest(method, url, bytes.NewReader([]byte("pizza")))
 	if err != nil {
 		panic(err)
 	}
@@ -19,6 +19,10 @@ func newHTTPRequest(url string) *http.Request {
 	r.RemoteAddr = "127.0.0.1:56429"
 
 	return r
+}
+
+func newHTTPRequest(url string) *http.Request {
+	return newHTTPMethodRequest("DELETE", url)
 }
 
 func TestWebhookNotifier_Payload(t *testing.T) {
@@ -105,6 +109,54 @@ func TestWebhookNotifier_Payload(t *testing.T) {
 			}
 			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("Payload() got = %v, want %v", string(got), string(tt.want))
+			}
+		})
+	}
+}
+
+func TestFilterMatches(t *testing.T) {
+	type args struct {
+		filter *regexp.Regexp
+		data   string
+	}
+
+	alertPizza := httpx.NewEvent(newHTTPRequest("http://localhost:9090/alertPrefix/pizza"))
+	noAlertPizza := httpx.NewEvent(newHTTPRequest("http://localhost:9090/notCorrectPrefix/pizza"))
+
+	tests := []struct {
+		name string
+		args args
+		want bool
+	}{
+		{
+			name: "DELETE /alertPrefix",
+			args: args{
+				filter: regexp.MustCompile("(GET|POST|HEAD|DELETE|PUT|PATCH|TRACE) /alertPrefix"),
+				data:   alertPizza.Data(),
+			},
+			want: true,
+		},
+		{
+			name: "DELETE /notCorrectPrefix",
+			args: args{
+				filter: regexp.MustCompile("(GET|POST|HEAD|DELETE|PUT|PATCH|TRACE) /alertPrefix"),
+				data:   noAlertPizza.Data(),
+			},
+			want: false,
+		},
+		{
+			name: "DELETE /notCorrectPrefix",
+			args: args{
+				filter: regexp.MustCompile("(GET|POST) /alertPrefix"),
+				data:   alertPizza.Data(),
+			},
+			want: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := FilterMatches(tt.args.filter, tt.args.data); got != tt.want {
+				t.Errorf("FilterMatches() = %v, want %v", got, tt.want)
 			}
 		})
 	}
