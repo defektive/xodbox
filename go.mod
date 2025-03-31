@@ -1,11 +1,12 @@
 module github.com/defektive/xodbox
 
 go 1.23.4
+toolchain go1.24.1
 
 require (
 	github.com/adrg/frontmatter v0.2.0
 	github.com/analog-substance/util v1.1.5
-	github.com/caddyserver/certmagic v0.22.0
+	github.com/caddyserver/certmagic v0.22.2
 	github.com/factomproject/basen v0.0.0-20150613233007-fe3947df716e
 	github.com/fsnotify/fsnotify v1.8.0
 	github.com/glebarez/sqlite v1.11.0
@@ -60,7 +61,7 @@ require (
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
-	github.com/mholt/acmez/v3 v3.1.0 // indirect
+	github.com/mholt/acmez/v3 v3.1.1 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
 	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
