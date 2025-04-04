@@ -6,7 +6,7 @@ weight: 10
 
 ## Purpose
 
-Speak HTTP to other computers you may or may not control....
+Speak SSH to other computers you may or may not control....
 
 ## Configuration
 
