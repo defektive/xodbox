@@ -1,9 +1,9 @@
-package ssh
+package tcp
 
 import (
 	"fmt"
 	"github.com/defektive/xodbox/pkg/types"
-	"github.com/gliderlabs/ssh"
+	"net"
 	"net/url"
 	"strconv"
 )
@@ -12,24 +12,28 @@ type Action int
 
 // Declare related constants for each weekday starting with index 1
 const (
-	PasswordAuth Action = iota + 1 // EnumIndex = 1
-	KeyAuth      Action = iota + 1 // EnumIndex = 1
+	Connect    Action = iota + 1 // EnumIndex = 1
+	DataRecv   Action = iota + 1 // EnumIndex = 1
+	Disconnect Action = iota + 1 // EnumIndex = 1
 )
 
 // String - Creating common behavior - give the type a String function
 func (w Action) String() string {
-	return [...]string{"PasswordAuth", "KeyAuth"}[w-1]
+	return [...]string{"Connection", "Data", "Disconnection"}[w-1]
 }
 
 type Event struct {
 	*types.BaseEvent
-	ctx    ssh.Context
+	ctx    net.Conn
 	action Action
 }
 
-func NewEvent(ctx ssh.Context, action Action) *Event {
+func (e *Event) Details() string {
+	return fmt.Sprintf("TCP Interaction Event: %s %d %s", e.RemoteAddr, e.RemotePortNumber, e.action.String())
+}
 
-	remoteAddrURL := fmt.Sprintf("https://%s", ctx.RemoteAddr().String())
+func NewEvent(ctx net.Conn, action Action) *Event {
+	remoteAddrURL := fmt.Sprintf("tcp://%s", ctx.RemoteAddr())
 	parsedURL, _ := url.Parse(remoteAddrURL)
 	portNum, _ := strconv.Atoi(parsedURL.Port())
 
@@ -37,7 +41,6 @@ func NewEvent(ctx ssh.Context, action Action) *Event {
 		BaseEvent: &types.BaseEvent{
 			RemoteAddr:       parsedURL.Hostname(),
 			RemotePortNumber: portNum,
-			UserAgentString:  ctx.ClientVersion(),
 		},
 		ctx:    ctx,
 		action: action,

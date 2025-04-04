@@ -37,25 +37,6 @@ func (h Handler) Start(app types.App, eventChan chan types.InteractionEvent) err
 		io.WriteString(s, "This account is currently not available\n")
 	})
 
-	ssh.PasswordAuth(func(ctx ssh.Context, password string) bool {
-		lg().Info("authenticating ssh handler", "username", ctx.User(), "password", password)
-
-		e := NewEvent(ctx)
-		e.Dispatch(h.dispatchChannel)
-
-		return false
-	})
-
-	ssh.PublicKeyAuth(func(ctx ssh.Context, key ssh.PublicKey) bool {
-
-		lg().Info("authenticating ssh handler", "username", ctx.User(), "key", key.Type())
-
-		e := NewEvent(ctx)
-		e.Dispatch(h.dispatchChannel)
-
-		return false
-	})
-
 	lg().Info("starting ssh handler", "listener", h.Listener)
 	return ssh.ListenAndServe(
 		h.Listener,
@@ -63,7 +44,7 @@ func (h Handler) Start(app types.App, eventChan chan types.InteractionEvent) err
 		ssh.PasswordAuth(func(ctx ssh.Context, password string) bool {
 			lg().Info("authenticating ssh handler", "username", ctx.User(), "password", password)
 
-			e := NewEvent(ctx)
+			e := NewEvent(ctx, PasswordAuth)
 			e.Dispatch(h.dispatchChannel)
 
 			return false
@@ -73,7 +54,7 @@ func (h Handler) Start(app types.App, eventChan chan types.InteractionEvent) err
 
 			lg().Info("authenticating ssh handler", "username", ctx.User(), "key", key.Type())
 
-			e := NewEvent(ctx)
+			e := NewEvent(ctx, KeyAuth)
 			e.Dispatch(h.dispatchChannel)
 
 			return false
