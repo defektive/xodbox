@@ -7,7 +7,7 @@ require (
 	github.com/analog-substance/util v1.1.5
 	github.com/caddyserver/certmagic v0.22.0
 	github.com/factomproject/basen v0.0.0-20150613233007-fe3947df716e
-	github.com/fsnotify/fsnotify v1.8.0
+	github.com/fsnotify/fsnotify v1.9.0
 	github.com/glebarez/sqlite v1.11.0
 	github.com/libdns/namecheap v0.0.0-20250228022813-d8b4b66c5072
 	github.com/libdns/route53 v1.5.1
