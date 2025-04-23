@@ -170,7 +170,8 @@ func (h *Handler) serveHTTPS() error {
 		certmagic.DefaultACME.DisableTLSALPNChallenge = true
 		certmagic.DefaultACME.DNS01Solver = &certmagic.DNS01Solver{
 			DNSManager: certmagic.DNSManager{
-				DNSProvider: provider,
+				PropagationDelay: 30 * time.Second,
+				DNSProvider:      provider,
 			},
 		}
 	}
