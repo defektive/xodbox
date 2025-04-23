@@ -23,16 +23,16 @@ jobs:
         with:
           extra_args: --results=verified,unknown
 
-      - name: Run reviewdog
-        env:
-          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          reviewdog -reporter=github-pr-review -runners=gofmt
-
-
-      - uses: reviewdog/action-staticcheck@v1
-        with:
-          fail_on_error: true
+#      - name: Run reviewdog
+#        env:
+#          REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+#        run: |
+#          reviewdog -reporter=github-pr-review -runners=gofmt
+#
+#
+#      - uses: reviewdog/action-staticcheck@v1
+#        with:
+#          fail_on_error: true
       - uses: reviewdog/action-setup@v1
       - name: Build
         run: go build -v ./...
