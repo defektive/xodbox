@@ -5,7 +5,7 @@ go 1.23.4
 require (
 	github.com/adrg/frontmatter v0.2.0
 	github.com/analog-substance/util v1.1.5
-	github.com/caddyserver/certmagic v0.23.0
+	github.com/caddyserver/certmagic v0.22.2
 	github.com/factomproject/basen v0.0.0-20150613233007-fe3947df716e
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/glebarez/sqlite v1.11.0
@@ -57,7 +57,7 @@ require (
 	github.com/jinzhu/now v1.1.5 // indirect
 	github.com/klauspost/cpuid/v2 v2.2.10 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
-	github.com/libdns/libdns v1.0.0-beta.1 // indirect
+	github.com/libdns/libdns v0.2.3 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
