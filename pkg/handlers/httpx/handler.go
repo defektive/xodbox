@@ -175,9 +175,6 @@ func (h *Handler) serveHTTPS() error {
 		}
 	}
 
-	certmagic.Default.DefaultServerName = "oxo.pw"
-	certmagic.Default.FallbackServerName = "failed.oxo.pw"
-
 	// eventually we'll figure out what config options we want
 	return HTTPS(h.TLSNames, h.serverMux(), false)
 }
