@@ -22,7 +22,6 @@ jobs:
         uses: trufflesecurity/trufflehog@v3.88.18
         with:
           extra_args: --results=verified,unknown
-
       - name: Build
         run: go build -v ./...
 
