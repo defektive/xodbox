@@ -18,7 +18,6 @@ data:
       {{- $location = (index .Request.GetParams.l 0) }}
       {{- end -}}
       {{- $location -}}
-  body: so long!
 ---
 
 HTTP Redirects to the query parameter `l` using the query param `s` as the status code.
