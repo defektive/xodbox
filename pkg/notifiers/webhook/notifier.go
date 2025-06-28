@@ -52,6 +52,7 @@ func SendPost(url string, payload []byte) error {
 		lg().Error("Webhook notification error", "err", err)
 		return err
 	}
+	defer res.Body.Close()
 
 	if res.StatusCode > 399 {
 		b, _ := io.ReadAll(res.Body)
