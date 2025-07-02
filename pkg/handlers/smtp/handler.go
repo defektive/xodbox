@@ -4,7 +4,6 @@ import (
 	"github.com/defektive/xodbox/pkg/types"
 	"github.com/emersion/go-smtp"
 	"io"
-	"log"
 	"os"
 )
 
@@ -45,7 +44,7 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 	}
 	s.TLSConfig = insecureTLSConfig
 
-	log.Println("Starting SMTP server at", s.Addr)
+	lg().Info("Starting SMTP Server", "listener", h.Listener)
 	return s.ListenAndServe()
 
 }

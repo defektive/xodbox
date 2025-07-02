@@ -32,7 +32,7 @@ func (h Handler) Start(app types.App, eventChan chan types.InteractionEvent) err
 
 	h.dispatchChannel = eventChan
 
-	lg().Info("starting ftp handler", "listener", h.Listener)
+	lg().Info("Starting FTP Server", "listener", h.Listener)
 	afs := afero.NewMemMapFs()
 	err := afs.MkdirAll("pizza/garbage/lunch", 0777)
 	if err != nil {

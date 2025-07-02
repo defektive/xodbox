@@ -37,7 +37,7 @@ func (h Handler) Start(app types.App, eventChan chan types.InteractionEvent) err
 		io.WriteString(s, "This account is currently not available\n")
 	})
 
-	lg().Info("starting ssh handler", "listener", h.Listener)
+	lg().Info("Starting SSH Server", "listener", h.Listener)
 	return ssh.ListenAndServe(
 		h.Listener,
 		nil,

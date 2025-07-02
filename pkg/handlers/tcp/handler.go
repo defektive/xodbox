@@ -1,7 +1,6 @@
 package tcp
 
 import (
-	"fmt"
 	"github.com/defektive/xodbox/pkg/types"
 	"io"
 	"log"
@@ -33,6 +32,8 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 
 	h.dispatchChannel = eventChan
 
+	lg().Info("Starting TCP Server", "listener", h.Listener)
+
 	l, err := net.Listen("tcp4", h.Listener)
 	if err != nil {
 		log.Fatal(err)
@@ -45,6 +46,7 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 			return err
 		}
 		go func(c net.Conn) {
+			lg().Debug("Accepted connection", "remote", c.RemoteAddr().String())
 			h.dispatchChannel <- NewEvent(c, Connect)
 
 			packet := make([]byte, 4096)
@@ -54,7 +56,7 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 				_, err := c.Read(tmp)
 				if err != nil {
 					if err != io.EOF {
-						fmt.Println("read error:", err)
+						lg().Error("error reading from connection", "err", err)
 					}
 
 					h.dispatchChannel <- NewEvent(c, Disconnect)
@@ -66,9 +68,7 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 			num, _ := c.Write([]byte{0x90})
 
 			h.dispatchChannel <- NewEvent(c, DataRecv)
-
-			log.Printf("Wrote back %d bytes, the payload is %s\n", num, string(packet))
-
+			lg().Info("Send data", "num", num, "packet", string(packet))
 		}(c)
 	}
 }
