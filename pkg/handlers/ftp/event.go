@@ -12,8 +12,15 @@ type Action int
 
 // Declare related constants for each weekday starting with index 1
 const (
-	PasswordAuth Action = iota + 1 // EnumIndex = 1
-	KeyAuth      Action = iota + 1 // EnumIndex = 1
+	AuthSuccess Action = iota + 1 // EnumIndex = 1
+	AuthFail    Action = iota + 1 // EnumIndex = 1
+	Logout      Action = iota + 1 // EnumIndex = 1
+	ListFiles
+	FileOpen    = iota + 1 // EnumIndex = 1
+	FileRead    = iota + 1 // EnumIndex = 1
+	FileWrite   = iota + 1 // EnumIndex = 1
+	FileReadDir = iota + 1 // EnumIndex = 1
+	FileDelete  = iota + 1 // EnumIndex = 1
 )
 
 // String - Creating common behavior - give the type a String function
@@ -27,9 +34,9 @@ type Event struct {
 	action Action
 }
 
-func NewEvent(ctx ssh.Context, action Action) *Event {
+func NewEvent(remoteAddr string, action Action) *Event {
 
-	remoteAddrURL := fmt.Sprintf("https://%s", ctx.RemoteAddr().String())
+	remoteAddrURL := fmt.Sprintf("https://%s", remoteAddr)
 	parsedURL, _ := url.Parse(remoteAddrURL)
 	portNum, _ := strconv.Atoi(parsedURL.Port())
 
@@ -37,9 +44,7 @@ func NewEvent(ctx ssh.Context, action Action) *Event {
 		BaseEvent: &types.BaseEvent{
 			RemoteAddr:       parsedURL.Hostname(),
 			RemotePortNumber: portNum,
-			UserAgentString:  ctx.ClientVersion(),
 		},
-		ctx:    ctx,
 		action: action,
 	}
 }

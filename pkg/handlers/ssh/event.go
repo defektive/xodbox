@@ -23,7 +23,8 @@ func (w Action) String() string {
 
 type Event struct {
 	*types.BaseEvent
-	ctx    ssh.Context
+	//ctx    ssh.Context
+	user   string
 	action Action
 }
 
@@ -39,7 +40,8 @@ func NewEvent(ctx ssh.Context, action Action) *Event {
 			RemotePortNumber: portNum,
 			UserAgentString:  ctx.ClientVersion(),
 		},
-		ctx:    ctx,
+		//ctx:    ctx,
+		user:   ctx.User(),
 		action: action,
 	}
 }

@@ -123,7 +123,7 @@ func (h *Handler) serverMux() *http.ServeMux {
 
 			for _, payload := range SortedPayloads() {
 				if payload.ShouldProcess(r) {
-					payload.Process(w, e, h.app.GetTemplateData())
+					payload.Process(w, e, h)
 					lg().Debug("Processing payload", "payload", payload, "IsFinal", payload.IsFinal)
 					if payload.IsFinal {
 						break

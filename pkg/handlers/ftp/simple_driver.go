@@ -6,7 +6,6 @@ import (
 	"github.com/defektive/xodbox/pkg/handlers/smtp"
 	ftpserver "github.com/fclairamb/ftpserverlib"
 	"github.com/spf13/afero"
-	"log"
 	"net"
 	"os"
 	"strings"
@@ -27,17 +26,21 @@ const (
 	tlsVerificationAuthenticated
 )
 
-const (
-	authUser    = "test"
-	authPass    = "test"
-	authUserID  = 1000
-	authGroupID = 500
-)
+type AuthUser struct {
+	Username string
+	Password string
+	UserID   int
+	GroupID  int
+}
 
 var errInvalidTLSCertificate = errors.New("invalid TLS certificate")
 
 // SimpleServerDriver defines a minimal serverftp server driver
 type SimpleServerDriver struct {
+	Handler     *Handler
+	ServerName  string
+	Credentials []*AuthUser
+
 	Debug          bool // To display connection logs information
 	TLS            bool
 	CloseOnConnect bool // disconnect the client as soon as it connects
@@ -53,11 +56,17 @@ type SimpleServerDriver struct {
 
 // SimpleClientDriver defines a minimal serverftp client driver
 type SimpleClientDriver struct {
+	Client             ftpserver.ClientContext
+	SimpleServerDriver SimpleServerDriver
+	User               *AuthUser
+	Handler            *Handler
 	afero.Fs
 }
 
 type testFile struct {
 	afero.File
+	Handler     *Handler
+	Client      *SimpleClientDriver
 	errTransfer error
 }
 
@@ -70,25 +79,25 @@ var (
 )
 
 func (f *testFile) Read(out []byte) (int, error) {
+
+	f.Client.DispatchEvent(FileRead)
 	// simulating a slow reading allows us to test ABOR
-	if strings.Contains(f.File.Name(), "delay-io") {
-		time.Sleep(500 * time.Millisecond)
-	}
+	time.Sleep(500 * time.Millisecond)
 
 	return f.File.Read(out)
 }
 
 func (f *testFile) Write(out []byte) (int, error) {
-	if strings.Contains(f.File.Name(), "fail-to-write") {
-		return 0, errFailWrite
-	}
+	f.Client.DispatchEvent(FileWrite)
 
-	// simulating a slow writing allows us to test ABOR
-	if strings.Contains(f.File.Name(), "delay-io") {
-		time.Sleep(500 * time.Millisecond)
-	}
+	// simulating a slow reading allows us to test ABOR
+	time.Sleep(500 * time.Millisecond)
 
-	return f.File.Write(out)
+	//if strings.Contains(f.File.Name(), "fail-to-write") {
+	return 0, errFailWrite
+	//}
+
+	//return f.File.Write(out)
 }
 
 func (f *testFile) Close() error {
@@ -116,10 +125,11 @@ func (f *testFile) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (f *testFile) Readdir(count int) ([]os.FileInfo, error) {
-	log.Println("readdir file")
 	if strings.Contains(f.File.Name(), "delay-io") {
 		time.Sleep(500 * time.Millisecond)
 	}
+
+	f.Client.DispatchEvent(FileReadDir)
 
 	if strings.Contains(f.File.Name(), "fail-to-readdir") {
 		return nil, errFailReaddir
@@ -134,18 +144,21 @@ func (f *testFile) TransferError(err error) {
 }
 
 // NewSimpleClientDriver creates a client driver
-func NewSimpleClientDriver(server *SimpleServerDriver) *SimpleClientDriver {
+func NewSimpleClientDriver(client ftpserver.ClientContext, server *SimpleServerDriver, user *AuthUser) *SimpleClientDriver {
 	return &SimpleClientDriver{
-		Fs: server.fs,
+		Client:  client,
+		Handler: server.Handler,
+		User:    user,
+		Fs:      server.fs,
 	}
 }
 
-func mustStopServer(server *ftpserver.FtpServer) {
-	err := server.Stop()
-	if err != nil {
-		panic(err)
-	}
-}
+//func mustStopServer(server *ftpserver.FtpServer) {
+//	err := server.Stop()
+//	if err != nil {
+//		panic(err)
+//	}
+//}
 
 var errConnectionNotAllowed = errors.New("connection not allowed")
 
@@ -165,20 +178,24 @@ func (driver *SimpleServerDriver) ClientConnected(cltContext ftpserver.ClientCon
 	cltContext.SetExtra(cltContext.ID())
 	driver.Clients = append(driver.Clients, cltContext)
 	// This will remain the official name for now
-	return "TEST Server", err
+	return driver.ServerName, err
 }
 
 var errBadUserNameOrPassword = errors.New("bad username or password")
 
 // AuthUser with authenticate users
-func (driver *SimpleServerDriver) AuthUser(_ ftpserver.ClientContext, user, pass string) (ftpserver.ClientDriver, error) {
-	if user == authUser && pass == authPass {
-		clientdriver := NewSimpleClientDriver(driver)
+func (driver *SimpleServerDriver) AuthUser(c ftpserver.ClientContext, user, pass string) (ftpserver.ClientDriver, error) {
 
-		return clientdriver, nil
-	} else if user == "nil" && pass == "nil" {
-		// Definitely a bad behavior (but can be done on the driver side)
-		return nil, nil //nolint:nilnil
+	for _, authUser := range driver.Credentials {
+		if authUser.Username == user && authUser.Password == pass {
+
+			driver.Handler.dispatchChannel <- NewEvent(c.RemoteAddr().String(), AuthSuccess)
+
+			c.RemoteAddr().String()
+			c.GetClientVersion()
+			clientdriver := NewSimpleClientDriver(c, driver, authUser)
+			return clientdriver, nil
+		}
 	}
 
 	return nil, errBadUserNameOrPassword
@@ -219,45 +236,45 @@ func (driver *SimpleServerDriver) ClientDisconnected(cc ftpserver.ClientContext)
 	}
 }
 
-// GetClientsInfo returns info about the connected clients
-func (driver *SimpleServerDriver) GetClientsInfo() map[uint32]interface{} {
-	driver.clientMU.Lock()
-	defer driver.clientMU.Unlock()
-
-	info := make(map[uint32]interface{})
-
-	for _, clientContext := range driver.Clients {
-		ccInfo := make(map[string]interface{})
-
-		ccInfo["localAddr"] = clientContext.LocalAddr()
-		ccInfo["remoteAddr"] = clientContext.RemoteAddr()
-		ccInfo["clientVersion"] = clientContext.GetClientVersion()
-		ccInfo["path"] = clientContext.Path()
-		ccInfo["hasTLSForControl"] = clientContext.HasTLSForControl()
-		ccInfo["hasTLSForTransfers"] = clientContext.HasTLSForTransfers()
-		ccInfo["lastCommand"] = clientContext.GetLastCommand()
-		ccInfo["debug"] = clientContext.Debug()
-		ccInfo["extra"] = clientContext.Extra()
-
-		info[clientContext.ID()] = ccInfo
-	}
-
-	return info
-}
-
-var errNoClientConnected = errors.New("no client connected")
-
-// DisconnectClient disconnect one of the connected clients
-func (driver *SimpleServerDriver) DisconnectClient() error {
-	driver.clientMU.Lock()
-	defer driver.clientMU.Unlock()
-
-	if len(driver.Clients) > 0 {
-		return driver.Clients[0].Close()
-	}
-
-	return errNoClientConnected
-}
+//// GetClientsInfo returns info about the connected clients
+//func (driver *SimpleServerDriver) GetClientsInfo() map[uint32]interface{} {
+//	driver.clientMU.Lock()
+//	defer driver.clientMU.Unlock()
+//
+//	info := make(map[uint32]interface{})
+//
+//	for _, clientContext := range driver.Clients {
+//		ccInfo := make(map[string]interface{})
+//
+//		ccInfo["localAddr"] = clientContext.LocalAddr()
+//		ccInfo["remoteAddr"] = clientContext.RemoteAddr()
+//		ccInfo["clientVersion"] = clientContext.GetClientVersion()
+//		ccInfo["path"] = clientContext.Path()
+//		ccInfo["hasTLSForControl"] = clientContext.HasTLSForControl()
+//		ccInfo["hasTLSForTransfers"] = clientContext.HasTLSForTransfers()
+//		ccInfo["lastCommand"] = clientContext.GetLastCommand()
+//		ccInfo["debug"] = clientContext.Debug()
+//		ccInfo["extra"] = clientContext.Extra()
+//
+//		info[clientContext.ID()] = ccInfo
+//	}
+//
+//	return info
+//}
+//
+//var errNoClientConnected = errors.New("no client connected")
+//
+//// DisconnectClient disconnect one of the connected clients
+//func (driver *SimpleServerDriver) DisconnectClient() error {
+//	driver.clientMU.Lock()
+//	defer driver.clientMU.Unlock()
+//
+//	if len(driver.Clients) > 0 {
+//		return driver.Clients[0].Close()
+//	}
+//
+//	return errNoClientConnected
+//}
 
 // GetSettings fetches the basic server settings
 func (driver *SimpleServerDriver) GetSettings() (*ftpserver.Settings, error) {
@@ -285,14 +302,14 @@ func (driver *SimpleServerDriver) PreAuthUser(cc ftpserver.ClientContext, _ stri
 	return cc.SetTLSRequirement(driver.TLSRequirement)
 }
 
-func (driver *SimpleServerDriver) VerifyConnection(_ ftpserver.ClientContext, _ string,
+func (driver *SimpleServerDriver) VerifyConnection(c ftpserver.ClientContext, _ string,
 	_ *tls.Conn,
 ) (ftpserver.ClientDriver, error) {
 	switch driver.TLSVerificationReply {
 	case tlsVerificationFailed:
 		return nil, errInvalidTLSCertificate
 	case tlsVerificationAuthenticated:
-		clientdriver := NewSimpleClientDriver(driver)
+		clientdriver := NewSimpleClientDriver(c, driver, nil)
 
 		return clientdriver, nil
 	case tlsVerificationOK:
@@ -312,47 +329,39 @@ func (driver *SimpleServerDriver) WrapPassiveListener(listener net.Listener) (ne
 
 // OpenFile opens a file in 3 possible modes: read, write, appending write (use appropriate flags)
 func (driver *SimpleClientDriver) OpenFile(path string, flag int, perm os.FileMode) (afero.File, error) {
-	if strings.Contains(path, "fail-to-open") {
-		return nil, errFailOpen
-	}
-
-	if strings.Contains(path, "quota-exceeded") {
-		return nil, ftpserver.ErrStorageExceeded
-	}
-
-	if strings.Contains(path, "not-allowed") {
-		return nil, ftpserver.ErrFileNameNotAllowed
-	}
-
 	file, err := driver.Fs.OpenFile(path, flag, perm)
 
 	if err == nil {
-		file = &testFile{File: file}
+		file = &testFile{
+			Client:  driver,
+			Handler: driver.Handler,
+			File:    file,
+		}
 	}
 
 	return file, err
 }
 
-func (driver *SimpleClientDriver) Open(name string) (afero.File, error) {
-	if strings.Contains(name, "fail-to-open") {
-		return nil, errFailOpen
-	}
+// DispatchEvent sends event to handler
+func (driver *SimpleClientDriver) DispatchEvent(action Action) {
+	e := NewEvent(driver.Client.RemoteAddr().String(), action)
+	e.Dispatch(driver.Handler.dispatchChannel)
+}
 
-	log.Println("open file")
+func (driver *SimpleClientDriver) Open(name string) (afero.File, error) {
 	file, err := driver.Fs.Open(name)
 
 	if err == nil {
-		file = &testFile{File: file}
+		file = &testFile{
+			Handler: driver.Handler,
+			File:    file,
+		}
 	}
 
 	return file, err
 }
 
 func (driver *SimpleClientDriver) Rename(oldname, newname string) error {
-	if strings.Contains(newname, "not-allowed") {
-		return ftpserver.ErrFileNameNotAllowed
-	}
-
 	return driver.Fs.Rename(oldname, newname)
 }
 
@@ -366,27 +375,27 @@ func (driver *SimpleClientDriver) AllocateSpace(size int) error {
 	return errTooMuchSpaceRequested
 }
 
-var errAvblNotPermitted = errors.New("you're not allowed to request available space for this directory")
+var errAvblNotPermitted = errors.New("not allowed to request available space for this directory")
 
 func (driver *SimpleClientDriver) GetAvailableSpace(dirName string) (int64, error) {
-	if dirName == "/noavbl" {
-		return 0, errAvblNotPermitted
+	if dirName == "/420" {
+		return int64(420), nil
 	}
-
-	return int64(123), nil
+	return 0, errAvblNotPermitted
 }
 
 var (
-	errInvalidChownUser  = errors.New("invalid chown on user")
-	errInvalidChownGroup = errors.New("invalid chown on group")
+	errInvalidChownUser  = errors.New("invalid chown user")
+	errInvalidChownGroup = errors.New("invalid chown group")
 )
 
 func (driver *SimpleClientDriver) Chown(name string, uid int, gid int) error {
-	if uid != 0 && uid != authUserID {
+
+	if uid != 0 && uid != driver.User.UserID {
 		return errInvalidChownUser
 	}
 
-	if gid != 0 && gid != authGroupID {
+	if gid != 0 && gid != driver.User.GroupID {
 		return errInvalidChownGroup
 	}
 

@@ -2,7 +2,7 @@
 static/*
 !static/default-logo.svg
 .idea
-/xodbox.yaml
+/xodbox*.yaml
 *.exe
 
 .hugo/public
@@ -16,3 +16,4 @@ dist/
 xodbox_static
 /xodbox
 test-payloads
+/mdaas

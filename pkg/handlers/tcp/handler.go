@@ -68,7 +68,7 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 			num, _ := c.Write([]byte{0x90})
 
 			h.dispatchChannel <- NewEvent(c, DataRecv)
-			lg().Info("Send data", "num", num, "packet", string(packet))
+			lg().Info("Send data", "num", num)
 		}(c)
 	}
 }
