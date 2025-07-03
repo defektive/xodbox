@@ -221,6 +221,10 @@ func watchForChanges(dirToWatch string) {
 		for {
 			select {
 			case event := <-watcher.Events:
+				if strings.HasSuffix(event.Name, "~") {
+					continue
+				}
+
 				lg().Debug("watcher.Error", "event", event)
 
 				modifiedFiles[event.Name] = true
