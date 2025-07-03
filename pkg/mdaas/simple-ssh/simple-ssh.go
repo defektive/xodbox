@@ -17,7 +17,7 @@ func setWinsize(f *os.File, w, h int) {
 
 func main() {
 	ssh.Handle(func(s ssh.Session) {
-		cmd := exec.Command("bash")
+		cmd := exec.Command("/bin/bash")
 		ptyReq, winCh, isPty := s.Pty()
 		if isPty {
 			cmd.Env = append(cmd.Env, fmt.Sprintf("TERM=%s", ptyReq.Term))
@@ -31,12 +31,15 @@ func main() {
 				}
 			}()
 			go func() {
-				io.Copy(f, s) // stdin
+				i, err := io.Copy(f, s) // stdin
+				log.Printf("wrote %d bytes, have err: %v", i, err)
 			}()
-			io.Copy(s, f) // stdout
-			cmd.Wait()
+			i, err := io.Copy(s, f) // stdout
+			log.Printf("wrote %d bytes, have err: %v", i, err)
+			err = cmd.Wait()
 		} else {
-			io.WriteString(s, "No PTY requested.\n")
+			i, err := io.WriteString(s, "No PTY requested.\n")
+			log.Printf("no pty: wrote %d, has err: %v", i, err)
 			s.Exit(1)
 		}
 	})
