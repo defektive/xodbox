@@ -190,11 +190,8 @@ func (driver *SimpleServerDriver) AuthUser(c ftpserver.ClientContext, user, pass
 		if authUser.Username == user && authUser.Password == pass {
 
 			driver.Handler.dispatchChannel <- NewEvent(c.RemoteAddr().String(), AuthSuccess)
-
-			c.RemoteAddr().String()
-			c.GetClientVersion()
-			clientdriver := NewSimpleClientDriver(c, driver, authUser)
-			return clientdriver, nil
+			clientDriver := NewSimpleClientDriver(c, driver, authUser)
+			return clientDriver, nil
 		}
 	}
 
