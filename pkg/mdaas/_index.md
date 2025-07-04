@@ -1,6 +1,6 @@
 ---
-title: TCP
-description: TCP Handler
+title: MDaaS
+description: Malware Delivery as a Service
 weight: 10
 ---
 
@@ -10,14 +10,11 @@ This feature is in development. Please help make it awesome by providing feedbac
 
 ## Purpose
 
-Speak TCP...
+JIT malware compilation and delivery. Facilitate `curl | bash` deployments of various payloads.
 
 ## Configuration
 
-| Key                   | Values          |
-|-----------------------|-----------------|
-| handler               | Must be `TCP`   |
-| listener              | Default `:9090` |
+Ensure Golang is installed.
 
 ## Additional Information
 

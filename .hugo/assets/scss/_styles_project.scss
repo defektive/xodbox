@@ -4,3 +4,10 @@ h1.display-1 {
   text-shadow: #000 0 0 50px;
   font-weight: revert;
 }
+
+[data-bs-theme=dark] {
+    .alert-heading {
+        color: $white;
+    }
+}
+

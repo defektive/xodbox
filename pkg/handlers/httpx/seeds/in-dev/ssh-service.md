@@ -2,7 +2,7 @@
 title: Simple SSH Service
 description: Simple SSH Service (requires build of simple ssh server in static dir)
 weight: 1
-pattern: /sh/sshd$
+pattern: /sshd.sh$
 is_final: true
 data:
   headers:
