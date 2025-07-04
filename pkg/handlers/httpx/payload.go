@@ -124,9 +124,9 @@ func (h *Payload) ShouldProcess(r *http.Request) bool {
 }
 
 // Process this is where the magic happens.
-func (h *Payload) Process(w http.ResponseWriter, e *Event, templateData map[string]string) {
+func (h *Payload) Process(w http.ResponseWriter, e *Event, handler *Handler) {
 
-	tc := e.TemplateContext(templateData)
+	tc := e.TemplateContext(handler.app.GetTemplateData())
 
 	for _, headTemplates := range h.HeaderTemplates() {
 		var hdrBytes bytes.Buffer
@@ -159,11 +159,16 @@ func (h *Payload) Process(w http.ResponseWriter, e *Event, templateData map[stri
 		w.WriteHeader(responseStatus)
 	}
 
+	// TODO: If this is still a ghetto if statement.... we should make it more elegant if there are more than 3 blocks
 	if h.InternalFunction == InternalFnInspect {
 		// ghetto hack cause I am lazy
-		err := Inspect(w, e)
-		if err != nil {
-			lg().Error("Error executing inspect template", "payload", h.Name, "err", err)
+		if err := Inspect(w, e); err != nil {
+			lg().Error("Error executing build template", "payload", h.Name, "err", err)
+		}
+	} else if h.InternalFunction == "build" {
+		lg().Debug("building payload", "payload", h.Name, "payload", h)
+		if err := Build(w, e, handler.StaticDir); err != nil {
+			lg().Error("Error executing build template", "payload", h.Name, "err", err)
 		}
 		return
 	}

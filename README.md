@@ -18,13 +18,14 @@ how applications consume data from network sources.
 Multiple listening protocols:
 
 - [x] HTTP/HTTPS
-- [ ] DNS (WIP not finished)
-- [ ] FTP
-- [ ] SMTP
+- [x] DNS (in dev)
+- [x] FTP (in dev)
+- [x] SMTP (in dev)
 - [ ] SMB
 - [ ] IMAP
 - [ ] POP3
-- [ ] SSH
+- [x] SSH (in dev)
+- [x] TCP (in dev)
 
 * * *
 
