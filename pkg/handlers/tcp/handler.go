@@ -47,7 +47,7 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 		}
 		go func(c net.Conn) {
 			lg().Debug("Accepted connection", "remote", c.RemoteAddr().String())
-			h.dispatchChannel <- NewEvent(c, Connect)
+			h.dispatchChannel <- NewEvent(c, Connect, nil)
 
 			packet := make([]byte, 4096)
 			tmp := make([]byte, 4096)
@@ -59,15 +59,15 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 						lg().Error("error reading from connection", "err", err)
 					}
 
-					h.dispatchChannel <- NewEvent(c, Disconnect)
+					h.dispatchChannel <- NewEvent(c, Disconnect, nil)
 					break
 				}
 				packet = append(packet, tmp...)
-				h.dispatchChannel <- NewEvent(c, DataRecv)
+				h.dispatchChannel <- NewEvent(c, DataRecv, nil)
 			}
 			num, _ := c.Write([]byte{0x90})
 
-			h.dispatchChannel <- NewEvent(c, DataRecv)
+			h.dispatchChannel <- NewEvent(c, DataRecv, packet)
 			lg().Info("Send data", "num", num)
 		}(c)
 	}

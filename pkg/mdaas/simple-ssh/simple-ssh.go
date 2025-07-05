@@ -37,6 +37,9 @@ func main() {
 			i, err := io.Copy(s, f) // stdout
 			log.Printf("wrote %d bytes, have err: %v", i, err)
 			err = cmd.Wait()
+			if err != nil {
+				log.Printf("Command finished with error: %v", err)
+			}
 		} else {
 			i, err := io.WriteString(s, "No PTY requested.\n")
 			log.Printf("no pty: wrote %d, has err: %v", i, err)

@@ -95,7 +95,7 @@ var RootCmd = &cobra.Command{
 		}
 
 		for _, pattern := range outputPatterns {
-			fmt.Println(fmt.Sprintf(pattern))
+			fmt.Println(pattern)
 		}
 	},
 }

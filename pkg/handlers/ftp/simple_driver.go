@@ -75,7 +75,7 @@ var (
 	errFailWrite   = errors.New("couldn't write")
 	errFailSeek    = errors.New("couldn't seek")
 	errFailReaddir = errors.New("couldn't readdir")
-	errFailOpen    = errors.New("couldn't open")
+	//errFailOpen    = errors.New("couldn't open")
 )
 
 func (f *testFile) Read(out []byte) (int, error) {

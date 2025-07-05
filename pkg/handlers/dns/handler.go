@@ -134,6 +134,11 @@ func decodeIP(encodedIP string) string {
 	}
 
 	ipInt, err := strconv.ParseInt(string(val), 10, 32)
+	if err != nil {
+		lg().Error("error decoding base36 ip", "err", err)
+		ip := net.ParseIP("127.0.0.1")
+		return ip.String()
+	}
 
 	return int2ip(uint32(ipInt)).String()
 }

@@ -98,7 +98,7 @@ func (h *Payload) StatusTemplate() *template.Template {
 // HasHeader returns true if header exists.
 // does not examine headers generated from templates... :(
 func (h *Payload) HasHeader(header string) bool {
-	for k, _ := range h.Data.Headers {
+	for k := range h.Data.Headers {
 		if strings.Contains(strings.ToLower(k), strings.ToLower(header)) {
 			return true
 		}
@@ -187,7 +187,7 @@ func SortedPayloads() []*Payload {
 		loadStart := time.Now()
 		lg().Warn("Loading payloads")
 		model.DB().Where("type = ?", PayloadName).Order("sort_order, project_id, pattern asc").Find(&payloads)
-		timeTaken := time.Now().Sub(loadStart)
+		timeTaken := time.Since(loadStart)
 		lg().Debug("Loading payloads", "timeTaken", timeTaken)
 	}
 

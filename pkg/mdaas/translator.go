@@ -1,7 +1,6 @@
 package mdaas
 
 import (
-	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -15,7 +14,7 @@ func TargetOSFromExternal(external string) (TargetOS, error) {
 		return targetOS, nil
 	}
 
-	return TargetOSUnknown, errors.New(fmt.Sprintf("unknown os: %s", external))
+	return TargetOSUnknown, fmt.Errorf("unknown os: %s", external)
 }
 
 // TargetArmFromExternal translate external string (probably from uname) to targetArch
@@ -30,7 +29,7 @@ func TargetArmFromExternal(external string) (string, error) {
 		return "7", nil
 	}
 
-	return "", errors.New(fmt.Sprintf("unknown arm: %s", external))
+	return "", fmt.Errorf("unknown arm: %s", external)
 }
 
 // TargetArchFromExternal translate external string (probably from uname) to targetArm
@@ -49,7 +48,7 @@ func TargetArchFromExternal(external string) (TargetArch, error) {
 		return targetArch, nil
 	}
 
-	return TargetArchUnknown, errors.New(fmt.Sprintf("unknown os: %s", external))
+	return TargetArchUnknown, fmt.Errorf("unknown os: %s", external)
 }
 
 // ProgramFromExternal translate external string (probably from uname) to program
@@ -62,5 +61,5 @@ func ProgramFromExternal(external string) (string, error) {
 	if external == "bind-shell" {
 		return filepath.Join("mdaas", "bind-shell", "bind-shell.go"), nil
 	}
-	return "", errors.New(fmt.Sprintf("unknown program: %s", external))
+	return "", fmt.Errorf("unknown program: %s", external)
 }

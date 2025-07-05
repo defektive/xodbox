@@ -32,7 +32,7 @@ func (e *Event) Details() string {
 	return fmt.Sprintf("TCP Interaction Event: %s %d %s", e.RemoteAddr, e.RemotePortNumber, e.action.String())
 }
 
-func NewEvent(ctx net.Conn, action Action) *Event {
+func NewEvent(ctx net.Conn, action Action, packet []byte) *Event {
 	remoteAddrURL := fmt.Sprintf("tcp://%s", ctx.RemoteAddr())
 	parsedURL, _ := url.Parse(remoteAddrURL)
 	portNum, _ := strconv.Atoi(parsedURL.Port())
