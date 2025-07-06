@@ -118,7 +118,7 @@ func handleConnection(connection net.Conn) {
 		_, _ = io.Copy(connection, ptmx)
 		for {
 			// just run forever
-			time.Sleep(1)
+			time.Sleep(time.Second * 1)
 		}
 
 	} else {
