@@ -98,7 +98,7 @@ func (h *Payload) StatusTemplate() *template.Template {
 // HasHeader returns true if header exists.
 // does not examine headers generated from templates... :(
 func (h *Payload) HasHeader(header string) bool {
-	for k, _ := range h.Data.Headers {
+	for k := range h.Data.Headers {
 		if strings.Contains(strings.ToLower(k), strings.ToLower(header)) {
 			return true
 		}
@@ -124,9 +124,9 @@ func (h *Payload) ShouldProcess(r *http.Request) bool {
 }
 
 // Process this is where the magic happens.
-func (h *Payload) Process(w http.ResponseWriter, e *Event, templateData map[string]string) {
+func (h *Payload) Process(w http.ResponseWriter, e *Event, handler *Handler) {
 
-	tc := e.TemplateContext(templateData)
+	tc := e.TemplateContext(handler.app.GetTemplateData())
 
 	for _, headTemplates := range h.HeaderTemplates() {
 		var hdrBytes bytes.Buffer
@@ -159,11 +159,16 @@ func (h *Payload) Process(w http.ResponseWriter, e *Event, templateData map[stri
 		w.WriteHeader(responseStatus)
 	}
 
+	// TODO: If this is still a ghetto if statement.... we should make it more elegant if there are more than 3 blocks
 	if h.InternalFunction == InternalFnInspect {
 		// ghetto hack cause I am lazy
-		err := Inspect(w, e)
-		if err != nil {
-			lg().Error("Error executing inspect template", "payload", h.Name, "err", err)
+		if err := Inspect(w, e); err != nil {
+			lg().Error("Error executing build template", "payload", h.Name, "err", err)
+		}
+	} else if h.InternalFunction == "build" {
+		lg().Debug("building payload", "payload", h.Name, "payload", h)
+		if err := Build(w, e, handler); err != nil {
+			lg().Error("Error executing build template", "payload", h.Name, "err", err)
 		}
 		return
 	}
@@ -182,7 +187,7 @@ func SortedPayloads() []*Payload {
 		loadStart := time.Now()
 		lg().Warn("Loading payloads")
 		model.DB().Where("type = ?", PayloadName).Order("sort_order, project_id, pattern asc").Find(&payloads)
-		timeTaken := time.Now().Sub(loadStart)
+		timeTaken := time.Since(loadStart)
 		lg().Debug("Loading payloads", "timeTaken", timeTaken)
 	}
 

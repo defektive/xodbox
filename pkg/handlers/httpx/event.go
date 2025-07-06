@@ -5,11 +5,10 @@ import (
 	"github.com/analog-substance/util/cli/build_info"
 	"github.com/defektive/xodbox/pkg/model"
 	"github.com/defektive/xodbox/pkg/types"
+	"github.com/defektive/xodbox/pkg/util"
 	"io"
 	"net/http"
 	"net/http/httputil"
-	"net/url"
-	"strconv"
 	"time"
 )
 
@@ -21,19 +20,16 @@ type Event struct {
 }
 
 func NewEvent(req *http.Request) *Event {
-
 	body, _ := io.ReadAll(req.Body)
 	defer req.Body.Close()
 
-	remoteAddrURL := fmt.Sprintf("https://%s", req.RemoteAddr)
-	parsedURL, _ := url.Parse(remoteAddrURL)
-	portNum, _ := strconv.Atoi(parsedURL.Port())
 	dump, _ := httputil.DumpRequest(req, false)
 	dump = append(dump, body...)
+	hostname, portNum := util.HostAndPortFromRemoteAddr(req.RemoteAddr)
 
 	return &Event{
 		BaseEvent: &types.BaseEvent{
-			RemoteAddr:       parsedURL.Hostname(),
+			RemoteAddr:       hostname,
 			RemotePortNumber: portNum,
 			UserAgentString:  req.UserAgent(),
 			RawData:          dump,

@@ -6,12 +6,18 @@ require (
 	github.com/adrg/frontmatter v0.2.0
 	github.com/analog-substance/util v1.1.6
 	github.com/caddyserver/certmagic v0.22.2
+	github.com/creack/pty v1.1.24
+	github.com/emersion/go-smtp v0.21.3
 	github.com/factomproject/basen v0.0.0-20150613233007-fe3947df716e
+	github.com/fclairamb/ftpserverlib v0.25.0
+	github.com/fclairamb/go-log v0.5.0
 	github.com/fsnotify/fsnotify v1.9.0
 	github.com/glebarez/sqlite v1.11.0
+	github.com/gliderlabs/ssh v0.3.8
 	github.com/libdns/namecheap v0.0.0-20250228022813-d8b4b66c5072
 	github.com/libdns/route53 v1.5.1
 	github.com/miekg/dns v1.1.66
+	github.com/spf13/afero v1.11.0
 	github.com/spf13/cobra v1.9.1
 	golang.org/x/image v0.28.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -30,6 +36,7 @@ require (
 	github.com/BurntSushi/toml v1.5.0 // indirect
 	github.com/NoF0rte/cmd-builder v0.0.0-20220305223538-e35bfeabbbff // indirect
 	github.com/alecthomas/chroma/v2 v2.18.0 // indirect
+	github.com/anmitsu/go-shlex v0.0.0-20200514113438-38f4b401e2be // indirect
 	github.com/aws/aws-sdk-go-v2 v1.36.5 // indirect
 	github.com/aws/aws-sdk-go-v2/config v1.29.17 // indirect
 	github.com/aws/aws-sdk-go-v2/credentials v1.17.70 // indirect
@@ -57,6 +64,7 @@ require (
 	github.com/cmars/basen v0.0.0-20150613233007-fe3947df716e // indirect
 	github.com/dlclark/regexp2 v1.11.5 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
+	github.com/emersion/go-sasl v0.0.0-20200509203442-7bfe0ed36a21 // indirect
 	github.com/glebarez/go-sqlite v1.22.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/gorilla/css v1.0.1 // indirect

@@ -15,7 +15,7 @@ func NewApp(config *Config) *App {
 	}
 
 	for _, notifier := range config.Notifiers {
-		lg().Debug("notifier: ", "notifier", notifier.Name())
+		lg().Debug("register notifier", "notifier", notifier.Name())
 		newApp.RegisterNotificationHandler(notifier)
 	}
 

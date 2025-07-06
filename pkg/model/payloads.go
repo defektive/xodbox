@@ -32,7 +32,7 @@ type Payload struct {
 	Data             string `json,yaml:"data"`
 
 	ProjectID uint     `json,yaml:"project_id"`
-	Project   *Project `yaml:"-" yaml:"-"`
+	Project   *Project `yaml:"-"`
 
 	gorm.Model
 	patternRegexp *regexp.Regexp

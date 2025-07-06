@@ -3,11 +3,11 @@ package dns
 import (
 	"encoding/binary"
 	"fmt"
-	types2 "github.com/defektive/xodbox/pkg/types"
+	"github.com/defektive/xodbox/pkg/types"
+	"github.com/defektive/xodbox/pkg/util"
 	"github.com/factomproject/basen"
 	"github.com/miekg/dns"
 	"net"
-	"net/url"
 	"strconv"
 )
 
@@ -19,10 +19,10 @@ type Handler struct {
 	Listener          string
 	DefaultResponseIP string
 
-	dispatchChannel chan types2.InteractionEvent
+	dispatchChannel chan types.InteractionEvent
 }
 
-func NewHandler(handlerConfig map[string]string) types2.Handler {
+func NewHandler(handlerConfig map[string]string) types.Handler {
 	listener := handlerConfig["listener"]
 	defaultResponseIP := handlerConfig["default_ip"]
 
@@ -34,19 +34,16 @@ func NewHandler(handlerConfig map[string]string) types2.Handler {
 }
 
 type Event struct {
-	*types2.BaseEvent
+	*types.BaseEvent
 	msg *dns.Msg
 }
 
-func newEvent(w dns.ResponseWriter, req *dns.Msg) types2.InteractionEvent {
-	remoteAddr := w.RemoteAddr().String()
-	remoteAddrURL := fmt.Sprintf("dns://%s", remoteAddr)
-	parsedURL, _ := url.Parse(remoteAddrURL)
-	portNum, _ := strconv.Atoi(parsedURL.Port())
+func newEvent(w dns.ResponseWriter, req *dns.Msg) types.InteractionEvent {
+	hostname, portNum := util.HostAndPortFromRemoteAddr(w.RemoteAddr().String())
 
 	return &Event{
-		BaseEvent: &types2.BaseEvent{
-			RemoteAddr:       parsedURL.Hostname(),
+		BaseEvent: &types.BaseEvent{
+			RemoteAddr:       hostname,
 			RemotePortNumber: portNum,
 			UserAgentString:  "unknown",
 			RawData:          []byte(req.String()),
@@ -76,7 +73,7 @@ func (h *Handler) Name() string {
 	return "DNS"
 }
 
-func (h *Handler) Start(app types2.App, eventChan chan types2.InteractionEvent) error {
+func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) error {
 
 	h.dispatchChannel = eventChan
 	responseValue := net.ParseIP(h.DefaultResponseIP).To4()
@@ -134,6 +131,11 @@ func decodeIP(encodedIP string) string {
 	}
 
 	ipInt, err := strconv.ParseInt(string(val), 10, 32)
+	if err != nil {
+		lg().Error("error decoding base36 ip", "err", err)
+		ip := net.ParseIP("127.0.0.1")
+		return ip.String()
+	}
 
 	return int2ip(uint32(ipInt)).String()
 }

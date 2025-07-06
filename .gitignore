@@ -2,7 +2,7 @@
 static/*
 !static/default-logo.svg
 .idea
-/xodbox.yaml
+/xodbox*.yaml
 *.exe
 
 .hugo/public
@@ -16,3 +16,6 @@ dist/
 xodbox_static
 /xodbox
 test-payloads
+/mdaas
+pkg/mdaas/bind-shell/bind-shell
+pkg/mdaas/simple-ssh/simple-ssh
