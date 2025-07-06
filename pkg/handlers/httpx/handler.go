@@ -35,9 +35,12 @@ type Handler struct {
 	DNSProvider        string
 	DNSProviderAPIUser string
 	DNSProviderAPIKey  string
+	MDaaSLogLevel      string
+	MDaaSBindListener  string
+	MDaaSAllowedCIDR   string
 	TLSNames           []string
+	StaticDir          string
 
-	StaticDir       string
 	dispatchChannel chan types.InteractionEvent
 	app             types.App
 	mux             *http.ServeMux
@@ -63,6 +66,10 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	acmeAccept := handlerConfig["acme_accept"] == "true"
 	acmeURL := handlerConfig["acme_url"]
 
+	mdaasLogLevel := handlerConfig["mdaas_log_level"]
+	mdaasBindListener := handlerConfig["mdaas_bind_listener"]
+	mdaasAllowedCIDR := handlerConfig["mdaas_allowed_cidr"]
+
 	if payloadDir != "" {
 		lg().Debug("payload dir supplied", "payload_dir", payloadDir)
 		CreatePayloadsFromDir(payloadDir, model.DB())
@@ -86,6 +93,9 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 		DNSProvider:        dnsProvider,
 		DNSProviderAPIUser: dnsProviderAPIUser,
 		DNSProviderAPIKey:  dnsProviderAPIKey,
+		MDaaSLogLevel:      mdaasLogLevel,
+		MDaaSBindListener:  mdaasBindListener,
+		MDaaSAllowedCIDR:   mdaasAllowedCIDR,
 	}
 }
 

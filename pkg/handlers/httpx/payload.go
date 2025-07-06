@@ -167,7 +167,7 @@ func (h *Payload) Process(w http.ResponseWriter, e *Event, handler *Handler) {
 		}
 	} else if h.InternalFunction == "build" {
 		lg().Debug("building payload", "payload", h.Name, "payload", h)
-		if err := Build(w, e, handler.StaticDir); err != nil {
+		if err := Build(w, e, handler); err != nil {
 			lg().Error("Error executing build template", "payload", h.Name, "err", err)
 		}
 		return

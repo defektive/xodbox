@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-func Build(w http.ResponseWriter, e *Event, staticDir string) error {
+func Build(w http.ResponseWriter, e *Event, handler *Handler) error {
 	r := e.Request()
 	targetOS, err := getOSFromRequest(r)
 	if err != nil {
@@ -41,7 +41,19 @@ func Build(w http.ResponseWriter, e *Event, staticDir string) error {
 		return err
 	}
 
-	outFile, err := mdaas.Build(targetOS, targetArch, arm, program, filepath.Join(staticDir, "dist"))
+	ldFlags := []string{}
+
+	if handler.MDaaSLogLevel != "" {
+		ldFlags = append(ldFlags, fmt.Sprintf("-X main.logLevel=%s", handler.MDaaSLogLevel))
+	}
+	if handler.MDaaSBindListener != "" {
+		ldFlags = append(ldFlags, fmt.Sprintf("-X main.listener=%s", handler.MDaaSBindListener))
+	}
+	if handler.MDaaSAllowedCIDR != "" {
+		ldFlags = append(ldFlags, fmt.Sprintf("-X main.allowedCIDR=%s", handler.MDaaSAllowedCIDR))
+	}
+
+	outFile, err := mdaas.Build(targetOS, targetArch, arm, program, filepath.Join(handler.StaticDir, "dist"), ldFlags)
 
 	if err != nil {
 		lg().Error("error building", "err", err)

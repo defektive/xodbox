@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-func Build(targetOS TargetOS, targetArch TargetArch, arm, program, outDir string) (string, error) {
+func Build(targetOS TargetOS, targetArch TargetArch, arm, program, outDir string, ldFlags []string) (string, error) {
 	execName := filepath.Base(program)
 	execName = strings.TrimSuffix(execName, filepath.Ext(execName))
 	if targetOS == "windows" {
@@ -23,14 +23,14 @@ func Build(targetOS TargetOS, targetArch TargetArch, arm, program, outDir string
 	outputDir := filepath.Join(outDir, string(targetOS), string(targetArch))
 	outFile := filepath.Join(outputDir, execName)
 
-	lg().Debug("building", "targetOS", targetOS, "targetArch", targetArch, "outFile", outFile)
+	lg().Debug("building", "targetOS", targetOS, "targetArch", targetArch, "outFile", outFile, "ldFlags", ldFlags)
 
 	if _, err := os.Stat(outFile); err == nil {
 		return outFile, nil
 	}
 
 	os.MkdirAll(outputDir, 0755)
-	buildCmd := fmt.Sprintf("go build -trimpath -ldflags=\"-s -w\" -o %s %s", outFile, program)
+	buildCmd := fmt.Sprintf("go build -trimpath -ldflags=\"-s -w %s\" -o %s %s", strings.Join(ldFlags, " "), outFile, program)
 
 	lg().Debug("build cmd", "buildCmd", buildCmd)
 
