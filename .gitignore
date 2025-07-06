@@ -18,3 +18,4 @@ xodbox_static
 test-payloads
 /mdaas
 pkg/mdaas/bind-shell/bind-shell
+pkg/mdaas/simple-ssh/simple-ssh
