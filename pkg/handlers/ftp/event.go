@@ -3,8 +3,7 @@ package ftp
 import (
 	"fmt"
 	"github.com/defektive/xodbox/pkg/types"
-	"net/url"
-	"strconv"
+	"github.com/defektive/xodbox/pkg/util"
 )
 
 type Action int
@@ -43,14 +42,11 @@ type Event struct {
 }
 
 func NewEvent(remoteAddr string, action Action) *Event {
-
-	remoteAddrURL := fmt.Sprintf("https://%s", remoteAddr)
-	parsedURL, _ := url.Parse(remoteAddrURL)
-	portNum, _ := strconv.Atoi(parsedURL.Port())
+	hostname, portNum := util.HostAndPortFromRemoteAddr(remoteAddr)
 
 	return &Event{
 		BaseEvent: &types.BaseEvent{
-			RemoteAddr:       parsedURL.Hostname(),
+			RemoteAddr:       hostname,
 			RemotePortNumber: portNum,
 		},
 		action: action,

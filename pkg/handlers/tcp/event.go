@@ -3,9 +3,8 @@ package tcp
 import (
 	"fmt"
 	"github.com/defektive/xodbox/pkg/types"
+	"github.com/defektive/xodbox/pkg/util"
 	"net"
-	"net/url"
-	"strconv"
 )
 
 type Action int
@@ -33,13 +32,11 @@ func (e *Event) Details() string {
 }
 
 func NewEvent(ctx net.Conn, action Action, packet []byte) *Event {
-	remoteAddrURL := fmt.Sprintf("tcp://%s", ctx.RemoteAddr())
-	parsedURL, _ := url.Parse(remoteAddrURL)
-	portNum, _ := strconv.Atoi(parsedURL.Port())
+	hostname, portNum := util.HostAndPortFromRemoteAddr(ctx.RemoteAddr().String())
 
 	return &Event{
 		BaseEvent: &types.BaseEvent{
-			RemoteAddr:       parsedURL.Hostname(),
+			RemoteAddr:       hostname,
 			RemotePortNumber: portNum,
 		},
 		ctx:    ctx,

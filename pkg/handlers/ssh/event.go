@@ -1,11 +1,9 @@
 package ssh
 
 import (
-	"fmt"
 	"github.com/defektive/xodbox/pkg/types"
+	"github.com/defektive/xodbox/pkg/util"
 	"github.com/gliderlabs/ssh"
-	"net/url"
-	"strconv"
 )
 
 type Action int
@@ -29,14 +27,11 @@ type Event struct {
 }
 
 func NewEvent(ctx ssh.Context, action Action) *Event {
-
-	remoteAddrURL := fmt.Sprintf("https://%s", ctx.RemoteAddr().String())
-	parsedURL, _ := url.Parse(remoteAddrURL)
-	portNum, _ := strconv.Atoi(parsedURL.Port())
+	hostname, portNum := util.HostAndPortFromRemoteAddr(ctx.RemoteAddr().String())
 
 	return &Event{
 		BaseEvent: &types.BaseEvent{
-			RemoteAddr:       parsedURL.Hostname(),
+			RemoteAddr:       hostname,
 			RemotePortNumber: portNum,
 			UserAgentString:  ctx.ClientVersion(),
 		},

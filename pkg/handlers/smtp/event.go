@@ -1,10 +1,8 @@
 package smtp
 
 import (
-	"fmt"
 	"github.com/defektive/xodbox/pkg/types"
-	"net/url"
-	"strconv"
+	"github.com/defektive/xodbox/pkg/util"
 )
 
 type Action int
@@ -31,16 +29,11 @@ type Event struct {
 }
 
 func NewEvent(ctx *SMTPSession, action Action) *Event {
-
-	ctx.conn.Conn().RemoteAddr()
-
-	remoteAddrURL := fmt.Sprintf("smtp://%s", ctx.conn.Conn().RemoteAddr())
-	parsedURL, _ := url.Parse(remoteAddrURL)
-	portNum, _ := strconv.Atoi(parsedURL.Port())
+	hostname, portNum := util.HostAndPortFromRemoteAddr(ctx.conn.Conn().RemoteAddr().String())
 
 	return &Event{
 		BaseEvent: &types.BaseEvent{
-			RemoteAddr:       parsedURL.Hostname(),
+			RemoteAddr:       hostname,
 			RemotePortNumber: portNum,
 		},
 		ctx:    ctx,
