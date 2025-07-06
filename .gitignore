@@ -17,3 +17,4 @@ xodbox_static
 /xodbox
 test-payloads
 /mdaas
+pkg/mdaas/bind-shell/bind-shell

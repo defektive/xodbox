@@ -22,6 +22,13 @@ Current port is `4444`. No auth :(.
 
 ## Roadmap
 
-- [ ] Add configure option for bind port
-- [ ] Add configure option for allowed CIDRs
+- [x] Add configure option for bind port
+- [x] Add configure option for allowed CIDRs
 - [ ] Add configuration option for some for of authentication
+
+## Testing
+
+Debug mode
+```bash
+go build -ldflags="-X main.listener=:8080 -X main.logLevel=DEBUG -X main.allowedCIDR=127.0.0.1/32" bind-shell.go
+```
