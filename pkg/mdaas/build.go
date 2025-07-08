@@ -30,9 +30,6 @@ func Build(targetOS TargetOS, targetArch TargetArch, arm, program, outDir string
 	}
 
 	os.MkdirAll(outputDir, 0755)
-	buildCmd := fmt.Sprintf("go build -trimpath -ldflags=\"-s -w %s\" -o %s %s", strings.Join(ldFlags, " "), outFile, program)
-
-	lg().Debug("build cmd", "buildCmd", buildCmd)
 
 	bf := builder.NewFactory(builder.CmdFactoryOptions{Env: []string{
 		fmt.Sprintf("GOOS=%s", targetOS),
@@ -40,7 +37,9 @@ func Build(targetOS TargetOS, targetArch TargetArch, arm, program, outDir string
 		fmt.Sprintf("GOARM=%s", arm),
 	}})
 
-	out, err := bf.Shell(buildCmd).Output()
+	bc := bf.Cmd("go", "build", "-trimpath", "-o", outFile, fmt.Sprintf("-ldflags=-s -w %s", strings.Join(ldFlags, " ")), program)
+
+	out, err := bc.Output()
 	if err != nil {
 		return "", err
 	}

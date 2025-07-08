@@ -38,9 +38,10 @@ type Handler struct {
 	MDaaSLogLevel      string
 	MDaaSBindListener  string
 	MDaaSAllowedCIDR   string
+	MDaaSNotifyURL     string
 	TLSNames           []string
-	StaticDir          string
 
+	StaticDir       string
 	dispatchChannel chan types.InteractionEvent
 	app             types.App
 	mux             *http.ServeMux
@@ -69,6 +70,7 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	mdaasLogLevel := handlerConfig["mdaas_log_level"]
 	mdaasBindListener := handlerConfig["mdaas_bind_listener"]
 	mdaasAllowedCIDR := handlerConfig["mdaas_allowed_cidr"]
+	mdaasNotifyURL := handlerConfig["mdaas_notify_url"]
 
 	if payloadDir != "" {
 		lg().Debug("payload dir supplied", "payload_dir", payloadDir)
@@ -96,6 +98,7 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 		MDaaSLogLevel:      mdaasLogLevel,
 		MDaaSBindListener:  mdaasBindListener,
 		MDaaSAllowedCIDR:   mdaasAllowedCIDR,
+		MDaaSNotifyURL:     mdaasNotifyURL,
 	}
 }
 

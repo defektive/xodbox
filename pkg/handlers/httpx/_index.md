@@ -23,6 +23,10 @@ Speak HTTP to other computers you may or may not control....
 | dns_provider          | Currently, `namecheap` or `route53` but we *can* support anything [libdns](https://github.com/libdns) supports...                                                                                                                                             |
 | dns_provider_api_user | Username for API calls. Only used for namecheap ATM.                                                                                                                                                                                                          |
 | dns_provider_api_key  | Key for API calls. Only used for namecheap ATM.                                                                                                                                                                                                               |
+| mdaas_log_level       | Log level for MDaaS binaries. Possible values `NONE`, `INFO`, `WARN`, `ERROR`, `DEBUG`                                                                                                                                                                        |
+| mdaas_bind_listener   | Listener for MDaaS Binaries.                                                                                                                                                                                                                                  |
+| mdaas_allowed_cidr    | CIDRs allowed to connect to MDaaS binaries                                                                                                                                                                                                                    |
+| mdaas_notify_url      | Webhook URL for notifying success or err                                                                                                                                                                                                                      |
 
 ## Filters
 
