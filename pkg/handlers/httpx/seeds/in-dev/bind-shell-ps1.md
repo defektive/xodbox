@@ -1,5 +1,5 @@
 ---
-title: Bind Shell
+title: Bind shell powershell
 description: Requires bind-shell in static dir
 weight: 1
 pattern: /bind.ps1$

