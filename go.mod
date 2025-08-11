@@ -6,7 +6,7 @@ require (
 	github.com/NoF0rte/cmd-builder v0.0.0-20220305223538-e35bfeabbbff
 	github.com/adrg/frontmatter v0.2.0
 	github.com/analog-substance/util v1.1.6
-	github.com/caddyserver/certmagic v0.22.2
+	github.com/caddyserver/certmagic v0.24.0
 	github.com/creack/pty v1.1.24
 	github.com/emersion/go-smtp v0.23.0
 	github.com/factomproject/basen v0.0.0-20150613233007-fe3947df716e
