@@ -6,7 +6,7 @@ require (
 	github.com/NoF0rte/cmd-builder v0.0.0-20220305223538-e35bfeabbbff
 	github.com/adrg/frontmatter v0.2.0
 	github.com/analog-substance/util v1.1.6
-	github.com/caddyserver/certmagic v0.22.2
+	github.com/caddyserver/certmagic v0.25.0
 	github.com/creack/pty v1.1.24
 	github.com/emersion/go-smtp v0.23.0
 	github.com/factomproject/basen v0.0.0-20150613233007-fe3947df716e
@@ -17,7 +17,7 @@ require (
 	github.com/gliderlabs/ssh v0.3.8
 	github.com/libdns/namecheap v0.0.0-20250228022813-d8b4b66c5072
 	github.com/libdns/route53 v1.5.1
-	github.com/miekg/dns v1.1.66
+	github.com/miekg/dns v1.1.68
 	github.com/spf13/afero v1.14.0
 	github.com/spf13/cobra v1.9.1
 	golang.org/x/image v0.28.0
@@ -71,13 +71,13 @@ require (
 	github.com/inconshreveable/mousetrap v1.1.0 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
-	github.com/klauspost/cpuid/v2 v2.2.11 // indirect
+	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/kr/pretty v0.1.0 // indirect
-	github.com/libdns/libdns v0.2.3 // indirect
+	github.com/libdns/libdns v1.1.1 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/mattn/go-runewidth v0.0.16 // indirect
-	github.com/mholt/acmez/v3 v3.1.2 // indirect
+	github.com/mholt/acmez/v3 v3.1.3 // indirect
 	github.com/microcosm-cc/bluemonday v1.0.27 // indirect
 	github.com/muesli/reflow v0.3.0 // indirect
 	github.com/muesli/termenv v0.16.0 // indirect
@@ -94,15 +94,15 @@ require (
 	go.uber.org/multierr v1.11.0 // indirect
 	go.uber.org/zap v1.27.0 // indirect
 	go.uber.org/zap/exp v0.3.0 // indirect
-	golang.org/x/crypto v0.39.0 // indirect
+	golang.org/x/crypto v0.41.0 // indirect
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
-	golang.org/x/mod v0.25.0 // indirect
-	golang.org/x/net v0.41.0 // indirect
-	golang.org/x/sync v0.15.0 // indirect
-	golang.org/x/sys v0.33.0 // indirect
-	golang.org/x/term v0.32.0 // indirect
-	golang.org/x/text v0.26.0 // indirect
-	golang.org/x/tools v0.34.0 // indirect
+	golang.org/x/mod v0.26.0 // indirect
+	golang.org/x/net v0.43.0 // indirect
+	golang.org/x/sync v0.16.0 // indirect
+	golang.org/x/sys v0.35.0 // indirect
+	golang.org/x/term v0.34.0 // indirect
+	golang.org/x/text v0.28.0 // indirect
+	golang.org/x/tools v0.35.0 // indirect
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	launchpad.net/gocheck v0.0.0-20140225173054-000000000087 // indirect
