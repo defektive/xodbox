@@ -8,7 +8,7 @@ require (
 	github.com/analog-substance/util v1.1.6
 	github.com/caddyserver/certmagic v0.22.2
 	github.com/creack/pty v1.1.24
-	github.com/emersion/go-smtp v0.23.0
+	github.com/emersion/go-smtp v0.24.0
 	github.com/factomproject/basen v0.0.0-20150613233007-fe3947df716e
 	github.com/fclairamb/ftpserverlib v0.26.0
 	github.com/fclairamb/go-log v0.6.0
