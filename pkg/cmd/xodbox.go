@@ -36,7 +36,6 @@ var XodboxCmd = &cobra.Command{
 
 		if resetDB {
 			lg().Debug("resetting database")
-
 			model.LoadDBWithOptions(model.DBOptions{Reset: true})
 		}
 

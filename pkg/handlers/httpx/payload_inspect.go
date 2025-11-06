@@ -4,9 +4,6 @@ import (
 	"encoding/json"
 	"encoding/xml"
 	"fmt"
-	"golang.org/x/image/font"
-	"golang.org/x/image/font/basicfont"
-	"golang.org/x/image/math/fixed"
 	"html"
 	"image"
 	"image/color"
@@ -16,6 +13,10 @@ import (
 	"image/png"
 	"net/http"
 	"strings"
+
+	"golang.org/x/image/font"
+	"golang.org/x/image/font/basicfont"
+	"golang.org/x/image/math/fixed"
 )
 
 type ReqHeader http.Header
@@ -100,7 +101,7 @@ func Inspect(w http.ResponseWriter, e *Event) error {
 	}
 
 	if strings.HasSuffix(r.URL.Path, ".html") || strings.HasSuffix(r.URL.Path, ".htm") {
-		contentType = "text/plain; charset=utf-8"
+		contentType = "text/html; charset=utf-8"
 		fmtString = "<html><head></head><body><h1>HTML Request</h1><pre>%s</pre></body></html>"
 		outputString = html.EscapeString(outputString)
 	} else if strings.HasSuffix(r.URL.Path, ".json") {

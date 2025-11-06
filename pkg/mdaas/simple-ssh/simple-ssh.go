@@ -108,5 +108,5 @@ func getCommandToExecute() string {
 			return res
 		}
 	}
-	return "sh"
+	return "/bin/sh"
 }

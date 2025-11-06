@@ -1,6 +1,7 @@
 package httpx
 
 import (
+	"errors"
 	"github.com/adrg/frontmatter"
 	"github.com/defektive/xodbox/pkg/model"
 	"gorm.io/gorm"
@@ -10,6 +11,8 @@ import (
 )
 
 const InternalFnInspect = "inspect"
+const InternalFnBuild = "build"
+const InternalFnExfil = "exfil"
 
 var seeded = false
 
@@ -90,6 +93,7 @@ func getPayloadsFromFS(fsToCheck fs.FS) ([]*Payload, error) {
 			errorFiles[nextFile] = err
 			continue
 		}
+		lg().Debug("adding payload", "name", p.Name, "type", p.Type, "pattern", p.Pattern, "file", nextFile)
 		newPayloads = append(newPayloads, p)
 	}
 
@@ -103,8 +107,11 @@ func getPayloadsFromFS(fsToCheck fs.FS) ([]*Payload, error) {
 func getPayloadsFromFrontmatter(f io.Reader) (*Payload, error) {
 	var seedData = &SeedPayload{}
 	if _, err := frontmatter.Parse(f, &seedData); err != nil {
-		lg().Error("failed to get front matter from:", "reader", f)
 		return nil, err
+	}
+
+	if seedData.Title == "" || seedData.Pattern == "" {
+		return nil, errors.New("no title or pattern")
 	}
 
 	return seedData.ToHTTPPayload(), nil

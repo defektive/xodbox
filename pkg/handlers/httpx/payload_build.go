@@ -52,6 +52,9 @@ func Build(w http.ResponseWriter, e *Event, handler *Handler) error {
 	if handler.MDaaSAllowedCIDR != "" {
 		ldFlags = append(ldFlags, fmt.Sprintf("-X main.allowedCIDR=%s", handler.MDaaSAllowedCIDR))
 	}
+	if handler.MDaaSNotifyURL != "" {
+		ldFlags = append(ldFlags, fmt.Sprintf("-X main.notifyURL=%s", handler.MDaaSNotifyURL))
+	}
 
 	outFile, err := mdaas.Build(targetOS, targetArch, arm, program, filepath.Join(handler.StaticDir, "dist"), ldFlags)
 

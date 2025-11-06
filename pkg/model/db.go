@@ -36,6 +36,7 @@ func (o *DBOptions) ShouldReset() bool {
 
 func LoadDBWithOptions(options DBOptions) {
 	if db == nil {
+		lg().Debug("Load db with options", "options", options)
 		newLogger := logger.New(
 			log.New(os.Stderr, "\r\n", log.LstdFlags), // io writer
 			logger.Config{
