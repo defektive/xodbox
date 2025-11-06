@@ -5,16 +5,16 @@ jobs:
     name: reviewdog
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@08eba0b27e820071cde6df949e0beb9ba4906955 # v4.3.0
         with:
           ref: ${{ github.event.pull_request.head.sha }}
-      - uses: actions/setup-go@v5
+      - uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
           go-version: '1.23'
-      - uses: reviewdog/action-staticcheck@v1
+      - uses: reviewdog/action-staticcheck@50f9bfcf3738839ddc95deac241b904d77469096 # v1.28.0
         with:
           fail_on_error: true
-      - uses: reviewdog/action-setup@v1
+      - uses: reviewdog/action-setup@d8edfce3dd5e1ec6978745e801f9c50b5ef80252 # v1.4.0
       - name: Run reviewdog
         env:
           REVIEWDOG_GITHUB_API_TOKEN: ${{ secrets.GITHUB_TOKEN }}
