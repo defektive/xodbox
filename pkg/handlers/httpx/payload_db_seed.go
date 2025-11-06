@@ -11,6 +11,8 @@ import (
 )
 
 const InternalFnInspect = "inspect"
+const InternalFnBuild = "build"
+const InternalFnExfil = "exfil"
 
 var seeded = false
 

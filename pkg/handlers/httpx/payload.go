@@ -3,13 +3,14 @@ package httpx
 import (
 	"bytes"
 	"fmt"
-	"github.com/defektive/xodbox/pkg/model"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/defektive/xodbox/pkg/model"
 )
 
 const PayloadName = "HTTPX"
@@ -165,7 +166,8 @@ func (h *Payload) Process(w http.ResponseWriter, e *Event, handler *Handler) {
 		if err := Inspect(w, e); err != nil {
 			lg().Error("Error executing build template", "payload", h.Name, "err", err)
 		}
-	} else if h.InternalFunction == "build" {
+		return
+	} else if h.InternalFunction == InternalFnBuild {
 		lg().Debug("building payload", "payload", h.Name, "payload", h)
 		if err := Build(w, e, handler); err != nil {
 			lg().Error("Error executing build template", "payload", h.Name, "err", err)
@@ -177,7 +179,6 @@ func (h *Payload) Process(w http.ResponseWriter, e *Event, handler *Handler) {
 	if err != nil {
 		lg().Error("Error executing body template", "payload", h.Name, "err", err)
 		fmt.Fprint(w, "that was unexpected")
-
 	}
 }
 
