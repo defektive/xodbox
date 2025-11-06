@@ -6,6 +6,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 )
 
 //go:embed simple-ssh
@@ -13,7 +14,10 @@ import (
 var MDaaSFS embed.FS
 
 func init() {
-	SetupDirs("mdaas")
+	if !strings.HasSuffix(os.Args[0], ".test") {
+		// if not in a test create the files
+		SetupDirs("mdaas")
+	}
 }
 
 func GetInternalPrograms() ([]string, error) {
