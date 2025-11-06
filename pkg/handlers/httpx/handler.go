@@ -4,14 +4,6 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/analog-substance/util/fileutil"
-	"github.com/caddyserver/certmagic"
-	"github.com/defektive/xodbox/pkg/model"
-	"github.com/defektive/xodbox/pkg/types"
-	"github.com/fsnotify/fsnotify"
-	"github.com/libdns/namecheap"
-	"github.com/libdns/route53"
-	"gorm.io/gorm/clause"
 	"io/fs"
 	"log"
 	"net"
@@ -21,6 +13,15 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/analog-substance/util/fileutil"
+	"github.com/caddyserver/certmagic"
+	"github.com/defektive/xodbox/pkg/model"
+	"github.com/defektive/xodbox/pkg/types"
+	"github.com/fsnotify/fsnotify"
+	"github.com/libdns/namecheap"
+	"github.com/libdns/route53"
+	"gorm.io/gorm/clause"
 )
 
 const EmbeddedMountPoint = "/ixdbxi/"
@@ -40,6 +41,7 @@ type Handler struct {
 	MDaaSAllowedCIDR   string
 	MDaaSNotifyURL     string
 	TLSNames           []string
+	APIPath            string
 
 	StaticDir       string
 	dispatchChannel chan types.InteractionEvent
@@ -99,6 +101,7 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 		MDaaSBindListener:  mdaasBindListener,
 		MDaaSAllowedCIDR:   mdaasAllowedCIDR,
 		MDaaSNotifyURL:     mdaasNotifyURL,
+		APIPath:            handlerConfig["api_path"],
 	}
 }
 
@@ -117,6 +120,18 @@ func (h *Handler) serverMux() *http.ServeMux {
 			httpFS := http.FileServer(http.Dir(h.StaticDir))
 
 			h.mux.Handle("/static/", http.StripPrefix("/static", noIndex(httpFS)))
+		}
+
+		if h.APIPath != "" {
+			if !strings.HasPrefix(h.APIPath, "/") {
+				h.APIPath = "/" + h.APIPath
+			}
+
+			if !strings.HasSuffix(h.APIPath, "/") {
+				h.APIPath = h.APIPath + "/"
+			}
+
+			h.mux.Handle(h.APIPath, APIHAndler(h.APIPath))
 		}
 
 		subFs, err := fs.Sub(embeddedStaticFS, "static")

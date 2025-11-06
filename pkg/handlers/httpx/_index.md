@@ -27,6 +27,7 @@ Speak HTTP to other computers you may or may not control....
 | mdaas_bind_listener   | Listener for MDaaS Binaries.                                                                                                                                                                                                                                  |
 | mdaas_allowed_cidr    | CIDRs allowed to connect to MDaaS binaries                                                                                                                                                                                                                    |
 | mdaas_notify_url      | Webhook URL for notifying success or err                                                                                                                                                                                                                      |
+| api_path              | API Path                                                                                                                                                                                                                                                      |
 
 ## Filters
 
