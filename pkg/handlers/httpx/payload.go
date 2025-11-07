@@ -3,13 +3,15 @@ package httpx
 import (
 	"bytes"
 	"fmt"
+	htmlTemplate "html/template"
 	"io"
 	"net/http"
 	"strconv"
 	"strings"
-	"text/template"
+	textTemplate "text/template"
 	"time"
 
+	"github.com/Masterminds/sprig/v3"
 	"github.com/defektive/xodbox/pkg/model"
 )
 
@@ -23,8 +25,12 @@ type Payload struct {
 	model.Payload
 	Data            PayloadData `json,yaml:"data" gorm:"serializer:json"`
 	headerTemplates []*HeaderTemplate
-	bodyTemplate    *template.Template
-	statusTemplate  *template.Template
+
+	isHTMLContentType bool
+
+	bodyTextTemplate *textTemplate.Template
+	bodyHTMLTemplate *htmlTemplate.Template
+	statusTemplate   *textTemplate.Template
 }
 
 // PayloadData is used to handle the JSON in the body field of the Payload database model
@@ -39,8 +45,8 @@ type PayloadData struct {
 //
 //	x-{{.GET_headerKey}}: pizza
 type HeaderTemplate struct {
-	HeaderTemplate *template.Template
-	ValueTemplate  *template.Template
+	HeaderTemplate *textTemplate.Template
+	ValueTemplate  *textTemplate.Template
 }
 
 func NewHTTPPayload() *Payload {
@@ -59,8 +65,8 @@ func (h *Payload) HeaderTemplates() []*HeaderTemplate {
 		var i = 0
 		for header, value := range h.Data.Headers {
 			t := &HeaderTemplate{
-				HeaderTemplate: template.Must(template.New(fmt.Sprintf("HTTP_PAYLOAD_%d_h_header_%d", h.ID, i)).Parse(header)),
-				ValueTemplate:  template.Must(template.New(fmt.Sprintf("HTTP_PAYLOAD_%d_h_value_%d", h.ID, i)).Parse(value)),
+				HeaderTemplate: textTemplate.Must(textTemplate.New(fmt.Sprintf("HTTP_PAYLOAD_%d_h_header_%d", h.ID, i)).Funcs(sprig.FuncMap()).Parse(header)),
+				ValueTemplate:  textTemplate.Must(textTemplate.New(fmt.Sprintf("HTTP_PAYLOAD_%d_h_value_%d", h.ID, i)).Funcs(sprig.FuncMap()).Parse(value)),
 			}
 			h.headerTemplates = append(h.headerTemplates, t)
 		}
@@ -69,29 +75,49 @@ func (h *Payload) HeaderTemplates() []*HeaderTemplate {
 	return h.headerTemplates
 }
 
-// BodyTemplate initialize and/or return already initialized body template
-func (h *Payload) BodyTemplate() (*template.Template, error) {
-	if h.bodyTemplate == nil {
-		tp := template.New(fmt.Sprintf("HTTP_PAYLOAD_%d_body", h.ID))
+// BodyTextTemplate initialize and/or return already initialized body textTemplate
+func (h *Payload) BodyTextTemplate() (*textTemplate.Template, error) {
+	if h.bodyTextTemplate == nil {
+		tp := textTemplate.New(fmt.Sprintf("HTTP_PAYLOAD_%d_body", h.ID)).Funcs(sprig.FuncMap())
 		return tp.Parse(h.Data.Body)
 	}
 
-	return h.bodyTemplate, nil
+	return h.bodyTextTemplate, nil
+}
+
+// BodyHTMLTemplate initialize and/or return already initialized body textTemplate
+func (h *Payload) BodyHTMLTemplate() (*htmlTemplate.Template, error) {
+	if h.bodyHTMLTemplate == nil {
+		tp := htmlTemplate.New(fmt.Sprintf("HTTP_PAYLOAD_%d_body", h.ID)).Funcs(sprig.FuncMap())
+		return tp.Parse(h.Data.Body)
+	}
+
+	return h.bodyHTMLTemplate, nil
 }
 
 func (h *Payload) ExecuteBodyTemplate(wr io.Writer, data any) error {
-	bt, err := h.BodyTemplate()
-	if err != nil {
-		return err
-	}
+	if h.isHTMLContentType {
+		// lolz... not sure why I am protecting against XSS... this while project is about reflecting data
+		bt, err := h.BodyHTMLTemplate()
+		if err != nil {
+			return err
+		}
 
-	return bt.Execute(wr, data)
+		return bt.Execute(wr, data)
+	} else {
+		bt, err := h.BodyTextTemplate()
+		if err != nil {
+			return err
+		}
+
+		return bt.Execute(wr, data)
+	}
 }
 
-// StatusTemplate initialize and/or return already initialized status template
-func (h *Payload) StatusTemplate() *template.Template {
+// StatusTemplate initialize and/or return already initialized status textTemplate
+func (h *Payload) StatusTemplate() *textTemplate.Template {
 	if h.statusTemplate == nil {
-		h.statusTemplate = template.Must(template.New(fmt.Sprintf("%s_status_code", PayloadName)).Parse(h.Data.StatusCode))
+		h.statusTemplate = textTemplate.Must(textTemplate.New(fmt.Sprintf("%s_status_code", PayloadName)).Funcs(sprig.FuncMap()).Parse(h.Data.StatusCode))
 	}
 	return h.statusTemplate
 }
@@ -108,7 +134,7 @@ func (h *Payload) HasHeader(header string) bool {
 }
 
 // HasStatusCode returns true if:
-//   - the response template has a status code
+//   - the response textTemplate has a status code
 //   - or the response is a redirect (HasHeader("location"))
 func (h *Payload) HasStatusCode() bool {
 	return h.Data.StatusCode != "" || h.IsRedirect()
@@ -134,21 +160,27 @@ func (h *Payload) Process(w http.ResponseWriter, e *Event, handler *Handler) {
 		var valBytes bytes.Buffer
 		err := headTemplates.HeaderTemplate.Execute(&hdrBytes, tc)
 		if err != nil {
-			lg().Error("Error executing header template", "payload", h.Name, "err", err)
+			lg().Error("Error executing header textTemplate", "payload", h.Name, "err", err)
 		}
 		err = headTemplates.ValueTemplate.Execute(&valBytes, tc)
 		if err != nil {
-			lg().Error("Error executing header value template", "payload", h.Name, "err", err)
+			lg().Error("Error executing header value textTemplate", "payload", h.Name, "err", err)
 		}
 
-		w.Header().Set(hdrBytes.String(), valBytes.String())
+		headerKey := hdrBytes.String()
+		headerVal := valBytes.String()
+		if strings.ToLower(headerKey) == "content-type" && strings.ToLower(headerVal) == "text/html" {
+			h.isHTMLContentType = true
+		}
+
+		w.Header().Set(headerKey, valBytes.String())
 	}
 
 	if h.HasStatusCode() {
 		var statusBytes bytes.Buffer
 		err := h.StatusTemplate().Execute(&statusBytes, tc)
 		if err != nil {
-			lg().Error("Error executing body template", "payload", h.Name, "err", err)
+			lg().Error("Error executing body textTemplate", "payload", h.Name, "err", err)
 		}
 
 		responseStatus, err := strconv.Atoi(statusBytes.String())
@@ -164,20 +196,20 @@ func (h *Payload) Process(w http.ResponseWriter, e *Event, handler *Handler) {
 	if h.InternalFunction == InternalFnInspect {
 		// ghetto hack cause I am lazy
 		if err := Inspect(w, e); err != nil {
-			lg().Error("Error executing build template", "payload", h.Name, "err", err)
+			lg().Error("Error executing build textTemplate", "payload", h.Name, "err", err)
 		}
 		return
 	} else if h.InternalFunction == InternalFnBuild {
 		lg().Debug("building payload", "payload", h.Name, "payload", h)
 		if err := Build(w, e, handler); err != nil {
-			lg().Error("Error executing build template", "payload", h.Name, "err", err)
+			lg().Error("Error executing build textTemplate", "payload", h.Name, "err", err)
 		}
 		return
 	}
 
 	err := h.ExecuteBodyTemplate(w, tc)
 	if err != nil {
-		lg().Error("Error executing body template", "payload", h.Name, "err", err)
+		lg().Error("Error executing body textTemplate", "payload", h.Name, "err", err)
 		fmt.Fprint(w, "that was unexpected")
 	}
 }
