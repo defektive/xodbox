@@ -8,7 +8,7 @@ data:
   body: |
     <html>
     <head>
-      <meta property="og:title" content="Unfurly" />
+      <meta property="og:title" content="{{ .ServerName }}/{{.Version}}" />
       <meta property="og:description" content="{{.Request.UserAgent}}" />
       <meta name="twitter:image:src" value="{{.CallBackImageURL}}" />
       <meta name="twitter:label1" value="IP Address" />

