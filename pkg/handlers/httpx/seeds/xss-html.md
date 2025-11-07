@@ -2,7 +2,7 @@
 title: XSS HTML
 description: Returns HTML that embeds xss-js
 weight: -500
-pattern: /jsc.html$
+pattern: /xss-html$
 is_final: true
 data: 
   headers:
@@ -14,7 +14,7 @@ data:
         <meta charset="utf-8">
       </head>
       <body>
-        <script src="//{{.Request.Host}}/jsc"></script>
+        <script src="//{{.Request.Host}}/xss-js"></script>
       </body>
     </html>
 
