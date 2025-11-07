@@ -5,7 +5,7 @@ weight: -1000
 pattern: ^/
 data:
   headers:
-    Server: BreakfastBot/{{.Version}}
+    Server: "{{ .ServerName }}/{{.Version}}"
 ---
 
 Adds an HTTP header to all HTTP responses.

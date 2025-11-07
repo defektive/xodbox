@@ -2,14 +2,15 @@ package httpx
 
 import (
 	"fmt"
-	"github.com/analog-substance/util/cli/build_info"
-	"github.com/defektive/xodbox/pkg/model"
-	"github.com/defektive/xodbox/pkg/types"
-	"github.com/defektive/xodbox/pkg/util"
 	"io"
 	"net/http"
 	"net/http/httputil"
 	"time"
+
+	"github.com/analog-substance/util/cli/build_info"
+	"github.com/defektive/xodbox/pkg/model"
+	"github.com/defektive/xodbox/pkg/types"
+	"github.com/defektive/xodbox/pkg/util"
 )
 
 type Event struct {
@@ -109,7 +110,8 @@ func (e *Event) TemplateContext(templateData map[string]string) *TemplateContext
 
 	tc := &TemplateContext{
 		Version:          build_info.GetLoadedVersion().Version,
-		NotifyString:     "l",
+		NotifyString:     templateData["notify_string"],
+		ServerName:       templateData["server_name"],
 		CallBackImageURL: fmt.Sprintf("http://%s%s?&xdbxImage", r.Host, r.RequestURI),
 		CallBackURL:      fmt.Sprintf("http://%s%s?&xdbx", r.Host, r.RequestURI),
 		Extra:            templateData,
@@ -132,7 +134,8 @@ type TemplateContext struct {
 	ProxySrv         string
 	ProxySrvRegex    string
 
-	Request *TemplateRequestContext
+	Request    *TemplateRequestContext
+	ServerName string
 }
 
 type TemplateRequestContext struct {

@@ -1,6 +1,9 @@
 package xodbox
 
 import (
+	"os"
+	"path"
+
 	"github.com/defektive/xodbox/pkg/handlers/dns"
 	"github.com/defektive/xodbox/pkg/handlers/ftp"
 	"github.com/defektive/xodbox/pkg/handlers/httpx"
@@ -12,8 +15,6 @@ import (
 	"github.com/defektive/xodbox/pkg/notifiers/slack"
 	"github.com/defektive/xodbox/pkg/types"
 	"gopkg.in/yaml.v3"
-	"os"
-	"path"
 )
 
 const ConfigFileName = "xodbox.yaml"
@@ -39,7 +40,9 @@ func (conf *ConfigFile) ToConfig() *Config {
 
 	if conf.Defaults == nil {
 		conf.Defaults = map[string]string{
-			"NotifyFilter": DefaultNotifyFilter,
+			"notify_filter": DefaultNotifyFilter,
+			"notify_string": "l",
+			"server_name":   "BreakfastBot",
 		}
 	}
 
