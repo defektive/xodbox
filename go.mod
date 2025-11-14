@@ -27,14 +27,6 @@ require (
 	gorm.io/gorm v1.31.1
 )
 
-exclude github.com/caddyserver/certmagic v0.23.0
-
-exclude github.com/libdns/namecheap v0.0.0-20250523201144-144eb6168d52
-
-exclude github.com/libdns/libdns v1.1.0
-
-exclude github.com/libdns/libdns v1.0.0
-
 require (
 	dario.cat/mergo v1.0.1 // indirect
 	github.com/BurntSushi/toml v1.5.0 // indirect
