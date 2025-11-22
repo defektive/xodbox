@@ -119,7 +119,7 @@ func (h *Handler) serverMux() *http.ServeMux {
 			}
 			httpFS := http.FileServer(http.Dir(h.StaticDir))
 
-			h.mux.Handle("/static/", http.StripPrefix("/static", noIndex(httpFS)))
+			h.mux.Handle("/static/", http.StripPrefix("/static", h.noIndex(httpFS)))
 		}
 
 		if h.APIPath != "" {
@@ -138,7 +138,7 @@ func (h *Handler) serverMux() *http.ServeMux {
 		if err != nil {
 			lg().Error("Failed to subfs embedded files", "err", err)
 		}
-		h.mux.Handle(EmbeddedMountPoint, http.StripPrefix(EmbeddedMountPoint[:len(EmbeddedMountPoint)-1], noIndex(http.FileServer(http.FS(subFs)))))
+		h.mux.Handle(EmbeddedMountPoint, http.StripPrefix(EmbeddedMountPoint[:len(EmbeddedMountPoint)-1], h.noIndex(http.FileServer(http.FS(subFs)))))
 
 		h.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			loadStart := time.Now()
@@ -146,7 +146,6 @@ func (h *Handler) serverMux() *http.ServeMux {
 				lg().Debug("http response completed", "timeTaken", fmt.Sprintf("%dµs", time.Since(loadStart).Microseconds()))
 			}()
 			e := NewEvent(r)
-
 			e.Dispatch(h.dispatchChannel)
 
 			for _, payload := range SortedPayloads() {
@@ -222,12 +221,15 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 	return h.serveHTTP()
 }
 
-func noIndex(next http.Handler) http.Handler {
+func (h *Handler) noIndex(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/") {
 			http.NotFound(w, r)
 			return
 		}
+
+		e := NewEvent(r)
+		e.Dispatch(h.dispatchChannel)
 
 		next.ServeHTTP(w, r)
 	})
