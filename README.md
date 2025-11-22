@@ -91,7 +91,14 @@ mkdir -p static payloads/httpx
 ./xodbox serve 
 ```
 
-#### Docker
+
+#### Docker GHCR
+
+```bash
+sudo docker run --rm -v `pwd`:/workspace --user 1000  ghcr.io/defektive/xodbox:latest
+```
+
+#### Docker alpine with downloaded release
 
 Currently, we do not have any prebuilt Docker containers. However, you can just run a release with an Alpine container.
 
@@ -104,6 +111,7 @@ docker run \
   -d alpine \
   ./xodbox serve
 ```
+
 
 * * *
 
