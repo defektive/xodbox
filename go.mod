@@ -21,7 +21,7 @@ require (
 	github.com/libdns/route53 v1.5.1
 	github.com/miekg/dns v1.1.68
 	github.com/spf13/afero v1.15.0
-	github.com/spf13/cobra v1.10.1
+	github.com/spf13/cobra v1.10.2
 	golang.org/x/image v0.33.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/gorm v1.31.1
