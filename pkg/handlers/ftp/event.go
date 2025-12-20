@@ -42,7 +42,7 @@ type Event struct {
 }
 
 func NewEvent(remoteAddr string, action Action) *Event {
-	hostname, portNum := util.HostAndPortFromRemoteAddr(remoteAddr)
+	hostname, portNum := util.GetHostAndPortFromRemoteAddr(remoteAddr)
 
 	return &Event{
 		BaseEvent: &types.BaseEvent{

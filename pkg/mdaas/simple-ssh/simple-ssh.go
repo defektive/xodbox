@@ -56,7 +56,7 @@ func main() {
 
 	ssh.Handle(func(s ssh.Session) {
 
-		host, _ := util.HostAndPortFromRemoteAddr(s.RemoteAddr().String())
+		host, _ := util.GetHostAndPortFromRemoteAddr(s.RemoteAddr().String())
 		remoteIp := net.ParseIP(host)
 		if !allowedNet.Contains(remoteIp) {
 			// not allowed

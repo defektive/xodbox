@@ -27,7 +27,7 @@ type Event struct {
 }
 
 func NewEvent(ctx ssh.Context, action Action) *Event {
-	hostname, portNum := util.HostAndPortFromRemoteAddr(ctx.RemoteAddr().String())
+	hostname, portNum := util.GetHostAndPortFromRemoteAddr(ctx.RemoteAddr().String())
 
 	return &Event{
 		BaseEvent: &types.BaseEvent{

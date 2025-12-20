@@ -42,6 +42,7 @@ type Handler struct {
 	MDaaSNotifyURL     string
 	TLSNames           []string
 	APIPath            string
+	APIToken           string
 
 	StaticDir       string
 	dispatchChannel chan types.InteractionEvent
@@ -102,6 +103,7 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 		MDaaSAllowedCIDR:   mdaasAllowedCIDR,
 		MDaaSNotifyURL:     mdaasNotifyURL,
 		APIPath:            handlerConfig["api_path"],
+		APIToken:           handlerConfig["api_token"],
 	}
 }
 
@@ -131,7 +133,7 @@ func (h *Handler) serverMux() *http.ServeMux {
 				h.APIPath = h.APIPath + "/"
 			}
 
-			h.mux.Handle(h.APIPath, APIHAndler(h.APIPath))
+			h.mux.Handle(h.APIPath, APIHAndler(h.APIPath, h.APIToken))
 		}
 
 		subFs, err := fs.Sub(embeddedStaticFS, "static")
