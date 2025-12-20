@@ -32,7 +32,7 @@ func (e *Event) Details() string {
 }
 
 func NewEvent(ctx net.Conn, action Action, packet []byte) *Event {
-	hostname, portNum := util.HostAndPortFromRemoteAddr(ctx.RemoteAddr().String())
+	hostname, portNum := util.GetHostAndPortFromRemoteAddr(ctx.RemoteAddr().String())
 
 	return &Event{
 		BaseEvent: &types.BaseEvent{

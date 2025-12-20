@@ -76,7 +76,7 @@ func main() {
 		}
 
 		lg().Debug("Accepted connection from", "remoteAddr", connection.RemoteAddr().String())
-		host, _ := util.HostAndPortFromRemoteAddr(connection.RemoteAddr().String())
+		host, _ := util.GetHostAndPortFromRemoteAddr(connection.RemoteAddr().String())
 
 		remoteIP := net.ParseIP(host)
 

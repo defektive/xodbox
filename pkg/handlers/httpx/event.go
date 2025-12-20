@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httputil"
+	"sync"
 	"time"
 
 	"github.com/analog-substance/util/cli/build_info"
@@ -26,9 +27,9 @@ func NewEvent(req *http.Request) *Event {
 
 	dump, _ := httputil.DumpRequest(req, false)
 	dump = append(dump, body...)
-	hostname, portNum := util.HostAndPortFromRemoteAddr(req.RemoteAddr)
+	hostname, portNum := util.GetHostAndPortFromRequest(req)
 
-	return &Event{
+	ev := &Event{
 		BaseEvent: &types.BaseEvent{
 			RemoteAddr:       hostname,
 			RemotePortNumber: portNum,
@@ -39,6 +40,26 @@ func NewEvent(req *http.Request) *Event {
 		body:          body,
 		requestHeader: dump,
 	}
+	protocol := "http"
+	if req.TLS != nil {
+		protocol = "https"
+	}
+
+	i := &model.Interaction{
+		RemoteAddr:    hostname,
+		RemotePort:    fmt.Sprintf("%d", portNum),
+		Handler:       "httpx",
+		Protocol:      protocol,
+		RequestType:   req.Method,
+		RequestTarget: req.URL.Path,
+		UserAgent:     req.UserAgent(),
+		Headers:       string(dump),
+		Data:          body,
+	}
+
+	go CreateInteraction(i)
+
+	return ev
 }
 
 func (e *Event) Details() string {
@@ -62,13 +83,17 @@ func (e *Event) Request() *http.Request {
 }
 
 func (e *Event) RemoteAddr() string {
-	return e.req.RemoteAddr
+	return e.BaseEvent.RemoteAddr
 }
 
 func (e *Event) Dispatch(cc chan types.InteractionEvent) {
-	go func() {
-		cc <- e
-	}()
+	if model.IsBot(e.BaseEvent.RemoteAddr) {
+		lg().Info("not dispatching bot", "remote addr", e.BaseEvent.RemoteAddr)
+	} else {
+		go func() {
+			cc <- e
+		}()
+	}
 }
 
 func (e *Event) TemplateContext(templateData map[string]string) *TemplateContext {
@@ -149,4 +174,28 @@ type TemplateRequestContext struct {
 	Headers    map[string][]string
 	GetParams  map[string][]string
 	PostParams map[string][]string
+}
+
+var mu = &sync.Mutex{}
+
+// CreateInteraction creates new payloads.
+func CreateInteraction(interaction *model.Interaction) {
+	mu.Lock()
+	defer mu.Unlock()
+	tx := model.DB().Create(interaction)
+	if tx.Error != nil {
+		lg().Debug("failed to create interaction", "tx.Error", tx.Error, "name", interaction.RemoteAddr, "type", interaction.Handler)
+	}
+
+	//err := model.DB().Transaction(func(tx *gorm.DB) error {
+	//	if err := tx.Create(interaction).Error; err != nil {
+	//		return err
+	//	}
+	//
+	//	return nil
+	//})
+	//
+	//if err != nil {
+	//	lg().Error("failed to create interaction", "error", err)
+	//}
 }

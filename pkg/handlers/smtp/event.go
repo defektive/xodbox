@@ -29,7 +29,7 @@ type Event struct {
 }
 
 func NewEvent(ctx *SMTPSession, action Action) *Event {
-	hostname, portNum := util.HostAndPortFromRemoteAddr(ctx.conn.Conn().RemoteAddr().String())
+	hostname, portNum := util.GetHostAndPortFromRemoteAddr(ctx.conn.Conn().RemoteAddr().String())
 
 	return &Event{
 		BaseEvent: &types.BaseEvent{

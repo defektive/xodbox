@@ -39,7 +39,7 @@ type Event struct {
 }
 
 func newEvent(w dns.ResponseWriter, req *dns.Msg) types.InteractionEvent {
-	hostname, portNum := util.HostAndPortFromRemoteAddr(w.RemoteAddr().String())
+	hostname, portNum := util.GetHostAndPortFromRemoteAddr(w.RemoteAddr().String())
 
 	return &Event{
 		BaseEvent: &types.BaseEvent{
