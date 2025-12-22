@@ -19,7 +19,7 @@ require (
 	github.com/gliderlabs/ssh v0.3.8
 	github.com/libdns/namecheap v0.0.0-20250228022813-d8b4b66c5072
 	github.com/libdns/route53 v1.5.1
-	github.com/miekg/dns v1.1.68
+	github.com/miekg/dns v1.1.69
 	github.com/spf13/afero v1.15.0
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/image v0.34.0
