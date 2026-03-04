@@ -1,11 +1,11 @@
 package ftp
 
 import (
+	"strings"
+
 	"github.com/defektive/xodbox/pkg/types"
 	ftpserver "github.com/fclairamb/ftpserverlib"
-	"github.com/fclairamb/go-log/slog"
 	"github.com/spf13/afero"
-	"strings"
 )
 
 type Handler struct {
@@ -61,8 +61,7 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 	}
 
 	srv := ftpserver.NewFtpServer(simpleDriver)
-	logger := slog.NewWrap(lg())
-	srv.Logger = logger
+	srv.Logger = lg()
 
 	return srv.ListenAndServe()
 }
