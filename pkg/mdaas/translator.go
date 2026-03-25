@@ -39,6 +39,9 @@ func TargetArchFromExternal(external string) (TargetArch, error) {
 	if strings.HasPrefix(external, "arm") {
 		external = "arm"
 	}
+	if strings.HasPrefix(external, "aarch64") {
+		external = "arm64"
+	}
 
 	if external == "x86_64" {
 		external = "amd64"
