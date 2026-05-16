@@ -3,6 +3,7 @@ package httpx
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"io/fs"
 	"log"
@@ -49,9 +50,11 @@ type Handler struct {
 	app             types.App
 	mux             *http.ServeMux
 
-	mu          sync.Mutex
-	httpServer  *http.Server
-	watchCancel context.CancelFunc
+	mu                  sync.Mutex
+	httpServer          *http.Server
+	httpChallengeServer *http.Server // ACME HTTP-01 listener on :80 (HTTPS path only)
+	httpsServer         *http.Server // TLS-terminated listener on :443
+	watchCancel         context.CancelFunc
 }
 
 func NewHandler(handlerConfig map[string]string) types.Handler {
@@ -220,8 +223,84 @@ func (h *Handler) serveHTTPS() error {
 		}
 	}
 
-	// eventually we'll figure out what config options we want
-	return HTTPS(h.TLSNames, h.serverMux(), false)
+	return h.serveTLS(h.TLSNames, h.serverMux(), false)
+}
+
+// serveTLS provisions certificates for domainNames via certmagic,
+// binds both the ACME HTTP-01 challenge listener (port 80) and the
+// TLS listener (port 443), and serves until Stop is called. The
+// resulting *http.Server instances are recorded on the Handler so
+// Stop can shut them down gracefully. Blocks on the TLS Serve.
+func (h *Handler) serveTLS(domainNames []string, mux http.Handler, forwardHTTP bool) error {
+	ctx := context.Background()
+
+	if mux == nil {
+		mux = http.DefaultServeMux
+	}
+
+	cfg := certmagic.NewDefault()
+	if err := cfg.ManageSync(ctx, domainNames); err != nil {
+		return err
+	}
+
+	hln, err := net.Listen("tcp", fmt.Sprintf(":%d", certmagic.HTTPPort))
+	if err != nil {
+		return fmt.Errorf("acme challenge listener: %w", err)
+	}
+
+	tlsConfig := cfg.TLSConfig()
+	tlsConfig.NextProtos = append([]string{"h2", "http/1.1"}, tlsConfig.NextProtos...)
+
+	hsln, err := tls.Listen("tcp", fmt.Sprintf(":%d", certmagic.HTTPSPort), tlsConfig)
+	if err != nil {
+		hln.Close()
+		return fmt.Errorf("tls listener: %w", err)
+	}
+
+	httpServer := &http.Server{
+		ReadHeaderTimeout: 5 * time.Second,
+		ReadTimeout:       5 * time.Second,
+		WriteTimeout:      5 * time.Second,
+		IdleTimeout:       5 * time.Second,
+		BaseContext:       func(net.Listener) context.Context { return ctx },
+	}
+
+	if len(cfg.Issuers) > 0 {
+		if am, ok := cfg.Issuers[0].(*certmagic.ACMEIssuer); ok {
+			if forwardHTTP {
+				httpServer.Handler = am.HTTPChallengeHandler(http.HandlerFunc(httpRedirectHandler))
+			} else {
+				httpServer.Handler = am.HTTPChallengeHandler(mux)
+			}
+		}
+	}
+
+	httpsServer := &http.Server{
+		ReadHeaderTimeout: 10 * time.Second,
+		ReadTimeout:       30 * time.Second,
+		WriteTimeout:      2 * time.Minute,
+		IdleTimeout:       5 * time.Minute,
+		Handler:           mux,
+		BaseContext:       func(net.Listener) context.Context { return ctx },
+	}
+
+	h.mu.Lock()
+	h.httpChallengeServer = httpServer
+	h.httpsServer = httpsServer
+	h.mu.Unlock()
+
+	log.Printf("%v Serving HTTP->HTTPS on %s and %s", domainNames, hln.Addr(), hsln.Addr())
+
+	go func() {
+		if err := httpServer.Serve(hln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			lg().Error("acme challenge server failed", "err", err)
+		}
+	}()
+
+	if err := httpsServer.Serve(hsln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	return nil
 }
 
 func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) error {
@@ -238,13 +317,16 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 	return h.serveHTTP()
 }
 
-// Stop shuts down the HTTP server (HTTPS is not currently
-// shutdown-aware: certmagic owns the listeners) and cancels the
+// Stop shuts down whichever server(s) Start booted (plain HTTP, or
+// the HTTPS pair of ACME-challenge + TLS server) and cancels the
 // payload-directory watcher goroutine if one was started. Safe to
-// call before Start or multiple times.
+// call before Start or multiple times. Returns the first non-nil
+// error encountered, but always attempts every shutdown.
 func (h *Handler) Stop(ctx context.Context) error {
 	h.mu.Lock()
 	srv := h.httpServer
+	challenge := h.httpChallengeServer
+	tlsSrv := h.httpsServer
 	cancel := h.watchCancel
 	h.watchCancel = nil
 	h.mu.Unlock()
@@ -252,10 +334,20 @@ func (h *Handler) Stop(ctx context.Context) error {
 	if cancel != nil {
 		cancel()
 	}
-	if srv == nil {
-		return nil
+
+	var firstErr error
+	shutdown := func(s *http.Server) {
+		if s == nil {
+			return
+		}
+		if err := s.Shutdown(ctx); err != nil && firstErr == nil {
+			firstErr = err
+		}
 	}
-	return srv.Shutdown(ctx)
+	shutdown(srv)
+	shutdown(challenge)
+	shutdown(tlsSrv)
+	return firstErr
 }
 
 func (h *Handler) noIndex(next http.Handler) http.Handler {
@@ -418,103 +510,9 @@ func (d *debouncer) add(f func()) {
 	d.timer = time.AfterFunc(d.after, f)
 }
 
-// From Certmagic, since I am also opinionated... :D
-// Variables for conveniently serving HTTPS.
-var (
-	httpLn, httpsLn net.Listener
-	lnMu            sync.Mutex
-	httpWg          sync.WaitGroup
-)
-
-func HTTPS(domainNames []string, mux http.Handler, forwardHTTP bool) error {
-	ctx := context.Background()
-
-	if mux == nil {
-		mux = http.DefaultServeMux
-	}
-
-	cfg := certmagic.NewDefault()
-
-	err := cfg.ManageSync(ctx, domainNames)
-	if err != nil {
-		return err
-	}
-
-	httpWg.Add(1)
-	defer httpWg.Done()
-
-	// if we haven't made listeners yet, do so now,
-	// and clean them up when all servers are done
-	lnMu.Lock()
-	if httpLn == nil && httpsLn == nil {
-		httpLn, err = net.Listen("tcp", fmt.Sprintf(":%d", certmagic.HTTPPort))
-		if err != nil {
-			lnMu.Unlock()
-			return err
-		}
-
-		tlsConfig := cfg.TLSConfig()
-		tlsConfig.NextProtos = append([]string{"h2", "http/1.1"}, tlsConfig.NextProtos...)
-
-		httpsLn, err = tls.Listen("tcp", fmt.Sprintf(":%d", certmagic.HTTPSPort), tlsConfig)
-		if err != nil {
-			httpLn.Close()
-			httpLn = nil
-			lnMu.Unlock()
-			return err
-		}
-
-		go func() {
-			httpWg.Wait()
-			lnMu.Lock()
-			httpLn.Close()
-			httpsLn.Close()
-			lnMu.Unlock()
-		}()
-	}
-	hln, hsln := httpLn, httpsLn
-	//hsln := httpsLn
-	lnMu.Unlock()
-
-	// create HTTP/S servers that are configured
-	// with sane default timeouts and appropriate
-	// handlers (the HTTP server solves the HTTP
-	// challenge and issues redirects to HTTPS,
-	// while the HTTPS server simply serves the
-	// user's handler)
-	httpServer := &http.Server{
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       5 * time.Second,
-		WriteTimeout:      5 * time.Second,
-		IdleTimeout:       5 * time.Second,
-		BaseContext:       func(listener net.Listener) context.Context { return ctx },
-	}
-
-	if len(cfg.Issuers) > 0 {
-		if am, ok := cfg.Issuers[0].(*certmagic.ACMEIssuer); ok {
-			if forwardHTTP {
-				httpServer.Handler = am.HTTPChallengeHandler(http.HandlerFunc(httpRedirectHandler))
-			} else {
-				httpServer.Handler = am.HTTPChallengeHandler(mux)
-
-			}
-		}
-	}
-
-	httpsServer := &http.Server{
-		ReadHeaderTimeout: 10 * time.Second,
-		ReadTimeout:       30 * time.Second,
-		WriteTimeout:      2 * time.Minute,
-		IdleTimeout:       5 * time.Minute,
-		Handler:           mux,
-		BaseContext:       func(listener net.Listener) context.Context { return ctx },
-	}
-
-	log.Printf("%v Serving HTTP->HTTPS on %s and %s", domainNames, hln.Addr(), hsln.Addr())
-
-	go httpServer.Serve(hln)
-	return httpsServer.Serve(hsln)
-}
+// (Previously defined a package-level HTTPS() helper plus a singleton
+// set of certmagic listeners. Replaced by (*Handler).serveTLS so the
+// Handler owns the server instances and Stop can shut them down.)
 
 func httpRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	toURL := "https://"
