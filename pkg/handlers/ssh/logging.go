@@ -1,8 +1,9 @@
 package ssh
 
 import (
-	"github.com/defektive/xodbox/pkg/xlog"
 	"log/slog"
+
+	"github.com/defektive/xodbox/pkg/xlog"
 )
 
 var pkgLogger *slog.Logger

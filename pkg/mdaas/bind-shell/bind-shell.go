@@ -3,9 +3,6 @@ package main
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/creack/pty"
-	"github.com/defektive/xodbox/pkg/util"
-	"github.com/defektive/xodbox/pkg/xlog"
 	"io"
 	"log/slog"
 	"net"
@@ -16,6 +13,10 @@ import (
 	"runtime"
 	"syscall"
 	"time"
+
+	"github.com/creack/pty"
+	"github.com/defektive/xodbox/pkg/util"
+	"github.com/defektive/xodbox/pkg/xlog"
 	//"time"
 )
 

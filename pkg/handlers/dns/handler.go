@@ -1,14 +1,17 @@
 package dns
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
+	"net"
+	"strconv"
+	"sync"
+
 	"github.com/defektive/xodbox/pkg/types"
 	"github.com/defektive/xodbox/pkg/util"
 	"github.com/factomproject/basen"
 	"github.com/miekg/dns"
-	"net"
-	"strconv"
 )
 
 //goland:noinspection SpellCheckingInspection
@@ -20,6 +23,9 @@ type Handler struct {
 	DefaultResponseIP string
 
 	dispatchChannel chan types.InteractionEvent
+
+	mu     sync.Mutex
+	server *dns.Server
 }
 
 func NewHandler(handlerConfig map[string]string) types.Handler {
@@ -78,7 +84,8 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 	h.dispatchChannel = eventChan
 	responseValue := net.ParseIP(h.DefaultResponseIP).To4()
 
-	dns.HandleFunc(".", func(w dns.ResponseWriter, req *dns.Msg) {
+	mux := dns.NewServeMux()
+	mux.HandleFunc(".", func(w dns.ResponseWriter, req *dns.Msg) {
 
 		go h.dispatchEvent(w, req)
 
@@ -95,17 +102,35 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 				A: responseValue,
 			}
 			resp.Answer = append(resp.Answer, &a)
-			w.WriteMsg(&resp)
+			if err := w.WriteMsg(&resp); err != nil {
+				lg().Debug("dns write reply failed", "err", err)
+			}
 		}
 	})
 
+	srv := &dns.Server{Addr: h.Listener, Net: "udp", Handler: mux}
+	h.mu.Lock()
+	h.server = srv
+	h.mu.Unlock()
+
 	lg().Info("Starting DNS server", "listener", h.Listener)
-	err := dns.ListenAndServe(h.Listener, "udp", nil)
-	if err != nil {
+	if err := srv.ListenAndServe(); err != nil {
 		lg().Error("Failed to start DNS server", "listener", h.Listener, "err", err)
 		return err
 	}
 	return nil
+}
+
+// Stop tells the underlying *dns.Server to shut down. Safe to call
+// before Start or multiple times.
+func (h *Handler) Stop(ctx context.Context) error {
+	h.mu.Lock()
+	srv := h.server
+	h.mu.Unlock()
+	if srv == nil {
+		return nil
+	}
+	return srv.ShutdownContext(ctx)
 }
 
 func ip2int(ip net.IP) uint32 {
@@ -130,7 +155,7 @@ func decodeIP(encodedIP string) string {
 		return ip.String()
 	}
 
-	ipInt, err := strconv.ParseInt(string(val), 10, 32)
+	ipInt, err := strconv.ParseUint(string(val), 10, 32)
 	if err != nil {
 		lg().Error("error decoding base36 ip", "err", err)
 		ip := net.ParseIP("127.0.0.1")

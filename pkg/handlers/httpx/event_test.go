@@ -60,8 +60,8 @@ func TestEventRemoteAddrAndPort(t *testing.T) {
 	if e.RemoteAddr() != "203.0.113.5" {
 		t.Errorf("RemoteAddr() = %q, want 203.0.113.5", e.RemoteAddr())
 	}
-	if e.BaseEvent.RemotePortNumber != 54321 {
-		t.Errorf("RemotePortNumber = %d, want 54321", e.BaseEvent.RemotePortNumber)
+	if e.RemotePortNumber != 54321 {
+		t.Errorf("RemotePortNumber = %d, want 54321", e.RemotePortNumber)
 	}
 }
 

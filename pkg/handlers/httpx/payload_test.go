@@ -77,7 +77,7 @@ func TestHasStatusCode(t *testing.T) {
 
 func TestShouldProcess(t *testing.T) {
 	p := newPayload(PayloadData{})
-	p.Payload.Pattern = `^/api/v[0-9]+/.*$`
+	p.Pattern = `^/api/v[0-9]+/.*$`
 
 	tests := []struct {
 		path string

@@ -2,12 +2,13 @@ package httpx
 
 import (
 	"errors"
-	"github.com/adrg/frontmatter"
-	"github.com/defektive/xodbox/pkg/model"
-	"gorm.io/gorm"
 	"io"
 	"io/fs"
 	"os"
+
+	"github.com/adrg/frontmatter"
+	"github.com/defektive/xodbox/pkg/model"
+	"gorm.io/gorm"
 )
 
 const InternalFnInspect = "inspect"

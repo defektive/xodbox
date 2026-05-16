@@ -2,6 +2,7 @@ package tcp
 
 import (
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -62,6 +63,35 @@ func TestEventDetails(t *testing.T) {
 	want := "TCP Interaction Event: 1.2.3.4 9999 Data"
 	if got != want {
 		t.Errorf("Details() = %q, want %q", got, want)
+	}
+}
+
+func TestNewEventPropagatesPacketToRawData(t *testing.T) {
+	conn := fakeConn{remote: fakeAddr{s: "1.2.3.4:1"}}
+	chunk := []byte("hello")
+	e := NewEvent(conn, DataRecv, chunk)
+	if e.Data() != "hello" {
+		t.Errorf("Data() = %q, want hello", e.Data())
+	}
+}
+
+func TestStartReturnsListenError(t *testing.T) {
+	// Two handlers on the same address — the second Start should
+	// return a wrapped listen error rather than os.Exit'ing.
+	addr := freePort(t)
+	first, err := net.Listen("tcp4", addr)
+	if err != nil {
+		t.Fatalf("seed listener: %v", err)
+	}
+	defer first.Close()
+
+	h := NewHandler(map[string]string{"listener": addr}).(*Handler)
+	err = h.Start(nil, make(chan types.InteractionEvent, 1))
+	if err == nil {
+		t.Fatal("expected error when binding an in-use port")
+	}
+	if !strings.Contains(err.Error(), "tcp listen") {
+		t.Errorf("error %q should be wrapped with 'tcp listen'", err)
 	}
 }
 
@@ -136,5 +166,74 @@ func TestHandlerStartDispatchesConnect(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("no Connect event received within 2s")
+	}
+}
+
+func TestHandlerStartDataAndDisconnect(t *testing.T) {
+	addr := freePort(t)
+	h := NewHandler(map[string]string{"listener": addr}).(*Handler)
+
+	eventChan := make(chan types.InteractionEvent, 16)
+	go func() {
+		_ = h.Start(nil, eventChan)
+	}()
+
+	// Wait for the listener to come up.
+	var conn net.Conn
+	var err error
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		conn, err = net.Dial("tcp", addr)
+		if err == nil {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if err != nil {
+		t.Fatalf("dial handler: %v", err)
+	}
+
+	// Send a payload and close to flush.
+	payload := []byte("ping-pong-1234")
+	if _, err := conn.Write(payload); err != nil {
+		t.Fatalf("write: %v", err)
+	}
+	if err := conn.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+
+	// Collect events until Disconnect arrives or timeout.
+	seen := map[Action]string{}
+	timeout := time.After(2 * time.Second)
+collect:
+	for {
+		select {
+		case evt := <-eventChan:
+			e, ok := evt.(*Event)
+			if !ok {
+				t.Fatalf("got %T, want *Event", evt)
+			}
+			// First occurrence wins (good enough for this assertion).
+			if _, dup := seen[e.action]; !dup {
+				seen[e.action] = e.Data()
+			}
+			if _, gotDisconnect := seen[Disconnect]; gotDisconnect {
+				break collect
+			}
+		case <-timeout:
+			break collect
+		}
+	}
+
+	if _, ok := seen[Connect]; !ok {
+		t.Error("did not receive Connect event")
+	}
+	if got, ok := seen[DataRecv]; !ok {
+		t.Error("did not receive DataRecv event")
+	} else if got != string(payload) {
+		t.Errorf("DataRecv payload = %q, want %q", got, string(payload))
+	}
+	if _, ok := seen[Disconnect]; !ok {
+		t.Error("did not receive Disconnect event")
 	}
 }

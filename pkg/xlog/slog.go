@@ -93,5 +93,5 @@ func pkgFromFnPointer(p uintptr) string {
 }
 
 func relPkg(l interface{}) string {
-	return strings.Replace(fullPkg(l), getAppPkg()+"/", "", -1)
+	return strings.ReplaceAll(fullPkg(l), getAppPkg()+"/", "")
 }

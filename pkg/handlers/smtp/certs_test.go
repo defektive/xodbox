@@ -1,7 +1,6 @@
 package smtp
 
 import (
-	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"math/big"
@@ -172,5 +171,5 @@ func TestInsecureCertTLSConfig(t *testing.T) {
 	}
 
 	// Ensure the returned config is usable for a TLS handshake setup.
-	var _ *tls.Config = cfg
+	var _ = cfg
 }

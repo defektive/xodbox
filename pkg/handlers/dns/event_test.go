@@ -56,7 +56,7 @@ func TestNewEventCarriesRemoteAddrAndPort(t *testing.T) {
 	if e.UserAgent() != "unknown" {
 		t.Errorf("UserAgent = %q, want unknown", e.UserAgent())
 	}
-	if !strings.Contains(string(e.Data()), "example.test.") {
+	if !strings.Contains(e.Data(), "example.test.") {
 		t.Errorf("Data should include question name, got %q", e.Data())
 	}
 }

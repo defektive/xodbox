@@ -2,12 +2,13 @@ package app_log
 
 import (
 	"bytes"
-	"github.com/defektive/xodbox/pkg/handlers/httpx"
-	"github.com/defektive/xodbox/pkg/types"
 	"net/http"
 	"reflect"
 	"regexp"
 	"testing"
+
+	"github.com/defektive/xodbox/pkg/handlers/httpx"
+	"github.com/defektive/xodbox/pkg/types"
 )
 
 func newHTTPRequest(url string) *http.Request {

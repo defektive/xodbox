@@ -1,0 +1,73 @@
+version: "2"
+
+run:
+  timeout: 5m
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - gosec
+    - govet
+    - ineffassign
+    - misspell
+    - staticcheck
+    - unconvert
+    - unused
+
+  settings:
+    errcheck:
+      # Stdlib I/O on closers and ResponseWriter Write often has no
+      # meaningful recovery; skip those rather than blanket-ignoring all
+      # of errcheck.
+      exclude-functions:
+        - (io.Closer).Close
+        - (*os.File).Close
+        - (net.Conn).Close
+        - (net.Listener).Close
+        - (net.Conn).SetDeadline
+        - (net.Conn).SetReadDeadline
+        - (net.Conn).SetWriteDeadline
+        - (*database/sql.Rows).Close
+        - (gorm.io/gorm.DB).Find
+        - fmt.Fprintf
+        - fmt.Fprint
+        - fmt.Fprintln
+        # Background goroutines / defer blocks where errors are not
+        # actionable:
+        - (*net/http.Server).Serve
+        - (*github.com/fsnotify/fsnotify.Watcher).Close
+    gosec:
+      # G104 (errcheck) is already covered by errcheck.
+      # G404 (math/rand): xodbox is a testing tool — math/rand is fine
+      # for non-crypto randomness in payloads.
+      excludes:
+        - G104
+        - G404
+
+  exclusions:
+    # Test files generate noisy errcheck/gosec hits for I/O setup
+    # (writing fixtures, closing handles); we don't want to drown the
+    # main signal.
+    rules:
+      - path: _test\.go
+        linters:
+          - errcheck
+          - gosec
+      # The embedded mdaas main programs live under build tags / are
+      # not part of normal xodbox builds.
+      - path: pkg/mdaas/(bind-shell|simple-ssh)/
+        linters:
+          - errcheck
+          - gosec
+          - unused
+
+issues:
+  # Show every problem; we'd rather see them all than a sampled subset.
+  max-issues-per-linter: 0
+  max-same-issues: 0
+
+formatters:
+  enable:
+    - gofmt
+    - goimports

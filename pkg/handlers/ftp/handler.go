@@ -1,7 +1,9 @@
 package ftp
 
 import (
+	"context"
 	"strings"
+	"sync"
 
 	"github.com/defektive/xodbox/pkg/types"
 	ftpserver "github.com/fclairamb/ftpserverlib"
@@ -16,6 +18,9 @@ type Handler struct {
 	FakeDirTree     []string
 
 	//app             types.App
+
+	mu     sync.Mutex
+	server *ftpserver.FtpServer
 }
 
 func NewHandler(handlerConfig map[string]string) types.Handler {
@@ -63,7 +68,25 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 	srv := ftpserver.NewFtpServer(simpleDriver)
 	srv.Logger = lg()
 
+	h.mu.Lock()
+	h.server = srv
+	h.mu.Unlock()
+
 	return srv.ListenAndServe()
+}
+
+// Stop tells the underlying *ftpserver.FtpServer to stop accepting
+// new connections. ctx is currently advisory — ftpserverlib's Stop()
+// does not accept a deadline; in-flight clients drain on their own.
+// Safe to call before Start or multiple times.
+func (h *Handler) Stop(ctx context.Context) error {
+	h.mu.Lock()
+	srv := h.server
+	h.mu.Unlock()
+	if srv == nil {
+		return nil
+	}
+	return srv.Stop()
 }
 
 func (h *Handler) DispatchEvent(action Action, remoteAddr string) {
@@ -75,7 +98,9 @@ func getAFS(dirsToCreate []string) afero.Fs {
 	afs := afero.NewMemMapFs()
 
 	for _, dir := range dirsToCreate {
-		afs.MkdirAll(dir, 0777)
+		if err := afs.MkdirAll(dir, 0750); err != nil {
+			lg().Warn("could not seed fake dir on memfs", "dir", dir, "err", err)
+		}
 	}
 
 	return afs

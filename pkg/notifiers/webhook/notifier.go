@@ -3,10 +3,11 @@ package webhook
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/defektive/xodbox/pkg/types"
 	"io"
 	"net/http"
 	"regexp"
+
+	"github.com/defektive/xodbox/pkg/types"
 )
 
 type Notifier struct {
@@ -47,6 +48,8 @@ func (wh *Notifier) Send(event types.InteractionEvent) error {
 }
 
 func SendPost(url string, payload []byte) error {
+	// #nosec G107 -- the webhook URL is operator config; sending to it
+	// is the point of the notifier.
 	res, err := http.Post(url, "application/json", bytes.NewBuffer(payload))
 	if err != nil {
 		lg().Error("Webhook notification error", "err", err)

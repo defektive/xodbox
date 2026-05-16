@@ -3,14 +3,15 @@ package ftp
 import (
 	"crypto/tls"
 	"errors"
-	"github.com/defektive/xodbox/pkg/handlers/smtp"
-	ftpserver "github.com/fclairamb/ftpserverlib"
-	"github.com/spf13/afero"
 	"net"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/defektive/xodbox/pkg/handlers/smtp"
+	ftpserver "github.com/fclairamb/ftpserverlib"
+	"github.com/spf13/afero"
 )
 
 type tlsVerificationReply int8
@@ -101,7 +102,7 @@ func (f *testFile) Write(out []byte) (int, error) {
 }
 
 func (f *testFile) Close() error {
-	if strings.Contains(f.File.Name(), "fail-to-close") {
+	if strings.Contains(f.Name(), "fail-to-close") {
 		return errFailClose
 	}
 
@@ -113,11 +114,11 @@ func (f *testFile) Seek(offset int64, whence int) (int64, error) {
 	// we can delay the opening of the transfer and then test an ABOR before
 	// opening a transfer. I'm not sure if this can really happen but it is
 	// better to be prepared for buggy clients too
-	if strings.Contains(f.File.Name(), "delay-io") {
+	if strings.Contains(f.Name(), "delay-io") {
 		time.Sleep(500 * time.Millisecond)
 	}
 
-	if strings.Contains(f.File.Name(), "fail-to-seek") {
+	if strings.Contains(f.Name(), "fail-to-seek") {
 		return 0, errFailSeek
 	}
 
@@ -125,13 +126,13 @@ func (f *testFile) Seek(offset int64, whence int) (int64, error) {
 }
 
 func (f *testFile) Readdir(count int) ([]os.FileInfo, error) {
-	if strings.Contains(f.File.Name(), "delay-io") {
+	if strings.Contains(f.Name(), "delay-io") {
 		time.Sleep(500 * time.Millisecond)
 	}
 
 	f.Client.DispatchEvent(FileReadDir)
 
-	if strings.Contains(f.File.Name(), "fail-to-readdir") {
+	if strings.Contains(f.Name(), "fail-to-readdir") {
 		return nil, errFailReaddir
 	}
 
@@ -396,7 +397,7 @@ func (driver *SimpleClientDriver) Chown(name string, uid int, gid int) error {
 		return errInvalidChownGroup
 	}
 
-	_, err := driver.Fs.Stat(name)
+	_, err := driver.Stat(name)
 
 	return err
 }

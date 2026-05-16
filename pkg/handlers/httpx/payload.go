@@ -193,13 +193,14 @@ func (h *Payload) Process(w http.ResponseWriter, e *Event, handler *Handler) {
 	}
 
 	// TODO: If this is still a ghetto if statement.... we should make it more elegant if there are more than 3 blocks
-	if h.InternalFunction == InternalFnInspect {
+	switch h.InternalFunction {
+	case InternalFnInspect:
 		// ghetto hack cause I am lazy
 		if err := Inspect(w, e); err != nil {
 			lg().Error("Error executing build textTemplate", "payload", h.Name, "err", err)
 		}
 		return
-	} else if h.InternalFunction == InternalFnBuild {
+	case InternalFnBuild:
 		lg().Debug("building payload", "payload", h.Name, "payload", h)
 		if err := Build(w, e, handler); err != nil {
 			lg().Error("Error executing build textTemplate", "payload", h.Name, "err", err)
