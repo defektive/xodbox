@@ -56,13 +56,6 @@ type Handler struct {
 
 func NewHandler(handlerConfig map[string]string) types.Handler {
 
-	// I believe interface implementors should own seeding their data models
-	// TODO: add method to interface to facilitate Seeding data.
-	// data seeding cannot happen in an `init` function since we need input from the user
-	// about what db to use
-	// Seed data models
-	Seed(model.DB())
-
 	staticDir := handlerConfig["static_dir"]
 	payloadDir := handlerConfig["payload_dir"]
 	listener := handlerConfig["listener"]
@@ -119,6 +112,14 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 
 func (h *Handler) Name() string {
 	return h.name
+}
+
+// Seed populates the bundled HTTPX payload templates into the database.
+// Implements types.Seeder; called once by App.Run before Start. The
+// underlying Seed function is idempotent.
+func (h *Handler) Seed() error {
+	Seed(model.DB())
+	return nil
 }
 func (h *Handler) serverMux() *http.ServeMux {
 	if h.mux == nil {

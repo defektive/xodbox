@@ -31,6 +31,15 @@ type Handler interface {
 	Stop(ctx context.Context) error
 }
 
+// Seeder is an optional interface implemented by handlers that need
+// to populate their own database state (e.g. payload templates)
+// before any requests are served. App.Run calls Seed on each
+// implementing handler exactly once, after the DB is connected and
+// before any Start. Seed must be idempotent.
+type Seeder interface {
+	Seed() error
+}
+
 type Notifier interface {
 	Name() string
 	Send(InteractionEvent) error

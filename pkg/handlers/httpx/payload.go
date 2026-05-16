@@ -192,18 +192,9 @@ func (h *Payload) Process(w http.ResponseWriter, e *Event, handler *Handler) {
 		w.WriteHeader(responseStatus)
 	}
 
-	// TODO: If this is still a ghetto if statement.... we should make it more elegant if there are more than 3 blocks
-	switch h.InternalFunction {
-	case InternalFnInspect:
-		// ghetto hack cause I am lazy
-		if err := Inspect(w, e); err != nil {
-			lg().Error("Error executing build textTemplate", "payload", h.Name, "err", err)
-		}
-		return
-	case InternalFnBuild:
-		lg().Debug("building payload", "payload", h.Name, "payload", h)
-		if err := Build(w, e, handler); err != nil {
-			lg().Error("Error executing build textTemplate", "payload", h.Name, "err", err)
+	if fn, ok := internalFunctions[h.InternalFunction]; ok {
+		if err := fn(w, e, handler); err != nil {
+			lg().Error("internal function failed", "payload", h.Name, "fn", h.InternalFunction, "err", err)
 		}
 		return
 	}
@@ -213,6 +204,21 @@ func (h *Payload) Process(w http.ResponseWriter, e *Event, handler *Handler) {
 		lg().Error("Error executing body textTemplate", "payload", h.Name, "err", err)
 		fmt.Fprint(w, "that was unexpected")
 	}
+}
+
+// internalFn is the shape used by `internal_function` payload entries.
+// Each entry receives the response writer, the inbound event, and the
+// owning handler (for runtime config like MDaaS settings).
+type internalFn func(w http.ResponseWriter, e *Event, handler *Handler) error
+
+// internalFunctions is the dispatch table for the `internal_function`
+// payload key. Add a new entry here to expose a new internal function
+// to payload authors; the constants live in payload_db_seed.go.
+var internalFunctions = map[string]internalFn{
+	InternalFnInspect: func(w http.ResponseWriter, e *Event, _ *Handler) error {
+		return Inspect(w, e)
+	},
+	InternalFnBuild: Build,
 }
 
 func SortedPayloads() []*Payload {
