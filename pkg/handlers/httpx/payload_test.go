@@ -101,7 +101,7 @@ func TestShouldProcess(t *testing.T) {
 func TestHeaderTemplatesParsed(t *testing.T) {
 	p := newPayload(PayloadData{
 		Headers: map[string]string{
-			"X-Static": "value",
+			"X-Static":                   "value",
 			"X-{{.NotifyString}}-Header": "static-value",
 		},
 	})

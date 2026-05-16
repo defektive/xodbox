@@ -21,6 +21,10 @@ builds:
       - CGO_ENABLED=0
     flags:
       - -trimpath
+    ldflags:
+      - -s -w
+      - -X main.version={{.Version}}
+      - -X main.commit={{.Commit}}
     goos:
       - linux
       - windows # not sure need to test
@@ -28,9 +32,6 @@ builds:
     goarch:
       - amd64
       - arm64
-#    ldflags:
-#      - -s -w
-#      - ./usemsan=-msan
 
 archives:
   - formats: tar.gz

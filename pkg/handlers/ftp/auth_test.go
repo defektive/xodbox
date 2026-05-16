@@ -20,20 +20,20 @@ type fakeClientContext struct {
 	debug  bool
 }
 
-func (f *fakeClientContext) Path() string                                  { return "/" }
-func (f *fakeClientContext) SetPath(string)                                {}
-func (f *fakeClientContext) SetListPath(string)                            {}
-func (f *fakeClientContext) SetDebug(d bool)                               { f.debug = d }
-func (f *fakeClientContext) Debug() bool                                   { return f.debug }
-func (f *fakeClientContext) ID() uint32                                    { return f.id }
-func (f *fakeClientContext) RemoteAddr() net.Addr                          { return f.remote }
-func (f *fakeClientContext) LocalAddr() net.Addr                           { return f.remote }
-func (f *fakeClientContext) GetClientVersion() string                      { return "fake/1" }
-func (f *fakeClientContext) Close() error                                  { return nil }
-func (f *fakeClientContext) HasTLSForControl() bool                        { return false }
-func (f *fakeClientContext) HasTLSForTransfers() bool                      { return false }
-func (f *fakeClientContext) GetLastCommand() string                        { return "" }
-func (f *fakeClientContext) GetLastDataChannel() ftpserver.DataChannel     { return 0 }
+func (f *fakeClientContext) Path() string                              { return "/" }
+func (f *fakeClientContext) SetPath(string)                            {}
+func (f *fakeClientContext) SetListPath(string)                        {}
+func (f *fakeClientContext) SetDebug(d bool)                           { f.debug = d }
+func (f *fakeClientContext) Debug() bool                               { return f.debug }
+func (f *fakeClientContext) ID() uint32                                { return f.id }
+func (f *fakeClientContext) RemoteAddr() net.Addr                      { return f.remote }
+func (f *fakeClientContext) LocalAddr() net.Addr                       { return f.remote }
+func (f *fakeClientContext) GetClientVersion() string                  { return "fake/1" }
+func (f *fakeClientContext) Close() error                              { return nil }
+func (f *fakeClientContext) HasTLSForControl() bool                    { return false }
+func (f *fakeClientContext) HasTLSForTransfers() bool                  { return false }
+func (f *fakeClientContext) GetLastCommand() string                    { return "" }
+func (f *fakeClientContext) GetLastDataChannel() ftpserver.DataChannel { return 0 }
 func (f *fakeClientContext) SetTLSRequirement(ftpserver.TLSRequirement) error {
 	return nil
 }

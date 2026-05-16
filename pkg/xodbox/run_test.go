@@ -9,9 +9,9 @@ import (
 
 type stubNotifier struct{ name string }
 
-func (s *stubNotifier) Name() string                       { return s.name }
-func (s *stubNotifier) Send(types.InteractionEvent) error  { return nil }
-func (s *stubNotifier) Filter() *regexp.Regexp             { return regexp.MustCompile(".*") }
+func (s *stubNotifier) Name() string                      { return s.name }
+func (s *stubNotifier) Send(types.InteractionEvent) error { return nil }
+func (s *stubNotifier) Filter() *regexp.Regexp            { return regexp.MustCompile(".*") }
 
 func TestNewAppRegistersNotifiers(t *testing.T) {
 	n1 := &stubNotifier{name: "a"}

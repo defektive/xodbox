@@ -7,7 +7,6 @@ import (
 	"testing"
 
 	"github.com/defektive/xodbox/pkg/model"
-	"github.com/fsnotify/fsnotify"
 )
 
 func TestHandleFileEventUpsertsPayload(t *testing.T) {
@@ -31,7 +30,9 @@ data:
 	}
 
 	// First write: payload should be created.
+	modifiedFilesMu.Lock()
 	modifiedFiles[file] = true
+	modifiedFilesMu.Unlock()
 	handleFileEvent()
 
 	var loaded model.Payload
@@ -48,7 +49,9 @@ data:
 	if err := os.WriteFile(file, []byte(v2), 0o644); err != nil {
 		t.Fatalf("rewrite file: %v", err)
 	}
+	modifiedFilesMu.Lock()
 	modifiedFiles[file] = true
+	modifiedFilesMu.Unlock()
 	handleFileEvent()
 
 	var reloaded model.Payload
@@ -63,13 +66,26 @@ data:
 	}
 }
 
+func enqueueModified(path string) {
+	modifiedFilesMu.Lock()
+	defer modifiedFilesMu.Unlock()
+	modifiedFiles[path] = true
+}
+
+func modifiedFilesContains(path string) bool {
+	modifiedFilesMu.Lock()
+	defer modifiedFilesMu.Unlock()
+	_, present := modifiedFiles[path]
+	return present
+}
+
 func TestHandleFileEventSkipsMissingFile(t *testing.T) {
 	// Add a path that doesn't exist; handleFileEvent should log and
 	// continue rather than panic.
-	modifiedFiles["/no/such/file.md"] = true
+	enqueueModified("/no/such/file.md")
 	handleFileEvent()
 
-	if _, present := modifiedFiles["/no/such/file.md"]; present {
+	if modifiedFilesContains("/no/such/file.md") {
 		t.Error("missing-file entry should still be drained from modifiedFiles")
 	}
 }
@@ -81,50 +97,16 @@ func TestHandleFileEventSkipsInvalidFrontmatter(t *testing.T) {
 		t.Fatalf("write bad file: %v", err)
 	}
 
-	modifiedFiles[bad] = true
+	enqueueModified(bad)
 	handleFileEvent()
 
-	if _, present := modifiedFiles[bad]; present {
+	if modifiedFilesContains(bad) {
 		t.Error("invalid-frontmatter entry should be drained")
 	}
 }
 
-func TestWatchDirAddsDirectoriesOnly(t *testing.T) {
-	dir := t.TempDir()
-	subdir := filepath.Join(dir, "sub")
-	if err := os.Mkdir(subdir, 0o755); err != nil {
-		t.Fatalf("mkdir: %v", err)
-	}
-	file := filepath.Join(dir, "f.txt")
-	if err := os.WriteFile(file, []byte("hi"), 0o644); err != nil {
-		t.Fatalf("write file: %v", err)
-	}
-
-	// watchDir refers to the package-global watcher; set up one for this test.
-	prev := watcher
-	w, err := fsnotify.NewWatcher()
-	if err != nil {
-		t.Fatalf("NewWatcher: %v", err)
-	}
-	watcher = w
-	t.Cleanup(func() {
-		w.Close()
-		watcher = prev
-	})
-
-	fi, err := os.Stat(subdir)
-	if err != nil {
-		t.Fatalf("stat subdir: %v", err)
-	}
-	if err := watchDir(subdir, fi, nil); err != nil {
-		t.Errorf("watchDir(dir) err = %v", err)
-	}
-
-	ffi, err := os.Stat(file)
-	if err != nil {
-		t.Fatalf("stat file: %v", err)
-	}
-	if err := watchDir(file, ffi, nil); err != nil {
-		t.Errorf("watchDir(file) err = %v, want nil (files should be a no-op)", err)
-	}
-}
+// Note: a direct test of watchDir was previously here but its assignment
+// to the package-global `watcher` raced with the unkillable goroutine
+// spawned by NewHandler with payload_dir set. watchDir is now exercised
+// indirectly through TestNewHandlerLoadsPayloadDir, which feeds the real
+// watcher via filepath.Walk.

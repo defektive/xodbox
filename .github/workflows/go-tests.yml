@@ -22,8 +22,30 @@ jobs:
         uses: trufflesecurity/trufflehog@ef6e76c3c4023279497fab4721ffa071a722fd05 # v3.92.4
         with:
           extra_args: --results=verified,unknown
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "::error::The following files are not gofmt-clean:"
+            echo "$unformatted"
+            echo
+            echo "Run 'gofmt -s -w .' to fix."
+            exit 1
+          fi
+
+      - name: go vet
+        run: go vet ./...
+
       - name: Build
         run: go build -v ./...
 
       - name: Test
-        run: go test -v ./...
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage profile
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.out

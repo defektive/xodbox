@@ -259,7 +259,9 @@ func watchForChanges(dirToWatch string) {
 
 				lg().Debug("watcher.Error", "event", event)
 
+				modifiedFilesMu.Lock()
 				modifiedFiles[event.Name] = true
+				modifiedFilesMu.Unlock()
 				go dbncr(handleFileEvent)
 
 			case err := <-watcher.Errors:
@@ -271,7 +273,10 @@ func watchForChanges(dirToWatch string) {
 	<-done
 }
 
-var modifiedFiles = map[string]bool{}
+var (
+	modifiedFilesMu sync.Mutex
+	modifiedFiles   = map[string]bool{}
+)
 
 func watchDir(path string, fi os.FileInfo, err error) error {
 	if fi.Mode().IsDir() {
@@ -281,9 +286,22 @@ func watchDir(path string, fi os.FileInfo, err error) error {
 	return nil
 }
 
+// drainModifiedFiles returns a snapshot of pending paths and clears the
+// map under the mutex, so the watcher goroutine can keep enqueuing
+// without racing on map writes.
+func drainModifiedFiles() []string {
+	modifiedFilesMu.Lock()
+	defer modifiedFilesMu.Unlock()
+	out := make([]string, 0, len(modifiedFiles))
+	for k := range modifiedFiles {
+		out = append(out, k)
+	}
+	modifiedFiles = map[string]bool{}
+	return out
+}
+
 func handleFileEvent() {
-	for modifiedFile := range modifiedFiles {
-		delete(modifiedFiles, modifiedFile)
+	for _, modifiedFile := range drainModifiedFiles() {
 		f, err := os.Open(modifiedFile)
 		if err != nil {
 			lg().Error("error opening file", "file", modifiedFile, "err", err)
