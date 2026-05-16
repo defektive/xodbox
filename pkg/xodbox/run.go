@@ -1,11 +1,19 @@
 package xodbox
 
 import (
+	"context"
 	"maps"
 	"os"
+	"os/signal"
+	"syscall"
+	"time"
 
 	"github.com/defektive/xodbox/pkg/types"
 )
+
+// shutdownTimeout caps how long the app will wait for handlers to
+// drain after a SIGINT/SIGTERM before returning anyway.
+const shutdownTimeout = 10 * time.Second
 
 func NewApp(config *Config) *App {
 
@@ -13,6 +21,7 @@ func NewApp(config *Config) *App {
 		appConfig:            config,
 		eventChan:            make(chan types.InteractionEvent),
 		notificationHandlers: []types.Notifier{},
+		stop:                 make(chan struct{}),
 	}
 
 	for _, notifier := range config.Notifiers {
@@ -27,21 +36,54 @@ type App struct {
 	appConfig            *Config
 	eventChan            chan types.InteractionEvent
 	notificationHandlers []types.Notifier
+
+	// stop is closed once by Shutdown to unblock waitForEvents.
+	stop chan struct{}
 }
 
 func (x *App) Run() {
 	for _, h := range x.appConfig.Handlers {
 		lg().Debug("Running handler", "handler", h)
-		go (func() {
+		go func(h types.Handler) {
 			err := h.Start(x, x.eventChan)
 			if err != nil {
 				lg().Error("error starting handler", "err", err, "handler", h)
 				os.Exit(1)
 			}
-		})()
+		}(h)
 	}
 
+	// Translate SIGINT/SIGTERM into a graceful shutdown: cancel each
+	// handler with a bounded context, then return from waitForEvents.
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	go func() {
+		sig := <-sigCh
+		lg().Info("shutdown signal received", "signal", sig.String())
+		x.Shutdown()
+	}()
+
 	x.waitForEvents()
+}
+
+// Shutdown stops every registered handler and unblocks Run.
+// Idempotent — multiple callers see only the first stop fire.
+func (x *App) Shutdown() {
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+
+	for _, h := range x.appConfig.Handlers {
+		if err := h.Stop(ctx); err != nil {
+			lg().Warn("handler stop returned error", "handler", h.Name(), "err", err)
+		}
+	}
+
+	// Close stop at most once so concurrent Shutdown callers don't
+	// panic on a double close.
+	defer func() {
+		_ = recover()
+	}()
+	close(x.stop)
 }
 
 func (x *App) RegisterNotificationHandler(n types.Notifier) {
@@ -55,13 +97,18 @@ func (x *App) GetTemplateData() map[string]string {
 func (x *App) waitForEvents() {
 	lg().Debug("Waiting for events...")
 	for {
-		newEvent := <-x.eventChan
-		for _, h := range x.notificationHandlers {
-			go func(h types.Notifier) {
-				if err := h.Send(newEvent); err != nil {
-					lg().Error("notifier send failed", "notifier", h.Name(), "err", err)
-				}
-			}(h)
+		select {
+		case <-x.stop:
+			lg().Debug("event loop shutting down")
+			return
+		case newEvent := <-x.eventChan:
+			for _, h := range x.notificationHandlers {
+				go func(h types.Notifier) {
+					if err := h.Send(newEvent); err != nil {
+						lg().Error("notifier send failed", "notifier", h.Name(), "err", err)
+					}
+				}(h)
+			}
 		}
 	}
 }

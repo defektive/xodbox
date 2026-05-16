@@ -1,10 +1,12 @@
 package dns
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"net"
 	"strconv"
+	"sync"
 
 	"github.com/defektive/xodbox/pkg/types"
 	"github.com/defektive/xodbox/pkg/util"
@@ -21,6 +23,9 @@ type Handler struct {
 	DefaultResponseIP string
 
 	dispatchChannel chan types.InteractionEvent
+
+	mu     sync.Mutex
+	server *dns.Server
 }
 
 func NewHandler(handlerConfig map[string]string) types.Handler {
@@ -79,7 +84,8 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 	h.dispatchChannel = eventChan
 	responseValue := net.ParseIP(h.DefaultResponseIP).To4()
 
-	dns.HandleFunc(".", func(w dns.ResponseWriter, req *dns.Msg) {
+	mux := dns.NewServeMux()
+	mux.HandleFunc(".", func(w dns.ResponseWriter, req *dns.Msg) {
 
 		go h.dispatchEvent(w, req)
 
@@ -102,13 +108,29 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 		}
 	})
 
+	srv := &dns.Server{Addr: h.Listener, Net: "udp", Handler: mux}
+	h.mu.Lock()
+	h.server = srv
+	h.mu.Unlock()
+
 	lg().Info("Starting DNS server", "listener", h.Listener)
-	err := dns.ListenAndServe(h.Listener, "udp", nil)
-	if err != nil {
+	if err := srv.ListenAndServe(); err != nil {
 		lg().Error("Failed to start DNS server", "listener", h.Listener, "err", err)
 		return err
 	}
 	return nil
+}
+
+// Stop tells the underlying *dns.Server to shut down. Safe to call
+// before Start or multiple times.
+func (h *Handler) Stop(ctx context.Context) error {
+	h.mu.Lock()
+	srv := h.server
+	h.mu.Unlock()
+	if srv == nil {
+		return nil
+	}
+	return srv.ShutdownContext(ctx)
 }
 
 func ip2int(ip net.IP) uint32 {

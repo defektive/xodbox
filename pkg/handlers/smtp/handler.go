@@ -1,8 +1,10 @@
 package smtp
 
 import (
+	"context"
 	"io"
 	"os"
+	"sync"
 
 	"github.com/defektive/xodbox/pkg/types"
 	"github.com/emersion/go-smtp"
@@ -13,6 +15,9 @@ type Handler struct {
 	Listener        string
 	dispatchChannel chan types.InteractionEvent
 	//app             types.App
+
+	mu     sync.Mutex
+	server *smtp.Server
 }
 
 func NewHandler(handlerConfig map[string]string) types.Handler {
@@ -45,9 +50,25 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 	}
 	s.TLSConfig = insecureTLSConfig
 
+	h.mu.Lock()
+	h.server = s
+	h.mu.Unlock()
+
 	lg().Info("Starting SMTP Server", "listener", h.Listener)
 	return s.ListenAndServe()
+}
 
+// Stop shuts down the underlying *smtp.Server. ctx bounds how long
+// in-flight sessions have to drain. Safe to call before Start or
+// multiple times.
+func (h *Handler) Stop(ctx context.Context) error {
+	h.mu.Lock()
+	s := h.server
+	h.mu.Unlock()
+	if s == nil {
+		return nil
+	}
+	return s.Shutdown(ctx)
 }
 
 func (h *Handler) NewSession(c *smtp.Conn) (smtp.Session, error) {

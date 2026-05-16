@@ -48,6 +48,10 @@ type Handler struct {
 	dispatchChannel chan types.InteractionEvent
 	app             types.App
 	mux             *http.ServeMux
+
+	mu          sync.Mutex
+	httpServer  *http.Server
+	watchCancel context.CancelFunc
 }
 
 func NewHandler(handlerConfig map[string]string) types.Handler {
@@ -75,18 +79,12 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	mdaasAllowedCIDR := handlerConfig["mdaas_allowed_cidr"]
 	mdaasNotifyURL := handlerConfig["mdaas_notify_url"]
 
-	if payloadDir != "" {
-		lg().Debug("payload dir supplied", "payload_dir", payloadDir)
-		CreatePayloadsFromDir(payloadDir, model.DB())
-		go watchForChanges(payloadDir)
-	}
-
 	tlsNames := []string{}
 	if tlsNamesOpt != "" {
 		tlsNames = strings.Split(tlsNamesOpt, ",")
 	}
 
-	return &Handler{
+	h := &Handler{
 		name:               "HTTPX",
 		Listener:           listener,
 		StaticDir:          staticDir,
@@ -105,6 +103,18 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 		APIPath:            handlerConfig["api_path"],
 		APIToken:           handlerConfig["api_token"],
 	}
+
+	if payloadDir != "" {
+		lg().Debug("payload dir supplied", "payload_dir", payloadDir)
+		CreatePayloadsFromDir(payloadDir, model.DB())
+		watchCtx, cancel := context.WithCancel(context.Background())
+		h.mu.Lock()
+		h.watchCancel = cancel
+		h.mu.Unlock()
+		go watchForChanges(watchCtx, payloadDir)
+	}
+
+	return h
 }
 
 func (h *Handler) Name() string {
@@ -174,6 +184,10 @@ func (h *Handler) serveHTTP() error {
 		Addr:         h.Listener,
 	}
 
+	h.mu.Lock()
+	h.httpServer = httpSrv
+	h.mu.Unlock()
+
 	return httpSrv.ListenAndServe()
 }
 
@@ -223,6 +237,26 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 	return h.serveHTTP()
 }
 
+// Stop shuts down the HTTP server (HTTPS is not currently
+// shutdown-aware: certmagic owns the listeners) and cancels the
+// payload-directory watcher goroutine if one was started. Safe to
+// call before Start or multiple times.
+func (h *Handler) Stop(ctx context.Context) error {
+	h.mu.Lock()
+	srv := h.httpServer
+	cancel := h.watchCancel
+	h.watchCancel = nil
+	h.mu.Unlock()
+
+	if cancel != nil {
+		cancel()
+	}
+	if srv == nil {
+		return nil
+	}
+	return srv.Shutdown(ctx)
+}
+
 func (h *Handler) noIndex(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasSuffix(r.URL.Path, "/") {
@@ -239,38 +273,53 @@ func (h *Handler) noIndex(next http.Handler) http.Handler {
 
 var watcher *fsnotify.Watcher
 
-func watchForChanges(dirToWatch string) {
-	watcher, _ = fsnotify.NewWatcher()
-	defer watcher.Close()
+func watchForChanges(ctx context.Context, dirToWatch string) {
+	// If ctx was already cancelled before this goroutine got to run
+	// (common in tests that spin up a handler with payload_dir then
+	// immediately Stop), skip the work entirely.
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
+
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		lg().Error("creating fsnotify watcher", "err", err)
+		return
+	}
+	defer w.Close()
+
+	// watchDir is a filepath.Walk callback that accesses the package
+	// global; set it before walking the tree.
+	watcher = w
 
 	if err := filepath.Walk(dirToWatch, watchDir); err != nil {
 		lg().Error("error watching for changes", "err", err)
 	}
-	done := make(chan bool)
+
 	dbncr := Debounce(1 * time.Second)
 
-	go func() {
-		for {
-			select {
-			case event := <-watcher.Events:
-				if strings.HasSuffix(event.Name, "~") {
-					continue
-				}
-
-				lg().Debug("watcher.Error", "event", event)
-
-				modifiedFilesMu.Lock()
-				modifiedFiles[event.Name] = true
-				modifiedFilesMu.Unlock()
-				go dbncr(handleFileEvent)
-
-			case err := <-watcher.Errors:
-				lg().Error("watcher.Error", "err", err)
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case event := <-w.Events:
+			if strings.HasSuffix(event.Name, "~") {
+				continue
 			}
-		}
-	}()
 
-	<-done
+			lg().Debug("watcher.Event", "event", event)
+
+			modifiedFilesMu.Lock()
+			modifiedFiles[event.Name] = true
+			modifiedFilesMu.Unlock()
+			go dbncr(handleFileEvent)
+
+		case err := <-w.Errors:
+			lg().Error("watcher.Error", "err", err)
+		}
+	}
 }
 
 var (
@@ -279,6 +328,12 @@ var (
 )
 
 func watchDir(path string, fi os.FileInfo, err error) error {
+	if err != nil {
+		// filepath.Walk passes fi=nil when it couldn't stat the path
+		// (e.g. directory was removed under us). Skip rather than
+		// panic on fi.Mode().
+		return nil
+	}
 	if fi.Mode().IsDir() {
 		return watcher.Add(path)
 	}
