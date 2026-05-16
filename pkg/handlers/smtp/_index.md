@@ -10,15 +10,46 @@ This feature is in development. Please help make it awesome by providing feedbac
 
 ## Purpose
 
-Speak SMTP to other computers you may or may not control....
+An SMTP listener that accepts (and then discards) mail to confirm
+out-of-band email delivery from an application under test. Every
+SMTP verb produces a separate `InteractionEvent` so MAIL FROM, RCPT
+TO, DATA, RSET, AUTH PLAIN, and QUIT all show up in the dispatch
+stream.
+
+## Behaviour
+
+- Backed by [`emersion/go-smtp`](https://github.com/emersion/go-smtp).
+- `AllowInsecureAuth = true` — plaintext AUTH PLAIN is accepted on the
+  cleartext socket; every attempt is recorded as a `PasswordAuth`
+  event. **Do not point clients carrying real credentials at this
+  handler.**
+- A self-signed certificate is generated on startup for STARTTLS, with
+  a randomised 128-bit serial and the SAN `test.com`. The certificate
+  is intentionally untrusted (see [SECURITY.md](../../../SECURITY.md))
+  — clients that accept it are the bug.
+- The DATA body is read but discarded; only the action is dispatched.
 
 ## Configuration
 
-| Key                   | Values          |
-|-----------------------|-----------------|
-| handler               | Must be `SMTP`  |
-| listener              | Default `:1587` |
+| Key        | Required | Default | Notes                                                                          |
+|------------|----------|---------|--------------------------------------------------------------------------------|
+| `handler`  | yes      | —       | Must be `SMTP`.                                                                |
+| `listener` | yes      | —       | Bind address, e.g. `:25`, `:587`, or `:1587` for unprivileged operation.       |
 
-## Additional Information
+## Events
 
-Things are still being created, documented, and fine-tuned.
+| Action         | Trigger                            |
+|----------------|------------------------------------|
+| `PasswordAuth` | Client issued AUTH PLAIN.          |
+| `Mail`         | Client issued MAIL FROM.           |
+| `Rcpt`         | Client issued RCPT TO.             |
+| `Data`         | Client started DATA (body ignored).|
+| `Reset`        | Client issued RSET.                |
+| `Logout`       | Session ended (QUIT or connection close). |
+
+## Operational notes
+
+- `Stop(ctx)` calls `smtp.Server.Shutdown(ctx)`; in-flight sessions
+  get the context's deadline to drain.
+- The handler's `Debug` field is currently wired to `os.Stdout` —
+  every SMTP exchange is echoed there in addition to being dispatched.
