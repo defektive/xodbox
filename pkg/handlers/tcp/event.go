@@ -39,6 +39,7 @@ func NewEvent(ctx net.Conn, action Action, packet []byte) *Event {
 		BaseEvent: &types.BaseEvent{
 			RemoteAddr:       hostname,
 			RemotePortNumber: portNum,
+			RawData:          packet,
 		},
 		ctx:    ctx,
 		action: action,

@@ -1,8 +1,9 @@
 package tcp
 
 import (
+	"errors"
+	"fmt"
 	"io"
-	"log"
 	"net"
 
 	"github.com/defektive/xodbox/pkg/types"
@@ -30,14 +31,12 @@ func (h *Handler) Name() string {
 }
 
 func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) error {
-
 	h.dispatchChannel = eventChan
-
 	lg().Info("Starting TCP Server", "listener", h.Listener)
 
 	l, err := net.Listen("tcp4", h.Listener)
 	if err != nil {
-		log.Fatal(err)
+		return fmt.Errorf("tcp listen %q: %w", h.Listener, err)
 	}
 	defer l.Close()
 
@@ -46,30 +45,39 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 		if err != nil {
 			return err
 		}
-		go func(c net.Conn) {
-			lg().Debug("Accepted connection", "remote", c.RemoteAddr().String())
-			h.dispatchChannel <- NewEvent(c, Connect, nil)
+		go h.handleConn(c)
+	}
+}
 
-			packet := make([]byte, 4096)
-			tmp := make([]byte, 4096)
-			defer c.Close()
-			for {
-				_, err := c.Read(tmp)
-				if err != nil {
-					if err != io.EOF {
-						lg().Error("error reading from connection", "err", err)
-					}
+// handleConn reads bytes from a single accepted connection until the
+// peer closes (EOF) or read fails. Each chunk produces a DataRecv
+// event carrying the bytes actually read; Connect fires on accept and
+// Disconnect fires once the read loop exits.
+func (h *Handler) handleConn(c net.Conn) {
+	defer c.Close()
+	lg().Debug("Accepted connection", "remote", c.RemoteAddr().String())
 
-					h.dispatchChannel <- NewEvent(c, Disconnect, nil)
-					break
-				}
-				packet = append(packet, tmp...)
-				h.dispatchChannel <- NewEvent(c, DataRecv, nil)
+	h.dispatchChannel <- NewEvent(c, Connect, nil)
+	defer func() {
+		h.dispatchChannel <- NewEvent(c, Disconnect, nil)
+	}()
+
+	buf := make([]byte, 4096)
+	for {
+		n, err := c.Read(buf)
+		if n > 0 {
+			// Copy the read window — buf is reused on the next Read,
+			// and the slice is about to ride through a channel into
+			// another goroutine.
+			chunk := make([]byte, n)
+			copy(chunk, buf[:n])
+			h.dispatchChannel <- NewEvent(c, DataRecv, chunk)
+		}
+		if err != nil {
+			if !errors.Is(err, io.EOF) {
+				lg().Debug("tcp read finished", "err", err)
 			}
-			num, _ := c.Write([]byte{0x90})
-
-			h.dispatchChannel <- NewEvent(c, DataRecv, packet)
-			lg().Info("Send data", "num", num)
-		}(c)
+			return
+		}
 	}
 }
