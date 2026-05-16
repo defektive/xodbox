@@ -3,12 +3,13 @@ package dns
 import (
 	"encoding/binary"
 	"fmt"
+	"net"
+	"strconv"
+
 	"github.com/defektive/xodbox/pkg/types"
 	"github.com/defektive/xodbox/pkg/util"
 	"github.com/factomproject/basen"
 	"github.com/miekg/dns"
-	"net"
-	"strconv"
 )
 
 //goland:noinspection SpellCheckingInspection
@@ -95,7 +96,9 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 				A: responseValue,
 			}
 			resp.Answer = append(resp.Answer, &a)
-			w.WriteMsg(&resp)
+			if err := w.WriteMsg(&resp); err != nil {
+				lg().Debug("dns write reply failed", "err", err)
+			}
 		}
 	})
 
@@ -130,7 +133,7 @@ func decodeIP(encodedIP string) string {
 		return ip.String()
 	}
 
-	ipInt, err := strconv.ParseInt(string(val), 10, 32)
+	ipInt, err := strconv.ParseUint(string(val), 10, 32)
 	if err != nil {
 		lg().Error("error decoding base36 ip", "err", err)
 		ip := net.ParseIP("127.0.0.1")

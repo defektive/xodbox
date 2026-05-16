@@ -79,6 +79,7 @@ func LoadConfig(configFile string) *Config {
 
 // configFromFile returns ConfigFile loaded from a file.
 func configFromFile(configFile string) (*ConfigFile, error) {
+	// #nosec G304 -- configFile comes from the --config flag.
 	b, err := os.ReadFile(configFile)
 	if err != nil {
 		if ConfigFileName == configFile {

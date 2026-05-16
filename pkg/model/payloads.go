@@ -1,8 +1,9 @@
 package model
 
 import (
-	"gorm.io/gorm"
 	"regexp"
+
+	"gorm.io/gorm"
 )
 
 //type Base64Data []byte

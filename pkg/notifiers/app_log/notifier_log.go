@@ -1,8 +1,9 @@
 package app_log
 
 import (
-	"github.com/defektive/xodbox/pkg/types"
 	"regexp"
+
+	"github.com/defektive/xodbox/pkg/types"
 )
 
 type Notifier struct {

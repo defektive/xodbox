@@ -2,10 +2,11 @@ package cmd
 
 import (
 	"fmt"
+	"path"
+
 	"github.com/defektive/xodbox/pkg/xodbox"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
-	"path"
 )
 
 // configCmd represents the base command when called without any subcommands

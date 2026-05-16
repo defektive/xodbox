@@ -16,7 +16,9 @@ var MDaaSFS embed.FS
 func init() {
 	if !strings.HasSuffix(os.Args[0], ".test") {
 		// if not in a test create the files
-		SetupDirs("mdaas")
+		if err := SetupDirs("mdaas"); err != nil {
+			log.Printf("mdaas SetupDirs failed: %s", err)
+		}
 	}
 }
 
@@ -48,7 +50,7 @@ func CopyDirFromFS(src, dest string, embeddedFS embed.FS) error {
 		localDest := filepath.Join(dest, dirEntry.Name())
 		fsSrc := path.Join(src, dirEntry.Name())
 		if dirEntry.IsDir() {
-			err := os.MkdirAll(localDest, 0755)
+			err := os.MkdirAll(localDest, 0750)
 			if err != nil {
 				log.Printf("error creating directory %s: %s", localDest, err)
 			}
@@ -71,7 +73,7 @@ func copyFileFromEmbeddedFS(src, dest string, embeddedFS embed.FS) error {
 		return err
 	}
 
-	err = os.WriteFile(dest, fileBytes, 0644)
+	err = os.WriteFile(dest, fileBytes, 0600)
 	if err != nil {
 		return err
 	}

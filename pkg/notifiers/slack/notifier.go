@@ -3,6 +3,7 @@ package slack
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/defektive/xodbox/pkg/notifiers/webhook"
 	"github.com/defektive/xodbox/pkg/types"
 )

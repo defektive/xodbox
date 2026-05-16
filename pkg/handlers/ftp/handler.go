@@ -75,7 +75,9 @@ func getAFS(dirsToCreate []string) afero.Fs {
 	afs := afero.NewMemMapFs()
 
 	for _, dir := range dirsToCreate {
-		afs.MkdirAll(dir, 0777)
+		if err := afs.MkdirAll(dir, 0750); err != nil {
+			lg().Warn("could not seed fake dir on memfs", "dir", dir, "err", err)
+		}
 	}
 
 	return afs

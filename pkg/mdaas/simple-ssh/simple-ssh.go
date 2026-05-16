@@ -2,16 +2,17 @@ package main
 
 import (
 	"fmt"
-	"github.com/creack/pty"
-	"github.com/defektive/xodbox/pkg/util"
-	"github.com/defektive/xodbox/pkg/xlog"
-	"github.com/gliderlabs/ssh"
 	"io"
 	"log"
 	"log/slog"
 	"net"
 	"os"
 	"os/exec"
+
+	"github.com/creack/pty"
+	"github.com/defektive/xodbox/pkg/util"
+	"github.com/defektive/xodbox/pkg/xlog"
+	"github.com/gliderlabs/ssh"
 )
 
 // listener can be overridden at build time. defaults to :4444

@@ -1,9 +1,10 @@
 package xodbox
 
 import (
-	"github.com/defektive/xodbox/pkg/types"
 	"maps"
 	"os"
+
+	"github.com/defektive/xodbox/pkg/types"
 )
 
 func NewApp(config *Config) *App {
@@ -56,7 +57,11 @@ func (x *App) waitForEvents() {
 	for {
 		newEvent := <-x.eventChan
 		for _, h := range x.notificationHandlers {
-			go h.Send(newEvent)
+			go func(h types.Notifier) {
+				if err := h.Send(newEvent); err != nil {
+					lg().Error("notifier send failed", "notifier", h.Name(), "err", err)
+				}
+			}(h)
 		}
 	}
 }

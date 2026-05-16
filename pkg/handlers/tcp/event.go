@@ -2,9 +2,10 @@ package tcp
 
 import (
 	"fmt"
+	"net"
+
 	"github.com/defektive/xodbox/pkg/types"
 	"github.com/defektive/xodbox/pkg/util"
-	"net"
 )
 
 type Action int

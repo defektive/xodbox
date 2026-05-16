@@ -2,12 +2,13 @@ package discord
 
 import (
 	"bytes"
-	"github.com/defektive/xodbox/pkg/handlers/httpx"
-	"github.com/defektive/xodbox/pkg/notifiers/webhook"
-	"github.com/defektive/xodbox/pkg/types"
 	"net/http"
 	"reflect"
 	"testing"
+
+	"github.com/defektive/xodbox/pkg/handlers/httpx"
+	"github.com/defektive/xodbox/pkg/notifiers/webhook"
+	"github.com/defektive/xodbox/pkg/types"
 )
 
 func newHTTPRequest(url string) *http.Request {

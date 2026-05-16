@@ -2,6 +2,7 @@ package ftp
 
 import (
 	"fmt"
+
 	"github.com/defektive/xodbox/pkg/types"
 	"github.com/defektive/xodbox/pkg/util"
 )
@@ -63,5 +64,5 @@ func NewEvent(remoteAddr string, action Action) *Event {
 }
 
 func (e *Event) Details() string {
-	return fmt.Sprintf("FTP: event from %s", e.BaseEvent.RemoteAddr)
+	return fmt.Sprintf("FTP: event from %s", e.RemoteAddr)
 }

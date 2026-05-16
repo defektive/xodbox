@@ -2,11 +2,12 @@ package mdaas
 
 import (
 	"fmt"
-	builder "github.com/NoF0rte/cmd-builder"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+
+	builder "github.com/NoF0rte/cmd-builder"
 )
 
 func Build(targetOS TargetOS, targetArch TargetArch, arm, program, outDir string, ldFlags []string) (string, error) {
@@ -29,7 +30,9 @@ func Build(targetOS TargetOS, targetArch TargetArch, arm, program, outDir string
 		return outFile, nil
 	}
 
-	os.MkdirAll(outputDir, 0755)
+	if err := os.MkdirAll(outputDir, 0750); err != nil {
+		return "", fmt.Errorf("mkdir build output: %w", err)
+	}
 
 	bf := builder.NewFactory(builder.CmdFactoryOptions{Env: []string{
 		fmt.Sprintf("GOOS=%s", targetOS),
@@ -44,7 +47,7 @@ func Build(targetOS TargetOS, targetArch TargetArch, arm, program, outDir string
 		return "", err
 	}
 
-	log.Println(string(out))
+	log.Println(out)
 
 	return outFile, nil
 }

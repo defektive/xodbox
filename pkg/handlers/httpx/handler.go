@@ -115,7 +115,7 @@ func (h *Handler) serverMux() *http.ServeMux {
 		h.mux = &http.ServeMux{}
 		if h.StaticDir != "" {
 			if !fileutil.DirExists(h.StaticDir) {
-				if err := os.MkdirAll(h.StaticDir, 0744); err != nil {
+				if err := os.MkdirAll(h.StaticDir, 0750); err != nil {
 					lg().Error("Failed to create static directory", "err", err)
 				}
 			}
@@ -302,6 +302,8 @@ func drainModifiedFiles() []string {
 
 func handleFileEvent() {
 	for _, modifiedFile := range drainModifiedFiles() {
+		// #nosec G304 -- path comes from the operator-controlled
+		// payload_dir watched at startup, not from a request.
 		f, err := os.Open(modifiedFile)
 		if err != nil {
 			lg().Error("error opening file", "file", modifiedFile, "err", err)

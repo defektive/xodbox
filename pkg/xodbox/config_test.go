@@ -1,11 +1,12 @@
 package xodbox
 
 import (
+	"reflect"
+	"testing"
+
 	"github.com/defektive/xodbox/pkg/handlers/httpx"
 	"github.com/defektive/xodbox/pkg/notifiers/app_log"
 	"github.com/defektive/xodbox/pkg/types"
-	"reflect"
-	"testing"
 )
 
 func TestConfigFile_ToConfig(t *testing.T) {

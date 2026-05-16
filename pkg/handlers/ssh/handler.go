@@ -1,9 +1,10 @@
 package ssh
 
 import (
+	"io"
+
 	"github.com/defektive/xodbox/pkg/types"
 	"github.com/gliderlabs/ssh"
-	"io"
 )
 
 type Handler struct {
@@ -33,7 +34,9 @@ func (h Handler) Name() string {
 func (h Handler) Start(app types.App, eventChan chan types.InteractionEvent) error {
 	h.dispatchChannel = eventChan
 	ssh.Handle(func(s ssh.Session) {
-		io.WriteString(s, "This account is currently not available\n")
+		if _, err := io.WriteString(s, "This account is currently not available\n"); err != nil {
+			lg().Debug("ssh session write failed", "err", err)
+		}
 	})
 
 	lg().Info("starting ssh handler", "listener", h.Listener)

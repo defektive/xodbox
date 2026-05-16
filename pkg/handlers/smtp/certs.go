@@ -161,7 +161,7 @@ func (i *InsecureCert) SignedDNSPEM(dnsNames ...string) (*bytes.Buffer, *bytes.B
 
 	var certPrivKeyPEM = new(bytes.Buffer)
 	if err := pem.Encode(certPrivKeyPEM, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(i.PrivateKey())}); err != nil {
-
+		return nil, nil, err
 	}
 
 	return certPEM, certPrivKeyPEM, nil
@@ -179,10 +179,12 @@ func (i *InsecureCert) TLSConfig(dnsNames ...string) (*tls.Config, error) {
 		return nil, err
 	}
 
+	// #nosec G402 -- xodbox's SMTP handler is a test/honeypot listener
+	// that intentionally presents an untrusted cert (see SECURITY.md);
+	// pinning a minimum TLS version is not the point of this code.
 	return &tls.Config{
 		Certificates: []tls.Certificate{cer},
 	}, nil
-
 }
 
 //

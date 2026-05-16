@@ -1,10 +1,11 @@
 package smtp
 
 import (
-	"github.com/defektive/xodbox/pkg/types"
-	"github.com/emersion/go-smtp"
 	"io"
 	"os"
+
+	"github.com/defektive/xodbox/pkg/types"
+	"github.com/emersion/go-smtp"
 )
 
 type Handler struct {

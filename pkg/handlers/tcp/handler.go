@@ -1,10 +1,11 @@
 package tcp
 
 import (
-	"github.com/defektive/xodbox/pkg/types"
 	"io"
 	"log"
 	"net"
+
+	"github.com/defektive/xodbox/pkg/types"
 )
 
 type Handler struct {

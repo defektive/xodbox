@@ -2,13 +2,14 @@ package httpx
 
 import (
 	"fmt"
-	"github.com/defektive/xodbox/pkg/mdaas"
 	"io"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/defektive/xodbox/pkg/mdaas"
 )
 
 func Build(w http.ResponseWriter, e *Event, handler *Handler) error {
@@ -73,6 +74,8 @@ func Build(w http.ResponseWriter, e *Event, handler *Handler) error {
 }
 
 func sendFile(outFile string, w http.ResponseWriter) error {
+	// #nosec G304 -- outFile is the just-built artifact path produced
+	// by mdaas.Build, not user input.
 	f, err := os.Open(outFile)
 	if err != nil {
 		log.Println(err)

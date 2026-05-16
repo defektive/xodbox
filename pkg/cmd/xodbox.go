@@ -1,11 +1,12 @@
 package cmd
 
 import (
+	"log/slog"
+	"os"
+
 	"github.com/defektive/xodbox/pkg/model"
 	"github.com/defektive/xodbox/pkg/xlog"
 	"github.com/defektive/xodbox/pkg/xodbox"
-	"log/slog"
-	"os"
 
 	"github.com/spf13/cobra"
 )
