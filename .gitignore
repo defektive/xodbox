@@ -13,6 +13,8 @@ certs/
 *.db
 *.db-journal
 dist/
+bin/
+coverage.out
 
 xodbox_static
 /xodbox

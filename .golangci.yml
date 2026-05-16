@@ -55,8 +55,11 @@ linters:
           - errcheck
           - gosec
       # The embedded mdaas main programs live under build tags / are
-      # not part of normal xodbox builds.
-      - path: pkg/mdaas/(bind-shell|simple-ssh)/
+      # not part of normal xodbox builds. Both the embed source
+      # (pkg/mdaas/) and the runtime extraction target (./mdaas/,
+      # created by embed.go's init at test/server startup) are
+      # excluded from quality linting.
+      - path: (^|/)mdaas/(bind-shell|simple-ssh)/
         linters:
           - errcheck
           - gosec

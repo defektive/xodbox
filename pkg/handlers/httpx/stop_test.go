@@ -2,7 +2,9 @@ package httpx
 
 import (
 	"context"
+	"errors"
 	"net"
+	"net/http"
 	"testing"
 	"time"
 
@@ -44,6 +46,40 @@ func TestStopUnblocksStart(t *testing.T) {
 	case <-done:
 	case <-time.After(2 * time.Second):
 		t.Fatal("Start did not return within 2s of Stop")
+	}
+}
+
+func TestStopShutsDownHTTPSServerPair(t *testing.T) {
+	// Boot two bound *http.Server instances on free loopback ports
+	// (no Serve call — Shutdown on an unstarted server still returns
+	// cleanly), then assert Stop tears down both as well as the plain
+	// HTTP one and reports the first failure if any.
+	h := NewHandler(map[string]string{"listener": "127.0.0.1:0"}).(*Handler)
+
+	httpAddr := freeTCPAddr(t)
+	httpsAddr := freeTCPAddr(t)
+
+	httpSrv := &http.Server{Addr: httpAddr}
+	httpsSrv := &http.Server{Addr: httpsAddr}
+	challenge := &http.Server{Addr: freeTCPAddr(t)}
+
+	h.mu.Lock()
+	h.httpServer = httpSrv
+	h.httpChallengeServer = challenge
+	h.httpsServer = httpsSrv
+	h.mu.Unlock()
+
+	if err := h.Stop(context.Background()); err != nil {
+		t.Errorf("Stop = %v, want nil", err)
+	}
+
+	// A second Shutdown after Stop should be a no-op error (the server
+	// is closed). Use it as a marker that Stop actually called Shutdown.
+	for _, s := range []*http.Server{httpSrv, challenge, httpsSrv} {
+		err := s.Shutdown(context.Background())
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			t.Errorf("server should be in shutdown state after Stop, got %v", err)
+		}
 	}
 }
 

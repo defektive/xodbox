@@ -29,6 +29,19 @@ func NewApp(config *Config) *App {
 		newApp.RegisterNotificationHandler(notifier)
 	}
 
+	// Give every handler that implements types.Seeder a chance to
+	// populate its own DB state. Done here (not in Run) so non-Run
+	// entry points like `xodbox payload dump` still see the seeded
+	// payload set.
+	for _, h := range config.Handlers {
+		if s, ok := h.(types.Seeder); ok {
+			lg().Debug("seeding handler", "handler", h.Name())
+			if err := s.Seed(); err != nil {
+				lg().Error("handler seed failed", "handler", h.Name(), "err", err)
+			}
+		}
+	}
+
 	return newApp
 }
 

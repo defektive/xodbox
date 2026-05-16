@@ -92,11 +92,12 @@ And would not match:
 
 ## Operational notes
 
-- `Stop(ctx)` shuts down the HTTP server with `http.Server.Shutdown(ctx)`
-  and cancels the payload-watcher goroutine if one was started. The
-  HTTPS path is served by certmagic and is **not** graceful-shutdown
-  aware today — `Stop()` returns nil but the certmagic listeners stay
-  up until the process exits. Tracked as follow-up.
+- `Stop(ctx)` shuts down whichever server pair Start booted: in HTTP
+  mode, the single `*http.Server`; in HTTPS mode, both the ACME
+  HTTP-01 challenge listener on :80 and the TLS listener on :443. The
+  payload-directory watcher goroutine (if `payload_dir` was set) is
+  also cancelled. ctx bounds how long in-flight requests have to
+  drain.
 - Sensitive operator keys (`api_token`, `dns_provider_api_key`) end up
   in the xodbox config file. Restrict that file's permissions to `0600`
   and the running user.
