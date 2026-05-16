@@ -1,0 +1,186 @@
+package httpx
+
+import (
+	"bytes"
+	"net/http"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/defektive/xodbox/pkg/model"
+	"github.com/defektive/xodbox/pkg/types"
+)
+
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "httpx-test-*")
+	if err != nil {
+		panic(err)
+	}
+	defer os.RemoveAll(dir)
+
+	model.LoadDBWithOptions(model.DBOptions{Path: filepath.Join(dir, "test.db")})
+	os.Exit(m.Run())
+}
+
+func newPOSTRequest(t *testing.T, url, body string) *http.Request {
+	t.Helper()
+	r, err := http.NewRequest(http.MethodPost, url, bytes.NewReader([]byte(body)))
+	if err != nil {
+		t.Fatalf("build request: %v", err)
+	}
+	r.RemoteAddr = "203.0.113.5:54321"
+	r.Header.Set("User-Agent", "test-agent/1.0")
+	return r
+}
+
+func TestEventBodyAndHeaders(t *testing.T) {
+	r := newPOSTRequest(t, "http://example.com/path?q=1", "payload-body")
+	e := NewEvent(r)
+
+	if string(e.Body()) != "payload-body" {
+		t.Errorf("Body() = %q, want %q", e.Body(), "payload-body")
+	}
+
+	headers := string(e.RequestHeaders())
+	if !bytes.Contains([]byte(headers), []byte("POST /path?q=1 HTTP/1.1")) {
+		t.Errorf("RequestHeaders() missing request line, got:\n%s", headers)
+	}
+
+	raw := string(e.RawRequest())
+	if !bytes.Contains([]byte(raw), []byte("payload-body")) {
+		t.Errorf("RawRequest() should include body, got:\n%s", raw)
+	}
+}
+
+func TestEventRemoteAddrAndPort(t *testing.T) {
+	r := newPOSTRequest(t, "http://example.com/", "")
+	e := NewEvent(r)
+
+	if e.RemoteAddr() != "203.0.113.5" {
+		t.Errorf("RemoteAddr() = %q, want 203.0.113.5", e.RemoteAddr())
+	}
+	if e.BaseEvent.RemotePortNumber != 54321 {
+		t.Errorf("RemotePortNumber = %d, want 54321", e.BaseEvent.RemotePortNumber)
+	}
+}
+
+func TestEventRequestAccessor(t *testing.T) {
+	r := newPOSTRequest(t, "http://example.com/x", "")
+	e := NewEvent(r)
+	if e.Request() != r {
+		t.Error("Request() should return the wrapped *http.Request")
+	}
+}
+
+func TestEventDetails(t *testing.T) {
+	r := newPOSTRequest(t, "http://example.com/details", "")
+	e := NewEvent(r)
+
+	d := e.Details()
+	for _, want := range []string{"HTTPX:", "POST", "/details", "203.0.113.5"} {
+		if !bytes.Contains([]byte(d), []byte(want)) {
+			t.Errorf("Details() = %q, want to contain %q", d, want)
+		}
+	}
+}
+
+func TestEventDispatchNonBot(t *testing.T) {
+	r := newPOSTRequest(t, "http://example.com/", "")
+	r.RemoteAddr = "198.51.100.42:33333"
+	e := NewEvent(r)
+
+	ch := make(chan types.InteractionEvent, 1)
+	e.Dispatch(ch)
+
+	select {
+	case got := <-ch:
+		if got != types.InteractionEvent(e) {
+			t.Errorf("dispatched event differs from sender")
+		}
+	case <-time.After(time.Second):
+		t.Fatal("Dispatch did not deliver event within 1s")
+	}
+}
+
+func TestEventDispatchBotSuppressed(t *testing.T) {
+	const botIP = "10.0.0.99"
+
+	// Seed >30 interactions for botIP so model.IsBot returns true.
+	for i := 0; i < 31; i++ {
+		model.DB().Create(&model.Interaction{RemoteAddr: botIP, Handler: "test"})
+	}
+	if !model.IsBot(botIP) {
+		t.Fatalf("precondition: model.IsBot(%q) should be true after seeding", botIP)
+	}
+
+	r := newPOSTRequest(t, "http://example.com/", "")
+	r.RemoteAddr = botIP + ":12345"
+	e := NewEvent(r)
+
+	ch := make(chan types.InteractionEvent, 1)
+	e.Dispatch(ch)
+
+	select {
+	case evt := <-ch:
+		t.Errorf("bot should be suppressed, got event %+v", evt)
+	case <-time.After(200 * time.Millisecond):
+		// expected: nothing delivered
+	}
+}
+
+func TestEventTemplateContextHeadersAndQuery(t *testing.T) {
+	r := newPOSTRequest(t, "http://example.com/p?a=1&a=2&b=x", "")
+	r.Header.Set("X-Forwarded-For", "9.9.9.9")
+	r.Header.Set("X-Real-IP", "8.8.8.8")
+	e := NewEvent(r)
+
+	td := map[string]string{
+		"notify_string": "notify!",
+		"server_name":   "test-srv",
+	}
+	tc := e.TemplateContext(td)
+
+	if tc == nil {
+		t.Fatal("TemplateContext returned nil")
+	}
+	if tc.NotifyString != "notify!" {
+		t.Errorf("NotifyString = %q, want notify!", tc.NotifyString)
+	}
+	if tc.ServerName != "test-srv" {
+		t.Errorf("ServerName = %q, want test-srv", tc.ServerName)
+	}
+	if tc.Request == nil {
+		t.Fatal("Request context should not be nil")
+	}
+	if tc.Request.Host != "example.com" {
+		t.Errorf("Host = %q, want example.com", tc.Request.Host)
+	}
+	if tc.Request.Path != "/p" {
+		t.Errorf("Path = %q, want /p", tc.Request.Path)
+	}
+
+	wantRemotes := map[string]bool{
+		"203.0.113.5:54321": true,
+		"9.9.9.9":           true,
+		"8.8.8.8":           true,
+	}
+	for _, r := range tc.Request.RemoteAddr {
+		if !wantRemotes[r] {
+			t.Errorf("unexpected remote %q", r)
+		}
+		delete(wantRemotes, r)
+	}
+	if len(wantRemotes) != 0 {
+		t.Errorf("missing remotes: %v", wantRemotes)
+	}
+
+	// Multi-value query "a" should expand into GET_a_0, GET_a_1.
+	if td["GET_a_0"] != "1" || td["GET_a_1"] != "2" {
+		t.Errorf("multi-value query not expanded correctly: %v", td)
+	}
+	// Single-value query "b" should land under GET_b.
+	if td["GET_b"] != "x" {
+		t.Errorf("single-value query not set: %v", td)
+	}
+}
