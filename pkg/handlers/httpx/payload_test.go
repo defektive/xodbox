@@ -182,9 +182,14 @@ func TestExecuteBodyTemplateTextAndHTML(t *testing.T) {
 }
 
 func TestSortedPayloadsLoadsAndCaches(t *testing.T) {
-	// Reset module-level cache so prior tests don't bleed in.
+	// Reset module-level cache so prior tests don't bleed in, and clear
+	// the payloads table — other tests (e.g. NewHandler) may have seeded
+	// the embedded payloads via Seed(model.DB()).
 	payloads = nil
 	t.Cleanup(func() { payloads = nil })
+	if err := model.DB().Exec("DELETE FROM payloads").Error; err != nil {
+		t.Fatalf("clear payloads: %v", err)
+	}
 
 	seed := []model.Payload{
 		{Name: "p-b", Type: PayloadName, Pattern: "/b", SortOrder: 2},
