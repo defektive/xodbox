@@ -54,3 +54,27 @@ changelog:
     exclude:
       - "^docs:"
       - "^test:"
+
+# Supply-chain attestations: produce a syft-generated SBOM per
+# archive, and sign the checksum file (which transitively pins every
+# released artifact) with cosign using keyless OIDC. The release
+# workflow grants `id-token: write` so cosign can mint a short-lived
+# certificate from the GitHub Actions OIDC token.
+sboms:
+  - artifacts: archive
+    documents:
+      - "{{ .ArtifactName }}.spdx.json"
+
+signs:
+  - id: cosign-checksum
+    cmd: cosign
+    signature: "${artifact}.sig"
+    certificate: "${artifact}.pem"
+    args:
+      - sign-blob
+      - "--yes"
+      - "--output-certificate=${certificate}"
+      - "--output-signature=${signature}"
+      - "${artifact}"
+    artifacts: checksum
+    output: true
