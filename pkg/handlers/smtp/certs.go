@@ -14,9 +14,23 @@ import (
 	"time"
 )
 
+// serialNumberLimit caps random serial numbers at 128 bits, matching the
+// upper bound RFC 5280 §4.1.2.2 allows for a non-negative integer fitting in
+// 20 octets.
+var serialNumberLimit = new(big.Int).Lsh(big.NewInt(1), 128)
+
+func randomSerial() *big.Int {
+	serial, err := rand.Int(rand.Reader, serialNumberLimit)
+	if err != nil {
+		lg().Error("failed to generate random certificate serial", "err", err)
+		return big.NewInt(time.Now().UnixNano())
+	}
+	return serial
+}
+
 func randoCert() *x509.Certificate {
 	return &x509.Certificate{
-		SerialNumber: big.NewInt(2019),
+		SerialNumber: randomSerial(),
 		Subject: pkix.Name{
 			Organization:  []string{"Company, INC."},
 			Country:       []string{"US"},
@@ -92,7 +106,7 @@ func (i *InsecureCert) CABytes() ([]byte, error) {
 	ca := i.CACert()
 
 	// create the CA
-	return x509.CreateCertificate(rand.Reader, ca, ca, i.PrivateKey().PublicKey, i.PrivateKey())
+	return x509.CreateCertificate(rand.Reader, ca, ca, &i.PrivateKey().PublicKey, i.PrivateKey())
 }
 
 func (i *InsecureCert) DNSCert(dnsNames ...string) *x509.Certificate {

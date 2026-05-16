@@ -19,13 +19,29 @@ const (
 
 // String - Creating common behavior - give the type a String function
 func (w Action) String() string {
-	return [...]string{"PasswordAuth", "Mail"}[w-1]
+	return [...]string{
+		"PasswordAuth",
+		"Mail",
+		"Rcpt",
+		"Data",
+		"Reset",
+		"Logout",
+	}[w-1]
 }
 
 type Event struct {
 	*types.BaseEvent
 	ctx    *SMTPSession
 	action Action
+}
+
+// Dispatch overrides the promoted BaseEvent.Dispatch so the outer SMTP
+// Event is delivered on the channel rather than the embedded BaseEvent
+// pointer.
+func (e *Event) Dispatch(cc chan types.InteractionEvent) {
+	go func() {
+		cc <- e
+	}()
 }
 
 func NewEvent(ctx *SMTPSession, action Action) *Event {

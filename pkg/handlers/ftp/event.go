@@ -41,6 +41,15 @@ type Event struct {
 	action Action
 }
 
+// Dispatch overrides the promoted BaseEvent.Dispatch so the outer FTP
+// Event (and its concrete Details() / action) is delivered on the
+// channel rather than the embedded BaseEvent pointer.
+func (e *Event) Dispatch(cc chan types.InteractionEvent) {
+	go func() {
+		cc <- e
+	}()
+}
+
 func NewEvent(remoteAddr string, action Action) *Event {
 	hostname, portNum := util.GetHostAndPortFromRemoteAddr(remoteAddr)
 

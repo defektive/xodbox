@@ -6,19 +6,28 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"sync"
 )
 
 var logLevel = new(slog.LevelVar)
 var logger *slog.Logger
 
-var appPkg string
-var appName string
+// appPkg and appName are populated on first use and cached. The mutex
+// guards lazy initialisation against concurrent readers — without it
+// two goroutines logging at the same time race on the string contents.
+var (
+	appMu   sync.Mutex
+	appPkg  string
+	appName string
+)
 
 func init() {
 	logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
 }
 
 func SetAppName(name string) {
+	appMu.Lock()
+	defer appMu.Unlock()
 	appName = name
 }
 
@@ -38,14 +47,23 @@ func LogLevel(level slog.Level) {
 }
 
 func getAppName() string {
+	appMu.Lock()
+	defer appMu.Unlock()
 	if appName == "" {
-		split := strings.Split(getAppPkg(), "/")
+		split := strings.Split(getAppPkgLocked(), "/")
 		appName = split[len(split)-1]
 	}
 	return appName
 }
 
 func getAppPkg() string {
+	appMu.Lock()
+	defer appMu.Unlock()
+	return getAppPkgLocked()
+}
+
+// getAppPkgLocked must be called with appMu held.
+func getAppPkgLocked() string {
 	if appPkg == "" {
 		pkgPath := fullPkg(getAppPkg)
 		split := strings.Split(pkgPath, "/")
