@@ -22,7 +22,7 @@ require (
 	github.com/spf13/afero v1.15.0
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/crypto v0.51.0
-	golang.org/x/image v0.40.0
+	golang.org/x/image v0.41.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/gorm v1.31.1
 )
