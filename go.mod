@@ -11,7 +11,7 @@ require (
 	github.com/creack/pty v1.1.24
 	github.com/emersion/go-smtp v0.24.0
 	github.com/factomproject/basen v0.0.0-20150613233007-fe3947df716e
-	github.com/fclairamb/ftpserverlib v0.31.0
+	github.com/fclairamb/ftpserverlib v0.32.0
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gin-gonic/gin v1.12.0
 	github.com/glebarez/sqlite v1.11.0
@@ -125,7 +125,7 @@ require (
 	golang.org/x/mod v0.36.0 // indirect
 	golang.org/x/net v0.54.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.44.0 // indirect
+	golang.org/x/sys v0.45.0 // indirect
 	golang.org/x/term v0.43.0 // indirect
 	golang.org/x/text v0.37.0 // indirect
 	golang.org/x/tools v0.45.0 // indirect
