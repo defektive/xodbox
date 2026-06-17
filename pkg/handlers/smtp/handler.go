@@ -64,6 +64,7 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 func (h *Handler) Stop(ctx context.Context) error {
 	h.mu.Lock()
 	s := h.server
+	h.server = nil
 	h.mu.Unlock()
 	if s == nil {
 		return nil
@@ -103,6 +104,14 @@ func (s *SMTPSession) Rcpt(to string, opts *smtp.RcptOptions) error {
 
 func (s *SMTPSession) Data(r io.Reader) error {
 	e := NewEvent(s, Data)
+	// Drain the message body so it is captured on the event and the
+	// protocol exchange completes; previously r was ignored and the
+	// message content was silently dropped.
+	if b, err := io.ReadAll(r); err != nil {
+		lg().Debug("smtp data read failed", "err", err)
+	} else {
+		e.RawData = b
+	}
 	e.Dispatch(s.handler.dispatchChannel)
 	return nil
 }
