@@ -98,13 +98,13 @@ func TestParseAuthenticateRejectsShortNT(t *testing.T) {
 }
 
 func TestParseAuthenticateRejectsWrongType(t *testing.T) {
-	if _, err := parseAuthenticate(buildChallenge()); err == nil {
+	if _, err := parseAuthenticate(buildChallenge(defaultTargetName)); err == nil {
 		t.Error("expected error parsing a CHALLENGE as an AUTHENTICATE")
 	}
 }
 
 func TestBuildChallengeIsWellFormed(t *testing.T) {
-	ch := buildChallenge()
+	ch := buildChallenge(defaultTargetName)
 	if ntlmMessageType(ch) != ntlmChallenge {
 		t.Fatalf("message type = %d, want %d", ntlmMessageType(ch), ntlmChallenge)
 	}
@@ -121,11 +121,14 @@ func TestBuildChallengeIsWellFormed(t *testing.T) {
 // (NT_STATUS_BUFFER_TOO_SMALL). It resolves the payloads via the field
 // descriptors exactly as a client would.
 func TestBuildChallengePayloadOffsets(t *testing.T) {
-	ch := buildChallenge()
+	// Use a custom target name to also prove it flows through into the
+	// advertised AV pairs (configurable to avoid fingerprinting).
+	const customName = "CORP-FS01"
+	ch := buildChallenge(customName)
 
-	// TargetNameFields @12 must resolve to our advertised target name.
-	if got := fromUTF16le(field(ch, 12)); got != targetName {
-		t.Errorf("TargetName via declared offset = %q, want %q", got, targetName)
+	// TargetNameFields @12 must resolve to the configured target name.
+	if got := fromUTF16le(field(ch, 12)); got != customName {
+		t.Errorf("TargetName via declared offset = %q, want %q", got, customName)
 	}
 
 	// TargetInfoFields @40 must resolve to a well-formed AV_PAIR list that
@@ -212,7 +215,7 @@ func TestSelectDialectShortRequest(t *testing.T) {
 }
 
 func TestFindNTLMSSPInSPNEGO(t *testing.T) {
-	challenge := buildChallenge()
+	challenge := buildChallenge(defaultTargetName)
 	wrapped := buildNegTokenResp(challenge)
 	found := findNTLMSSP(wrapped)
 	if !bytes.Equal(found, challenge) {

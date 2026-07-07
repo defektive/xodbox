@@ -39,12 +39,22 @@ func TestDefaultListener(t *testing.T) {
 	if h.Persist {
 		t.Error("persist should default to false")
 	}
+	if h.TargetName != defaultTargetName {
+		t.Errorf("default target name = %q, want %q", h.TargetName, defaultTargetName)
+	}
 }
 
 func TestPersistParsedFromConfig(t *testing.T) {
 	h := NewHandler(map[string]string{"persist": "true"}).(*Handler)
 	if !h.Persist {
 		t.Error("persist=true config should enable persistence")
+	}
+}
+
+func TestTargetNameParsedFromConfig(t *testing.T) {
+	h := NewHandler(map[string]string{"target_name": "CORP-FS01"}).(*Handler)
+	if h.TargetName != "CORP-FS01" {
+		t.Errorf("target name = %q, want CORP-FS01", h.TargetName)
 	}
 }
 

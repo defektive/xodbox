@@ -48,6 +48,7 @@ verified and no shares are served.
 | `handler`  | yes      | —       | Must be `SMB`.                                                |
 | `listener` | no       | `:445`  | Bind address. Binding `:445` usually needs elevated privileges. |
 | `persist`  | no       | `false` | Must be the literal string `"true"` to save captured hashes to the database (the `interactions` table). Off by default because captured NetNTLMv2 hashes are crackable credential material sitting on disk. |
+| `target_name` | no    | `XODBOX` | The NetBIOS/DNS name advertised in the NTLMSSP challenge (target name + AV pairs). Set a realistic value (e.g. `CORP-FS01`) to blend in and avoid fingerprinting the server as xodbox. Cosmetic — it only affects what the client believes it connected to. |
 
 ## Events
 
@@ -70,8 +71,9 @@ survives restarts and appears in the web view.
 
 - Only NTLMv2 is captured. LM-only / NTLMv1 clients (rare, and usually
   disabled) are logged and skipped.
-- The advertised target name is the cosmetic constant `XODBOX`; it only
-  affects what the client believes it connected to.
+- The advertised target name defaults to `XODBOX` and is configurable via
+  `target_name`; it only affects what the client believes it connected to,
+  so set a realistic value to avoid fingerprinting.
 - No SMB library is vendored — the minimal SMB2/NTLMSSP/SPNEGO wire format
   is implemented in-package, so the handler adds no dependencies.
 - The accept loop returns from `Start()` cleanly when `Stop()` closes the
