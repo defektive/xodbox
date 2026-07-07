@@ -216,6 +216,19 @@ params:
   #       icon: fa fa-envelope
   #       desc: Discuss development issues around the project
 
+# In production builds Docsy runs the CSS through PostCSS/autoprefixer, which
+# Hugo executes under Node's permission model with reads restricted to the
+# project dir (security.node.permissions.allowread). browserslist searches
+# parent directories for a config, and those reads are denied, failing the
+# build. Allow the BROWSERSLIST_ROOT_PATH env var through so browserslist is
+# told not to look above .hugo. (osEnv replaces Hugo's default allowlist, so
+# the defaults are repeated here.)
+security:
+  exec:
+    osEnv:
+      - '(?i)^((HTTPS?|NO)_PROXY|PATH(EXT)?|APPDATA|TE?MP|TERM|GO\w+|(XDG_CONFIG_)?HOME|USERPROFILE|SSH_AUTH_SOCK|DISPLAY|LANG|SYSTEMDRIVE|PROGRAMDATA)$'
+      - '(?i)^BROWSERSLIST_ROOT_PATH$'
+
 module:
   # Uncomment the next line to build and serve using local docsy clone declared in the named Hugo workspace:
   # workspace: docsy.work

@@ -58,6 +58,10 @@ jobs:
         env:
           HUGO_CACHEDIR: ${{ runner.temp }}/hugo_cache
           HUGO_ENVIRONMENT: production
+          # Bound browserslist to .hugo so autoprefixer doesn't read parent
+          # dirs, which Hugo's Node permission model denies. Allowlisted via
+          # security.exec.osEnv in hugo.yaml.
+          BROWSERSLIST_ROOT_PATH: ${{ github.workspace }}/.hugo
         run: |
           hugo \
             --minify \
