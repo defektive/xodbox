@@ -52,7 +52,7 @@ jobs:
         uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5.0.0
       - name: Install Node.js dependencies
         working-directory: ./.hugo
-        run: "[[ -f package-lock.json || -f npm-shrinkwrap.json ]] && npm ci || true"
+        run: npm ci
       - name: Build with Hugo
         working-directory: ./.hugo
         env:
