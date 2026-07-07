@@ -49,7 +49,7 @@ imaging:
 # Language configuration
 languages:
   en:
-    languageName: English
+    label: English
     title: xodbox
     params:
       description: Infrastructure automation for offensive operations.
@@ -221,7 +221,7 @@ module:
   # workspace: docsy.work
   hugoVersion:
     extended: true
-    min: 0.110.0
+    min: 0.146.0
   imports:
     - path: github.com/google/docsy
       disable: false
@@ -234,17 +234,20 @@ module:
     target: content/blog/
 
   - source: ../docs
-    excludeFiles: "blog/**"
+    files:
+      - '! blog/**'
     target: content/docs
 
 
   - source: ../cmd/xodbox-validator/README.md
     target: content/docs/cmd/xodbox-validator/_index.md
-    excludeFiles: "**.go"
+    files:
+      - '! **.go'
 
   - source: ../pkg/
     target: content/docs/pkg/
-    excludeFiles: "**.go"
+    files:
+      - '! **.go'
 
   - source: ../README.md
     target: content/docs/_index.md
