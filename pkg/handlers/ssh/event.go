@@ -1,6 +1,8 @@
 package ssh
 
 import (
+	"fmt"
+
 	"github.com/defektive/xodbox/pkg/types"
 	"github.com/defektive/xodbox/pkg/util"
 	"github.com/gliderlabs/ssh"
@@ -33,6 +35,10 @@ func (e *Event) Dispatch(cc chan types.InteractionEvent) {
 	go func() {
 		cc <- e
 	}()
+}
+
+func (e *Event) Details() string {
+	return fmt.Sprintf("SSH: %s from %s (%s)", e.action, e.user, e.RemoteAddr)
 }
 
 func NewEvent(ctx ssh.Context, action Action) *Event {

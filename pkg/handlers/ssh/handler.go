@@ -2,6 +2,7 @@ package ssh
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"sync"
 
@@ -49,12 +50,16 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 		PasswordHandler: func(ctx ssh.Context, password string) bool {
 			lg().Debug("authenticating ssh handler", "username", ctx.User(), "password", password)
 			e := NewEvent(ctx, PasswordAuth)
+			// Capture the attempted credential on the event so it reaches
+			// notifiers/DB; it was previously only logged at Debug.
+			e.RawData = []byte(fmt.Sprintf("username=%q password=%q", ctx.User(), password))
 			e.Dispatch(h.dispatchChannel)
 			return false
 		},
 		PublicKeyHandler: func(ctx ssh.Context, key ssh.PublicKey) bool {
 			lg().Debug("authenticating ssh handler", "username", ctx.User(), "key", key.Type())
 			e := NewEvent(ctx, KeyAuth)
+			e.RawData = []byte(fmt.Sprintf("username=%q key-type=%s", ctx.User(), key.Type()))
 			e.Dispatch(h.dispatchChannel)
 			return false
 		},
@@ -74,6 +79,7 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 func (h *Handler) Stop(ctx context.Context) error {
 	h.mu.Lock()
 	srv := h.server
+	h.server = nil
 	h.mu.Unlock()
 	if srv == nil {
 		return nil

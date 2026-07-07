@@ -83,6 +83,9 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 
 	h.dispatchChannel = eventChan
 	responseValue := net.ParseIP(h.DefaultResponseIP).To4()
+	if responseValue == nil {
+		lg().Warn("dns default_ip is not a valid IPv4 address; A answers will be omitted", "default_ip", h.DefaultResponseIP)
+	}
 
 	mux := dns.NewServeMux()
 	mux.HandleFunc(".", func(w dns.ResponseWriter, req *dns.Msg) {
@@ -91,20 +94,23 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 
 		var resp dns.Msg
 		resp.SetReply(req)
-		for _, q := range req.Question {
-			a := dns.A{
-				Hdr: dns.RR_Header{
-					Name:   q.Name,
-					Rrtype: dns.TypeA,
-					Class:  dns.ClassINET,
-					Ttl:    0,
-				},
-				A: responseValue,
+		if responseValue != nil {
+			for _, q := range req.Question {
+				resp.Answer = append(resp.Answer, &dns.A{
+					Hdr: dns.RR_Header{
+						Name:   q.Name,
+						Rrtype: dns.TypeA,
+						Class:  dns.ClassINET,
+						Ttl:    0,
+					},
+					A: responseValue,
+				})
 			}
-			resp.Answer = append(resp.Answer, &a)
-			if err := w.WriteMsg(&resp); err != nil {
-				lg().Debug("dns write reply failed", "err", err)
-			}
+		}
+		// Write a single reply for the whole message; writing inside the
+		// question loop emitted duplicate, progressively-larger packets.
+		if err := w.WriteMsg(&resp); err != nil {
+			lg().Debug("dns write reply failed", "err", err)
 		}
 	})
 
@@ -126,6 +132,7 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 func (h *Handler) Stop(ctx context.Context) error {
 	h.mu.Lock()
 	srv := h.server
+	h.server = nil
 	h.mu.Unlock()
 	if srv == nil {
 		return nil
@@ -173,7 +180,7 @@ func encodeIP(rawIP string) string {
 		lg().Error("error encoding base36 ip", "err", err)
 		return ""
 	}
-	fmt.Println(rawIP, "-> ip:", ip, " net:", ipNet)
+	lg().Debug("encoding ip", "raw", rawIP, "ip", ip, "net", ipNet)
 	s := ip2int(ip)
 	b := []byte(strconv.Itoa(int(s)))
 	return base36.EncodeToString(b)

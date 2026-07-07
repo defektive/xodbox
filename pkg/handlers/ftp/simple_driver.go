@@ -73,32 +73,19 @@ type testFile struct {
 
 var (
 	errFailClose   = errors.New("couldn't close")
-	errFailWrite   = errors.New("couldn't write")
 	errFailSeek    = errors.New("couldn't seek")
 	errFailReaddir = errors.New("couldn't readdir")
 	//errFailOpen    = errors.New("couldn't open")
 )
 
 func (f *testFile) Read(out []byte) (int, error) {
-
 	f.Client.DispatchEvent(FileRead)
-	// simulating a slow reading allows us to test ABOR
-	time.Sleep(500 * time.Millisecond)
-
 	return f.File.Read(out)
 }
 
 func (f *testFile) Write(out []byte) (int, error) {
 	f.Client.DispatchEvent(FileWrite)
-
-	// simulating a slow reading allows us to test ABOR
-	time.Sleep(500 * time.Millisecond)
-
-	//if strings.Contains(f.File.Name(), "fail-to-write") {
-	return 0, errFailWrite
-	//}
-
-	//return f.File.Write(out)
+	return f.File.Write(out)
 }
 
 func (f *testFile) Close() error {
@@ -190,7 +177,7 @@ func (driver *SimpleServerDriver) AuthUser(c ftpserver.ClientContext, user, pass
 	for _, authUser := range driver.Credentials {
 		if authUser.Username == user && authUser.Password == pass {
 
-			driver.Handler.dispatchChannel <- NewEvent(c.RemoteAddr().String(), AuthSuccess)
+			NewEvent(c.RemoteAddr().String(), AuthSuccess).Dispatch(driver.Handler.dispatchChannel)
 			clientDriver := NewSimpleClientDriver(c, driver, authUser)
 			return clientDriver, nil
 		}
@@ -351,6 +338,7 @@ func (driver *SimpleClientDriver) Open(name string) (afero.File, error) {
 
 	if err == nil {
 		file = &testFile{
+			Client:  driver,
 			Handler: driver.Handler,
 			File:    file,
 		}

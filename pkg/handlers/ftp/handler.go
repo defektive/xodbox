@@ -82,6 +82,7 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 func (h *Handler) Stop(ctx context.Context) error {
 	h.mu.Lock()
 	srv := h.server
+	h.server = nil
 	h.mu.Unlock()
 	if srv == nil {
 		return nil

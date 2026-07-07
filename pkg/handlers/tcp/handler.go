@@ -20,6 +20,8 @@ type Handler struct {
 	mu       sync.Mutex
 	listener net.Listener
 	stopping bool
+	conns    map[net.Conn]struct{}
+	done     chan struct{}
 }
 
 func NewHandler(handlerConfig map[string]string) types.Handler {
@@ -46,6 +48,9 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 	}
 	h.mu.Lock()
 	h.listener = l
+	h.stopping = false
+	h.conns = make(map[net.Conn]struct{})
+	h.done = make(chan struct{})
 	h.mu.Unlock()
 	defer l.Close()
 
@@ -64,17 +69,37 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 	}
 }
 
-// Stop closes the listening socket so Start's Accept loop exits.
-// In-flight handleConn goroutines drain naturally as their peers
-// close. Safe to call multiple times and before Start.
+// Stop closes the listening socket so Start's Accept loop exits, then
+// closes every in-flight connection so blocked reads return and their
+// handleConn goroutines exit. Closing h.done lets any dispatch send that
+// is parked on a full channel fall through instead of leaking. Safe to
+// call multiple times and before Start.
 func (h *Handler) Stop(ctx context.Context) error {
 	h.mu.Lock()
-	defer h.mu.Unlock()
-	h.stopping = true
-	if h.listener == nil {
+	if h.stopping {
+		h.mu.Unlock()
 		return nil
 	}
-	return h.listener.Close()
+	h.stopping = true
+	l := h.listener
+	h.listener = nil
+	if h.done != nil {
+		close(h.done)
+	}
+	conns := make([]net.Conn, 0, len(h.conns))
+	for c := range h.conns {
+		conns = append(conns, c)
+	}
+	h.mu.Unlock()
+
+	for _, c := range conns {
+		_ = c.Close()
+	}
+
+	if l == nil {
+		return nil
+	}
+	return l.Close()
 }
 
 // handleConn reads bytes from a single accepted connection until the
@@ -85,10 +110,20 @@ func (h *Handler) handleConn(c net.Conn) {
 	defer c.Close()
 	lg().Debug("Accepted connection", "remote", c.RemoteAddr().String())
 
-	h.dispatchChannel <- NewEvent(c, Connect, nil)
+	h.mu.Lock()
+	done := h.done
+	if h.conns != nil {
+		h.conns[c] = struct{}{}
+	}
+	h.mu.Unlock()
 	defer func() {
-		h.dispatchChannel <- NewEvent(c, Disconnect, nil)
+		h.mu.Lock()
+		delete(h.conns, c)
+		h.mu.Unlock()
 	}()
+
+	h.send(done, NewEvent(c, Connect, nil))
+	defer h.send(done, NewEvent(c, Disconnect, nil))
 
 	buf := make([]byte, 4096)
 	for {
@@ -99,7 +134,7 @@ func (h *Handler) handleConn(c net.Conn) {
 			// another goroutine.
 			chunk := make([]byte, n)
 			copy(chunk, buf[:n])
-			h.dispatchChannel <- NewEvent(c, DataRecv, chunk)
+			h.send(done, NewEvent(c, DataRecv, chunk))
 		}
 		if err != nil {
 			if !errors.Is(err, io.EOF) {
@@ -107,5 +142,15 @@ func (h *Handler) handleConn(c net.Conn) {
 			}
 			return
 		}
+	}
+}
+
+// send delivers an event without blocking past shutdown: once Stop
+// closes done, a send parked on a full dispatch channel is abandoned so
+// the goroutine can exit instead of leaking.
+func (h *Handler) send(done <-chan struct{}, e types.InteractionEvent) {
+	select {
+	case h.dispatchChannel <- e:
+	case <-done:
 	}
 }
