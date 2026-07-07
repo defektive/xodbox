@@ -115,6 +115,102 @@ func TestBuildChallengeIsWellFormed(t *testing.T) {
 	}
 }
 
+// TestBuildChallengePayloadOffsets guards the bug where the declared
+// TargetName/TargetInfo buffer offsets did not account for the 8-byte
+// Version field, making clients read past the buffer
+// (NT_STATUS_BUFFER_TOO_SMALL). It resolves the payloads via the field
+// descriptors exactly as a client would.
+func TestBuildChallengePayloadOffsets(t *testing.T) {
+	ch := buildChallenge()
+
+	// TargetNameFields @12 must resolve to our advertised target name.
+	if got := fromUTF16le(field(ch, 12)); got != targetName {
+		t.Errorf("TargetName via declared offset = %q, want %q", got, targetName)
+	}
+
+	// TargetInfoFields @40 must resolve to a well-formed AV_PAIR list that
+	// stays in bounds and ends with MsvAvEOL.
+	info := field(ch, 40)
+	if info == nil {
+		t.Fatal("TargetInfo did not resolve within the message buffer")
+	}
+	sawEOL := false
+	for i := 0; i+4 <= len(info); {
+		id := binary.LittleEndian.Uint16(info[i:])
+		ln := int(binary.LittleEndian.Uint16(info[i+2:]))
+		i += 4 + ln
+		if i > len(info) {
+			t.Fatalf("AV_PAIR id %d length %d overruns TargetInfo", id, ln)
+		}
+		if id == msvAvEOL {
+			sawEOL = true
+			break
+		}
+	}
+	if !sawEOL {
+		t.Error("TargetInfo did not terminate with MsvAvEOL")
+	}
+}
+
+func TestNegotiateResponseAdvertisesDialect(t *testing.T) {
+	resp := buildNegotiateResponse(0, dialect0210)
+	// DialectRevision sits at body offset 4, and the body follows the
+	// 64-byte SMB2 header.
+	got := binary.LittleEndian.Uint16(resp[64+4:])
+	if got != dialect0210 {
+		t.Errorf("advertised dialect = %#04x, want %#04x (SMB 2.1)", got, dialect0210)
+	}
+	if smb2Command(resp) != cmdNegotiate {
+		t.Errorf("response command = %#x, want NEGOTIATE", smb2Command(resp))
+	}
+}
+
+// negotiateRequest builds a minimal SMB2 NEGOTIATE request advertising the
+// given dialects so selectDialect can be exercised.
+func negotiateRequest(dialects ...uint16) []byte {
+	body := make([]byte, 36)
+	binary.LittleEndian.PutUint16(body[0:], 36) // StructureSize
+	binary.LittleEndian.PutUint16(body[2:], uint16(len(dialects)))
+	for _, d := range dialects {
+		var b [2]byte
+		binary.LittleEndian.PutUint16(b[:], d)
+		body = append(body, b[:]...)
+	}
+	h := make([]byte, 64)
+	copy(h[0:4], smb2Magic)
+	binary.LittleEndian.PutUint16(h[12:], cmdNegotiate)
+	return append(h, body...)
+}
+
+func TestSelectDialect(t *testing.T) {
+	cases := []struct {
+		name    string
+		offered []uint16
+		want    uint16
+	}{
+		{"pinned to 2.0.2", []uint16{dialect0202}, dialect0202},
+		{"multi-dialect prefers 2.1", []uint16{0x0202, 0x0210, 0x0300, 0x0311}, dialect0210},
+		{"only 2.1", []uint16{dialect0210}, dialect0210},
+		{"only unsupported falls back", []uint16{0x0300, 0x0311}, dialect0210},
+		{"empty request falls back", nil, dialect0210},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got := selectDialect(negotiateRequest(tc.offered...))
+			if got != tc.want {
+				t.Errorf("selectDialect(%v) = %#04x, want %#04x", tc.offered, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestSelectDialectShortRequest(t *testing.T) {
+	// A header with no body must not panic and should fall back.
+	if got := selectDialect(make([]byte, 64)); got != dialect0210 {
+		t.Errorf("selectDialect(short) = %#04x, want fallback %#04x", got, dialect0210)
+	}
+}
+
 func TestFindNTLMSSPInSPNEGO(t *testing.T) {
 	challenge := buildChallenge()
 	wrapped := buildNegTokenResp(challenge)

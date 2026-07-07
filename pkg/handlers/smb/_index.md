@@ -27,7 +27,7 @@ verified and no shares are served.
   default `:445`).
 - Answers a legacy SMB1 multi-protocol negotiate with an SMB2 wildcard so
   the client re-negotiates over SMB2; answers SMB2 `NEGOTIATE` with dialect
-  `2.0.2` and a SPNEGO token advertising NTLMSSP.
+  `2.1` and a SPNEGO token advertising NTLMSSP.
 - On `SESSION_SETUP`, returns an NTLMSSP **CHALLENGE** with the fixed
   server challenge `0x1122334455667788` (the Responder/Impacket
   convention, so captured hashes work with existing tooling).
@@ -47,6 +47,7 @@ verified and no shares are served.
 |------------|----------|---------|--------------------------------------------------------------|
 | `handler`  | yes      | —       | Must be `SMB`.                                                |
 | `listener` | no       | `:445`  | Bind address. Binding `:445` usually needs elevated privileges. |
+| `persist`  | no       | `false` | Must be the literal string `"true"` to save captured hashes to the database (the `interactions` table). Off by default because captured NetNTLMv2 hashes are crackable credential material sitting on disk. |
 
 ## Events
 
@@ -59,6 +60,11 @@ verified and no shares are served.
 
 Feed a captured `Auth` payload straight to `hashcat -m 5600` or
 `john --format=netntlmv2`.
+
+With `persist: true`, each `Auth` capture is also written to the
+`interactions` table (`handler=smb`, `request_type=Auth`), with the
+`DOMAIN\User` in `request_target` and the hashcat line in `data`, so it
+survives restarts and appears in the web view.
 
 ## Operational notes
 

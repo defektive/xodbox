@@ -20,6 +20,7 @@ handlers:
   ## Docs: https://defektive.github.io/xodbox/docs/pkg/handlers/smb/
 #  - handler: SMB
 #    listener: :445 # fake SMB server; captures NetNTLMv2 hashes (hashcat mode 5600)
+#    persist: true # save captured hashes to the database (off by default)
 ## Docs: https://defektive.github.io/xodbox/docs/pkg/notifiers/
 notifiers:
 #  ## Docs: https://defektive.github.io/xodbox/docs/pkg/notifiers/slack/

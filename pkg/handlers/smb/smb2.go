@@ -27,11 +27,20 @@ const (
 
 // Dialects. The wildcard is returned when a client reaches us via a
 // legacy SMB1 multi-protocol negotiate, prompting it to re-negotiate over
-// SMB2; 0x0202 (SMB 2.0.2) is the plain dialect we settle on afterwards.
+// SMB2. For a real SMB2 NEGOTIATE we must answer with a dialect the client
+// actually offered, so we pick the best one from its list (see
+// selectDialect). We only implement 2.0.2 and 2.1 — both carry no
+// negotiate contexts or mandatory signing, keeping the response simple.
 const (
 	dialectWildcard = 0x02FF
 	dialect0202     = 0x0202
+	dialect0210     = 0x0210
 )
+
+// supportedDialects lists the SMB2 dialects the fake server can speak, most
+// preferred first. 2.1 is broadly accepted (many clients set their minimum
+// above 2.0.2) while 2.0.2 covers clients pinned to the oldest dialect.
+var supportedDialects = []uint16{dialect0210, dialect0202}
 
 // sessionID is a fixed non-zero session id handed out to every client.
 // A single fake session per connection is all the capture flow needs.
@@ -93,6 +102,46 @@ func smb2Command(msg []byte) uint16 {
 		return 0xffff
 	}
 	return binary.LittleEndian.Uint16(msg[12:])
+}
+
+// negotiateDialects returns the dialects listed in an SMB2 NEGOTIATE
+// request. Body layout after the 64-byte header: StructureSize(2),
+// DialectCount(2), SecurityMode(2), Reserved(2), Capabilities(4),
+// ClientGuid(16), (contexts/time union)(8), then the dialect array at body
+// offset 36. Returns nil if the request is too short or self-inconsistent.
+func negotiateDialects(msg []byte) []uint16 {
+	const dialectsOff = 64 + 36
+	if len(msg) < 64+4 {
+		return nil
+	}
+	count := int(binary.LittleEndian.Uint16(msg[64+2:]))
+	end := dialectsOff + count*2
+	if count <= 0 || end > len(msg) {
+		return nil
+	}
+	out := make([]uint16, count)
+	for i := 0; i < count; i++ {
+		out[i] = binary.LittleEndian.Uint16(msg[dialectsOff+i*2:])
+	}
+	return out
+}
+
+// selectDialect chooses the most preferred dialect the client offered in
+// its SMB2 NEGOTIATE request. A server must answer with a dialect the
+// client actually advertised, or the client rejects the response
+// (NT_STATUS_INVALID_NETWORK_RESPONSE). Falls back to our most preferred
+// dialect when the request can't be parsed or offers nothing we speak, so
+// a malformed/short request still gets a response.
+func selectDialect(msg []byte) uint16 {
+	offered := negotiateDialects(msg)
+	for _, want := range supportedDialects {
+		for _, got := range offered {
+			if want == got {
+				return want
+			}
+		}
+	}
+	return supportedDialects[0]
 }
 
 // smb2MessageID returns the MessageId field of an SMB2 message.

@@ -113,8 +113,12 @@ func buildChallenge() []byte {
 		negotiateAlwaysSign | targetTypeServer | negotiateExtSec |
 		negotiateTargetInfo | negotiateVersion)
 
-	// Header is fixed at 48 bytes; payload holds TargetName then TargetInfo.
-	const headerLen = 48
+	// Fixed header is 56 bytes: the 48-byte CHALLENGE header plus the
+	// 8-byte Version field we include (NEGOTIATE_VERSION is set). The
+	// payload (TargetName then TargetInfo) starts immediately after, so
+	// the buffer offsets must account for Version or the client's AV-pair
+	// parser walks off the end (NT_STATUS_BUFFER_TOO_SMALL).
+	const headerLen = 56
 	targetNameOff := uint32(headerLen)
 	targetInfoOff := targetNameOff + u32(len(tn))
 

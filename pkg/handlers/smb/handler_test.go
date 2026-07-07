@@ -6,9 +6,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"net"
+	"path/filepath"
 	"testing"
 	"time"
 
+	"github.com/defektive/xodbox/pkg/model"
 	"github.com/defektive/xodbox/pkg/types"
 )
 
@@ -33,6 +35,48 @@ func TestDefaultListener(t *testing.T) {
 	h := NewHandler(map[string]string{}).(*Handler)
 	if h.Listener != ":445" {
 		t.Errorf("default listener = %q, want :445", h.Listener)
+	}
+	if h.Persist {
+		t.Error("persist should default to false")
+	}
+}
+
+func TestPersistParsedFromConfig(t *testing.T) {
+	h := NewHandler(map[string]string{"persist": "true"}).(*Handler)
+	if !h.Persist {
+		t.Error("persist=true config should enable persistence")
+	}
+}
+
+func TestPersistAuthWritesInteraction(t *testing.T) {
+	model.LoadDBWithOptions(model.DBOptions{Path: filepath.Join(t.TempDir(), "smb-test.db")})
+
+	nt := append(bytes.Repeat([]byte{0xEE}, 16), 0x01, 0x02, 0x03, 0x04)
+	info, err := parseAuthenticate(buildAuthenticate("CORP", "carol", nt))
+	if err != nil {
+		t.Fatalf("parseAuthenticate: %v", err)
+	}
+
+	server, client := net.Pipe()
+	defer server.Close()
+	defer client.Close()
+
+	before := len(model.SortedInteractions(100))
+	persistAuth(server, info, info.HashcatLine())
+
+	rows := model.SortedInteractions(100)
+	if len(rows) != before+1 {
+		t.Fatalf("interaction count = %d, want %d", len(rows), before+1)
+	}
+	got := rows[0]
+	if got.Handler != "smb" || got.RequestType != "Auth" {
+		t.Errorf("row Handler/RequestType = %q/%q, want smb/Auth", got.Handler, got.RequestType)
+	}
+	if got.RequestTarget != "CORP\\carol" {
+		t.Errorf("row RequestTarget = %q, want CORP\\carol", got.RequestTarget)
+	}
+	if !bytes.HasPrefix(got.Data, []byte("carol::CORP:")) {
+		t.Errorf("row Data = %q, want hashcat line", got.Data)
 	}
 }
 
@@ -106,12 +150,17 @@ func TestCaptureFlow(t *testing.T) {
 	defer c.Close()
 	_ = c.SetDeadline(time.Now().Add(3 * time.Second))
 
-	// 1. SMB2 NEGOTIATE.
-	if err := writePacket(c, smb2Request(cmdNegotiate, 0, nil)); err != nil {
+	// 1. SMB2 NEGOTIATE offering a Windows-like dialect spread; the server
+	// must answer with the best it supports (2.1).
+	if err := writePacket(c, negotiateRequest(0x0202, 0x0210, 0x0300, 0x0311)); err != nil {
 		t.Fatalf("write negotiate: %v", err)
 	}
-	if _, err := readPacket(c); err != nil {
+	negResp, err := readPacket(c)
+	if err != nil {
 		t.Fatalf("read negotiate response: %v", err)
+	}
+	if d := binary.LittleEndian.Uint16(negResp[64+4:]); d != dialect0210 {
+		t.Fatalf("negotiated dialect = %#04x, want %#04x", d, dialect0210)
 	}
 
 	// 2. SESSION_SETUP carrying NTLMSSP NEGOTIATE -> expect a CHALLENGE.

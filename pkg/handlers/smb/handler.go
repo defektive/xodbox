@@ -19,6 +19,7 @@ import (
 type Handler struct {
 	name            string
 	Listener        string
+	Persist         bool
 	dispatchChannel chan types.InteractionEvent
 
 	mu       sync.Mutex
@@ -37,6 +38,7 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	return &Handler{
 		name:     "SMB",
 		Listener: listener,
+		Persist:  handlerConfig["persist"] == "true",
 	}
 }
 
@@ -154,7 +156,7 @@ func (h *Handler) handleConn(c net.Conn) {
 					negotiated = true
 					h.send(done, NewEvent(c, Negotiate, nil))
 				}
-				resp := buildNegotiateResponse(smb2MessageID(msg), dialect0202)
+				resp := buildNegotiateResponse(smb2MessageID(msg), selectDialect(msg))
 				if err := writePacket(c, resp); err != nil {
 					return
 				}
@@ -199,6 +201,9 @@ func (h *Handler) handleSessionSetup(c net.Conn, done <-chan struct{}, msg []byt
 		} else {
 			hash := info.HashcatLine()
 			lg().Info("captured NetNTLMv2", "account", info.Account())
+			if h.Persist {
+				persistAuth(c, info, hash)
+			}
 			ev := NewEvent(c, Auth, []byte(hash))
 			ev.Account = info.Account()
 			h.send(done, ev)
