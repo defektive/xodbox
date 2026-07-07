@@ -20,7 +20,7 @@ jobs:
         run: git fetch --force --tags
       - uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
-          go-version: '1.25'
+          go-version-file: 'go.mod'
 
       - name: Install syft (SBOM generator)
         uses: anchore/sbom-action/download-syft@7b36ad622f042cab6f59a75c2ac24ccb256e9b45 # v0.20.4
