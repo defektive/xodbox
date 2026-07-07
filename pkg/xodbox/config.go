@@ -7,6 +7,7 @@ import (
 	"github.com/defektive/xodbox/pkg/handlers/dns"
 	"github.com/defektive/xodbox/pkg/handlers/ftp"
 	"github.com/defektive/xodbox/pkg/handlers/httpx"
+	"github.com/defektive/xodbox/pkg/handlers/smb"
 	"github.com/defektive/xodbox/pkg/handlers/smtp"
 	ssh "github.com/defektive/xodbox/pkg/handlers/ssh"
 	"github.com/defektive/xodbox/pkg/handlers/tcp"
@@ -108,6 +109,7 @@ func init() {
 	newHandlerMap["SMTP"] = smtp.NewHandler
 	newHandlerMap["FTP"] = ftp.NewHandler
 	newHandlerMap["TCP"] = tcp.NewHandler
+	newHandlerMap["SMB"] = smb.NewHandler
 
 	newNotifierMap["app_log"] = app_log.NewNotifier
 	newNotifierMap["discord"] = discord.NewNotifier

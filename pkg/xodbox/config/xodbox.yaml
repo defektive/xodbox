@@ -17,6 +17,9 @@ handlers:
 #    dns_provider_api_user: namecheap-user
 #    dns_provider_api_key: namecheap-secret
     listener: :80
+  ## Docs: https://defektive.github.io/xodbox/docs/pkg/handlers/smb/
+#  - handler: SMB
+#    listener: :445 # fake SMB server; captures NetNTLMv2 hashes (hashcat mode 5600)
 ## Docs: https://defektive.github.io/xodbox/docs/pkg/notifiers/
 notifiers:
 #  ## Docs: https://defektive.github.io/xodbox/docs/pkg/notifiers/slack/
