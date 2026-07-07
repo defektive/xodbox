@@ -21,7 +21,7 @@ Multiple listening protocols:
 - [x] DNS (in dev)
 - [x] FTP (in dev)
 - [x] SMTP (in dev)
-- [ ] SMB
+- [x] SMB (in dev)
 - [ ] IMAP
 - [ ] POP3
 - [x] SSH (in dev)
@@ -36,6 +36,23 @@ Download a [release from GitHub](https://github.com/defektive/xodbox/releases) o
 ```sh
 go install github.com/defektive/xodbox@latest
 ```
+* * *
+
+## Running without root (Linux)
+
+Several handlers bind privileged ports (below 1024) by default — HTTP `:80`,
+HTTPS `:443`, DNS `:53`, and SMB `:445`. Instead of running xodbox as root,
+grant the binary the network capabilities it needs and run it as a normal user:
+
+```sh
+sudo setcap cap_net_raw,cap_net_admin,cap_net_bind_service+eip xodbox
+./xodbox serve
+```
+
+`cap_net_bind_service` is what allows binding ports below 1024, and is the only
+capability required for the current handlers; `cap_net_raw` and `cap_net_admin`
+are included for forward compatibility and can be dropped if you don't need them.
+Re-run `setcap` after upgrading — replacing the binary clears its capabilities.
 * * *
 
 ## Configuration

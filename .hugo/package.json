@@ -47,5 +47,8 @@
   },
   "dependencies": {
     "@iconify-json/logos": "^1.2.0"
-  }
+  },
+  "workspaces": [
+    "packages/hugoautogen"
+  ]
 }

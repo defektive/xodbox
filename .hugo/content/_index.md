@@ -9,7 +9,7 @@ title: xodbox
   News <i class="fas fa-arrow-alt-circle-right  ms-2 "></i>
 </a>
 
-[//]: # (<p class="lead mt-5 code">Infrastructure automation for offensive operations.</p>)
+<p class="lead mt-5 code">External Service Interaction Server.</p>
 {{< blocks/link-down color="info" >}}
 {{< /blocks/cover >}}
 
