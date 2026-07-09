@@ -26,8 +26,12 @@ asserted against expected paths and headers.
   internet.
 - Bot suppression: clients that exceed 30 requests in any one-minute
   bucket are marked as bots (`model.IsBot`) and have their subsequent
-  events suppressed from notifier delivery. The bot threshold is not
-  configurable today.
+  events suppressed from notifier delivery (logged at `WARN`). The
+  threshold itself is not configurable today. Loopback, RFC1918 private,
+  and link-local sources are **exempt** from this suppression by default —
+  they're usually the operator testing or an internal SSRF callback — so a
+  burst of local/internal traffic won't silently mute your notifiers. Set
+  `bot_exempt_private: "false"` to subject every source to bot detection.
 - The private API (mounted at `api_path`) requires the header
   `Authorization: Token <api_token>` on every request. An empty
   `api_token` rejects all callers.
@@ -45,6 +49,7 @@ asserted against expected paths and headers.
 | `payload_dir`  | no       | —       | Directory of `*.md` payload definitions. Watched at runtime; updates are upserted.     |
 | `api_path`     | no       | —       | URL path prefix to mount the JSON API on, e.g. `/api`. Normalised to leading/trailing slash. |
 | `api_token`    | no       | —       | Bearer-style token required by the `/private/*` API routes.                            |
+| `bot_exempt_private` | no | `true` | Exempt loopback/private/link-local sources from volume-based bot suppression. Set to `"false"` to apply bot detection to every source. |
 
 ### TLS / ACME
 

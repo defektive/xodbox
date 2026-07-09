@@ -17,9 +17,10 @@ import (
 
 type Event struct {
 	*types.BaseEvent
-	req           *http.Request
-	body          []byte
-	requestHeader []byte
+	req              *http.Request
+	body             []byte
+	requestHeader    []byte
+	botExemptPrivate bool
 }
 
 func NewEvent(req *http.Request) *Event {
@@ -37,9 +38,10 @@ func NewEvent(req *http.Request) *Event {
 			UserAgentString:  req.UserAgent(),
 			RawData:          dump,
 		},
-		req:           req,
-		body:          body,
-		requestHeader: dump,
+		req:              req,
+		body:             body,
+		requestHeader:    dump,
+		botExemptPrivate: true,
 	}
 	protocol := "http"
 	if req.TLS != nil {
@@ -96,13 +98,21 @@ func (e *Event) RemoteAddr() string {
 }
 
 func (e *Event) Dispatch(cc chan types.InteractionEvent) {
-	if model.IsBot(e.BaseEvent.RemoteAddr) {
-		lg().Info("not dispatching bot", "remote addr", e.BaseEvent.RemoteAddr)
-	} else {
-		go func() {
-			cc <- e
-		}()
+	addr := e.BaseEvent.RemoteAddr
+
+	// Loopback/private sources are usually the operator or an internal SSRF
+	// callback, so (when enabled) they bypass volume-based bot detection —
+	// otherwise a burst of local testing or captures silently stops
+	// dispatching and every notifier goes quiet.
+	exempt := e.botExemptPrivate && util.IsPrivateOrLoopback(addr)
+	if !exempt && model.IsBot(addr) {
+		lg().Warn("not dispatching suspected bot (high request volume); set bot_exempt_private to exempt local/private sources", "remote_addr", addr)
+		return
 	}
+
+	go func() {
+		cc <- e
+	}()
 }
 
 func (e *Event) TemplateContext(templateData map[string]string) *TemplateContext {

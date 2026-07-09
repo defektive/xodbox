@@ -44,6 +44,7 @@ type Handler struct {
 	TLSNames           []string
 	APIPath            string
 	APIToken           string
+	BotExemptPrivate   bool
 
 	StaticDir       string
 	dispatchChannel chan types.InteractionEvent
@@ -75,6 +76,12 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	mdaasAllowedCIDR := handlerConfig["mdaas_allowed_cidr"]
 	mdaasNotifyURL := handlerConfig["mdaas_notify_url"]
 
+	// Exempt loopback/private/link-local sources from volume-based bot
+	// detection by default — those are usually the operator or an internal
+	// SSRF callback, and dropping them silently is a foot-gun. Set
+	// bot_exempt_private: "false" to subject every source to bot detection.
+	botExemptPrivate := handlerConfig["bot_exempt_private"] != "false"
+
 	tlsNames := []string{}
 	if tlsNamesOpt != "" {
 		tlsNames = strings.Split(tlsNamesOpt, ",")
@@ -98,6 +105,7 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 		MDaaSNotifyURL:     mdaasNotifyURL,
 		APIPath:            handlerConfig["api_path"],
 		APIToken:           handlerConfig["api_token"],
+		BotExemptPrivate:   botExemptPrivate,
 	}
 
 	if payloadDir != "" {
@@ -162,6 +170,7 @@ func (h *Handler) serverMux() *http.ServeMux {
 				lg().Debug("http response completed", "timeTaken", fmt.Sprintf("%dµs", time.Since(loadStart).Microseconds()))
 			}()
 			e := NewEvent(r)
+			e.botExemptPrivate = h.BotExemptPrivate
 			e.Dispatch(h.dispatchChannel)
 
 			for _, payload := range SortedPayloads() {
@@ -358,6 +367,7 @@ func (h *Handler) noIndex(next http.Handler) http.Handler {
 		}
 
 		e := NewEvent(r)
+		e.botExemptPrivate = h.BotExemptPrivate
 		e.Dispatch(h.dispatchChannel)
 
 		next.ServeHTTP(w, r)
