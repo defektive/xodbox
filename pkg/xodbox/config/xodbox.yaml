@@ -16,6 +16,7 @@ handlers:
 #    dns_provider: namecheap # or route53
 #    dns_provider_api_user: namecheap-user
 #    dns_provider_api_key: namecheap-secret
+#    bot_exempt_private: "false" # apply bot detection to local/private IPs too (default exempts them)
     listener: :80
   ## Docs: https://defektive.github.io/xodbox/docs/pkg/handlers/smb/
 #  - handler: SMB

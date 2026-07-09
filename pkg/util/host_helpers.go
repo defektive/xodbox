@@ -2,11 +2,24 @@ package util
 
 import (
 	"fmt"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 )
+
+// IsPrivateOrLoopback reports whether host is a loopback, RFC1918 private,
+// or link-local IP address. host should be a bare IP (no port); non-IP
+// hostnames return false. Used to exempt trusted/local sources (operators
+// testing, internal SSRF callbacks) from volume-based bot detection.
+func IsPrivateOrLoopback(host string) bool {
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return false
+	}
+	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast()
+}
 
 func GetRemoteAddrFromRequest(req *http.Request) string {
 
