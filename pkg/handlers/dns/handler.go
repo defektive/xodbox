@@ -70,6 +70,20 @@ func (e *Event) Details() string {
 	return fmt.Sprintf("DNS: %s", qq)
 }
 
+// FilterString returns "DNS <QTYPE> <qname> from <ip>", e.g.
+// "DNS A c2.evil.com. from 10.0.0.5".
+func (e *Event) FilterString() string {
+	qtype, qname := "", ""
+	for _, q := range e.msg.Question {
+		if q.Name != "" {
+			qtype = dns.TypeToString[q.Qtype]
+			qname = q.Name
+			break
+		}
+	}
+	return fmt.Sprintf("DNS %s %s from %s", qtype, qname, e.RemoteAddr)
+}
+
 func (h *Handler) dispatchEvent(w dns.ResponseWriter, req *dns.Msg) {
 	e := newEvent(w, req)
 	h.dispatchChannel <- e

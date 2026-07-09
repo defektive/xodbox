@@ -41,6 +41,12 @@ func (e *Event) Details() string {
 	return fmt.Sprintf("SSH: %s from %s (%s)", e.action, e.user, e.RemoteAddr)
 }
 
+// FilterString returns "SSH <ACTION> <user> from <ip>", e.g.
+// "SSH PasswordAuth root from 10.0.0.5".
+func (e *Event) FilterString() string {
+	return fmt.Sprintf("SSH %s %s from %s", e.action, e.user, e.RemoteAddr)
+}
+
 func NewEvent(ctx ssh.Context, action Action) *Event {
 	hostname, portNum := util.GetHostAndPortFromRemoteAddr(ctx.RemoteAddr().String())
 

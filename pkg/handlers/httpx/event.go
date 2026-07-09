@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httputil"
+	"strings"
 	"sync"
 	"time"
 
@@ -64,6 +65,14 @@ func NewEvent(req *http.Request) *Event {
 
 func (e *Event) Details() string {
 	return fmt.Sprintf("HTTPX: %s %s from %s", e.req.Method, e.req.URL.String(), e.req.RemoteAddr)
+}
+
+// FilterString returns "HTTPX <METHOD> <path?query> from <ip-chain>". The
+// IP chain is the unique X-Forwarded-For + peer list, so filters can select
+// on method, path, or any hop's source IP.
+func (e *Event) FilterString() string {
+	return fmt.Sprintf("HTTPX %s %s from %s",
+		e.req.Method, e.req.URL.RequestURI(), strings.Join(util.RequestIPChain(e.req), ","))
 }
 
 func (e *Event) Body() []byte {

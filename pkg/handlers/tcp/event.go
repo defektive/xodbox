@@ -32,6 +32,12 @@ func (e *Event) Details() string {
 	return fmt.Sprintf("TCP Interaction Event: %s %d %s", e.RemoteAddr, e.RemotePortNumber, e.action.String())
 }
 
+// FilterString returns "TCP <ACTION> from <ip>", e.g.
+// "TCP Data from 10.0.0.5".
+func (e *Event) FilterString() string {
+	return fmt.Sprintf("TCP %s from %s", e.action.String(), e.RemoteAddr)
+}
+
 func NewEvent(ctx net.Conn, action Action, packet []byte) *Event {
 	hostname, portNum := util.GetHostAndPortFromRemoteAddr(ctx.RemoteAddr().String())
 

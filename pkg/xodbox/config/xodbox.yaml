@@ -30,11 +30,11 @@ notifiers:
 #    channel: general
 #    author: PirateVirus
 #    author_image: ':pirate:'
-#    filter: "(GET|POST|HEAD|DELETE|PUT|PATCH|TRACE) /x/"
+#    filter: "^HTTPX (GET|POST|HEAD|DELETE|PUT|PATCH|TRACE) /x/" # regex vs "HANDLER ACTION DETAIL from IP" (e.g. "^SMB Auth", "^DNS (A|AAAA) .*\\.evil\\.com")
 #  ## Docs: https://defektive.github.io/xodbox/docs/pkg/notifiers/discord/
 #  - notifier: discord
 #    url: https://discord.com/api/webhooks/133...6C
 #    author: PirateVirus
 #    author_image: https://s3-us-west-2.amazonaws.com/slack-f...72.png
-#    filter: "(GET|POST|HEAD|DELETE|PUT|PATCH|TRACE) /x/"
+#    filter: "^HTTPX (GET|POST|HEAD|DELETE|PUT|PATCH|TRACE) /x/" # regex vs "HANDLER ACTION DETAIL from IP" (e.g. "^SMB Auth", "^DNS (A|AAAA) .*\\.evil\\.com")
   - notifier: app_log

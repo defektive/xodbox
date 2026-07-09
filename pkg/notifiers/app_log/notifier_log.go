@@ -34,6 +34,9 @@ func (wh *Notifier) Payload(e types.InteractionEvent) (string, []any) {
 }
 
 func (wh *Notifier) Send(e types.InteractionEvent) error {
+	if !wh.filter.MatchString(e.FilterString()) {
+		return nil
+	}
 	msg, args := wh.Payload(e)
 	lg().Info(msg, args...)
 	return nil

@@ -39,3 +39,35 @@ func GetHostAndPortFromRemoteAddr(remoteAddr string) (string, int) {
 
 	return parsedURL.Hostname(), portNum
 }
+
+// RequestIPChain returns the unique, order-preserving chain of source IPs
+// for an HTTP request: X-Forwarded-For entries (client first), then
+// X-Real-Ip, then the direct TCP peer. Duplicates are collapsed. Forwarded
+// headers are client-controlled and can be spoofed, so treat the chain as
+// informational rather than authoritative.
+func RequestIPChain(req *http.Request) []string {
+	seen := map[string]struct{}{}
+	var out []string
+	add := func(ip string) {
+		ip = strings.TrimSpace(ip)
+		if ip == "" {
+			return
+		}
+		if _, ok := seen[ip]; ok {
+			return
+		}
+		seen[ip] = struct{}{}
+		out = append(out, ip)
+	}
+
+	if xff := req.Header.Get("X-Forwarded-For"); xff != "" {
+		for _, p := range strings.Split(xff, ",") {
+			add(p)
+		}
+	}
+	add(req.Header.Get("X-Real-Ip"))
+	if host, _ := GetHostAndPortFromRemoteAddr(req.RemoteAddr); host != "" {
+		add(host)
+	}
+	return out
+}
