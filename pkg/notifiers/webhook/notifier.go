@@ -3,6 +3,7 @@ package webhook
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"regexp"
@@ -76,6 +77,7 @@ type jsonEvent struct {
 	UserAgent  string
 	Data       interface{}
 	Details    string
+	Curl       string `json:",omitempty"`
 }
 
 func (wh *Notifier) Payload(e types.InteractionEvent) ([]byte, error) {
@@ -86,6 +88,7 @@ func (wh *Notifier) Payload(e types.InteractionEvent) ([]byte, error) {
 		UserAgent:  e.UserAgent(),
 		Data:       e.Data(),
 		Details:    e.Details(),
+		Curl:       CurlCommand(e),
 	}
 
 	return json.Marshal(res)
@@ -93,4 +96,24 @@ func (wh *Notifier) Payload(e types.InteractionEvent) ([]byte, error) {
 
 func FilterMatches(filter *regexp.Regexp, data string) bool {
 	return filter.MatchString(data)
+}
+
+// CurlCommand returns a replay curl command for events that can produce one
+// (HTTP), or "" otherwise.
+func CurlCommand(e types.InteractionEvent) string {
+	if cp, ok := e.(types.CurlProvider); ok {
+		return cp.CurlCommand()
+	}
+	return ""
+}
+
+// ChatText renders the standard chat-notifier body: the event details, its
+// raw data in a code block, and — when available — a curl command to replay
+// the request in a second code block.
+func ChatText(e types.InteractionEvent) string {
+	text := fmt.Sprintf("%s\n```%s\n```", e.Details(), e.Data())
+	if curl := CurlCommand(e); curl != "" {
+		text += fmt.Sprintf("\nReplay:\n```%s\n```", curl)
+	}
+	return text
 }

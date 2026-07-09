@@ -30,7 +30,13 @@ func (wh *Notifier) Name() string {
 }
 
 func (wh *Notifier) Payload(e types.InteractionEvent) (string, []any) {
-	return "InteractionEvent received", []any{"details", e.Details()}
+	args := []any{"details", e.Details()}
+	if cp, ok := e.(types.CurlProvider); ok {
+		if curl := cp.CurlCommand(); curl != "" {
+			args = append(args, "curl", curl)
+		}
+	}
+	return "InteractionEvent received", args
 }
 
 func (wh *Notifier) Send(e types.InteractionEvent) error {

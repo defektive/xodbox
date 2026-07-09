@@ -69,7 +69,7 @@ func TestWebhookNotifier_Payload(t *testing.T) {
 			args: args{
 				httpx.NewEvent(newHTTPRequest("http://localhost/")),
 			},
-			want: []byte(`{"RemoteAddr":"127.0.0.1","RemotePort":56429,"UserAgent":"","Data":"DELETE / HTTP/1.1\r\nHost: localhost\r\n\r\npizza","Details":"HTTPX: DELETE http://localhost/ from 127.0.0.1:56429"}`),
+			want: []byte(`{"RemoteAddr":"127.0.0.1","RemotePort":56429,"UserAgent":"","Data":"DELETE / HTTP/1.1\r\nHost: localhost\r\n\r\npizza","Details":"HTTPX: DELETE http://localhost/ from 127.0.0.1:56429","Curl":"curl -X DELETE 'http://localhost/' --data-raw 'pizza'"}`),
 		},
 		{
 			name: "HTTP Request with port",
@@ -81,7 +81,7 @@ func TestWebhookNotifier_Payload(t *testing.T) {
 			args: args{
 				httpx.NewEvent(newHTTPRequest("http://localhost:9090/")),
 			},
-			want: []byte(`{"RemoteAddr":"127.0.0.1","RemotePort":56429,"UserAgent":"","Data":"DELETE / HTTP/1.1\r\nHost: localhost:9090\r\n\r\npizza","Details":"HTTPX: DELETE http://localhost:9090/ from 127.0.0.1:56429"}`),
+			want: []byte(`{"RemoteAddr":"127.0.0.1","RemotePort":56429,"UserAgent":"","Data":"DELETE / HTTP/1.1\r\nHost: localhost:9090\r\n\r\npizza","Details":"HTTPX: DELETE http://localhost:9090/ from 127.0.0.1:56429","Curl":"curl -X DELETE 'http://localhost:9090/' --data-raw 'pizza'"}`),
 		},
 		{
 			name: "HTTPS Request with port",
@@ -93,7 +93,7 @@ func TestWebhookNotifier_Payload(t *testing.T) {
 			args: args{
 				httpx.NewEvent(newHTTPRequest("https://localhost:8443/")),
 			},
-			want: []byte(`{"RemoteAddr":"127.0.0.1","RemotePort":56429,"UserAgent":"","Data":"DELETE / HTTP/1.1\r\nHost: localhost:8443\r\n\r\npizza","Details":"HTTPX: DELETE https://localhost:8443/ from 127.0.0.1:56429"}`),
+			want: []byte(`{"RemoteAddr":"127.0.0.1","RemotePort":56429,"UserAgent":"","Data":"DELETE / HTTP/1.1\r\nHost: localhost:8443\r\n\r\npizza","Details":"HTTPX: DELETE https://localhost:8443/ from 127.0.0.1:56429","Curl":"curl -X DELETE 'https://localhost:8443/' --data-raw 'pizza'"}`),
 		},
 	}
 	for _, tt := range tests {
