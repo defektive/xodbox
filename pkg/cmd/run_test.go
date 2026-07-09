@@ -104,9 +104,11 @@ func TestPayloadDumpRunsAgainstTempDB(t *testing.T) {
 	t.Cleanup(func() { _ = os.Chdir(oldWd) })
 
 	// Point the model singleton at a tempdir DB and seed a payload.
+	// The model DB is a process singleton that persists across -count runs,
+	// so seed idempotently (FirstOrCreate) to avoid a UNIQUE name collision.
 	model.LoadDBWithOptions(model.DBOptions{Path: filepath.Join(dir, "test.db")})
 	t.Cleanup(func() {})
-	if err := model.DB().Create(&model.Payload{
+	if err := model.DB().Where(model.Payload{Name: "from-dump-test"}).FirstOrCreate(&model.Payload{
 		Name:    "from-dump-test",
 		Pattern: "^/x$",
 		Type:    "HTTPX",

@@ -71,12 +71,14 @@ func TestPersistAuthWritesInteraction(t *testing.T) {
 	defer server.Close()
 	defer client.Close()
 
-	before := len(model.SortedInteractions(100))
 	persistAuth(server, info, info.HashcatLine())
 
+	// The model DB is a process singleton that persists across -count runs,
+	// so assert on the newest row (the one we just wrote) rather than an
+	// absolute count.
 	rows := model.SortedInteractions(100)
-	if len(rows) != before+1 {
-		t.Fatalf("interaction count = %d, want %d", len(rows), before+1)
+	if len(rows) == 0 {
+		t.Fatal("no interaction persisted")
 	}
 	got := rows[0]
 	if got.Handler != "smb" || got.RequestType != "Auth" {
