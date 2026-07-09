@@ -58,10 +58,16 @@ func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) er
 	return s.ListenAndServe()
 }
 
-// Stop shuts down the underlying *smtp.Server. ctx bounds how long
-// in-flight sessions have to drain. Safe to call before Start or
-// multiple times.
+// Stop closes the underlying *smtp.Server immediately: its listeners and
+// any active connections. Safe to call before Start or multiple times.
+//
+// We use Close rather than the graceful Shutdown(ctx) on purpose:
+// go-smtp's Shutdown spawns a `wg.Wait()` goroutine that races the
+// running Serve loop under the race detector (go-smtp v0.24.0). Close does
+// the same teardown without that goroutine, and immediate close matches
+// the other handlers (tcp, smb). ctx is unused.
 func (h *Handler) Stop(ctx context.Context) error {
+	_ = ctx
 	h.mu.Lock()
 	s := h.server
 	h.server = nil
@@ -69,7 +75,7 @@ func (h *Handler) Stop(ctx context.Context) error {
 	if s == nil {
 		return nil
 	}
-	return s.Shutdown(ctx)
+	return s.Close()
 }
 
 func (h *Handler) NewSession(c *smtp.Conn) (smtp.Session, error) {
