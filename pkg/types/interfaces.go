@@ -17,6 +17,13 @@ type InteractionEvent interface {
 	RemotePort() int
 	UserAgent() string
 	Data() string
+	// FilterString returns the canonical, handler-labelled string a
+	// notifier's Filter regex is matched against. It has the shape
+	// "HANDLER ACTION DETAIL from IP[,IP...]" (e.g. "SMB Auth CORP\\alice
+	// from 10.0.0.5"), so a single regex can select across every handler
+	// (e.g. "^SMB Auth", "^DNS (A|AAAA) .*\\.evil\\.com"). The trailing IP
+	// list is the unique source chain (X-Forwarded-For + peer for HTTP).
+	FilterString() string
 	Dispatch(cc chan InteractionEvent)
 }
 

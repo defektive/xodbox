@@ -38,6 +38,9 @@ func (wh *Notifier) Filter() *regexp.Regexp {
 }
 
 func (wh *Notifier) Send(event types.InteractionEvent) error {
+	if !FilterMatches(wh.filter, event.FilterString()) {
+		return nil
+	}
 	jsonBody, err := wh.Payload(event)
 	if err != nil {
 		lg().Error("error marshaling JSON", "err", err)

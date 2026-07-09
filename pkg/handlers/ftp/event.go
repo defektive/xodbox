@@ -66,3 +66,9 @@ func NewEvent(remoteAddr string, action Action) *Event {
 func (e *Event) Details() string {
 	return fmt.Sprintf("FTP: event from %s", e.RemoteAddr)
 }
+
+// FilterString returns "FTP <ACTION> from <ip>", e.g.
+// "FTP AuthSuccess from 10.0.0.5".
+func (e *Event) FilterString() string {
+	return fmt.Sprintf("FTP %s from %s", e.action, e.RemoteAddr)
+}

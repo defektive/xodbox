@@ -38,6 +38,15 @@ func (e *Event) Details() string {
 	return fmt.Sprintf("SMB Interaction Event: %s %d %s", e.RemoteAddr, e.RemotePortNumber, e.action.String())
 }
 
+// FilterString returns "SMB <ACTION> [account] from <ip>", e.g.
+// "SMB Auth CORP\\alice from 10.0.0.5".
+func (e *Event) FilterString() string {
+	if e.action == Auth && e.Account != "" {
+		return fmt.Sprintf("SMB %s %s from %s", e.action, e.Account, e.RemoteAddr)
+	}
+	return fmt.Sprintf("SMB %s from %s", e.action, e.RemoteAddr)
+}
+
 // Dispatch sends the concrete *Event (not the embedded *BaseEvent) onto
 // the channel so notifiers see this type's Details()/Data().
 func (e *Event) Dispatch(cc chan types.InteractionEvent) {

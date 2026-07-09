@@ -50,6 +50,12 @@ func (e *Event) Details() string {
 	return fmt.Sprintf("SMTP: %s from %s", e.action, e.RemoteAddr)
 }
 
+// FilterString returns "SMTP <ACTION> from <ip>", e.g.
+// "SMTP Mail from 10.0.0.5".
+func (e *Event) FilterString() string {
+	return fmt.Sprintf("SMTP %s from %s", e.action, e.RemoteAddr)
+}
+
 func NewEvent(ctx *SMTPSession, action Action) *Event {
 	hostname, portNum := util.GetHostAndPortFromRemoteAddr(ctx.conn.Conn().RemoteAddr().String())
 
