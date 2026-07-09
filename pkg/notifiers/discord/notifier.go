@@ -2,7 +2,6 @@ package discord
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/defektive/xodbox/pkg/notifiers/webhook"
 	"github.com/defektive/xodbox/pkg/types"
@@ -42,7 +41,7 @@ func (wh *Notifier) Payload(e types.InteractionEvent) ([]byte, error) {
 	postBody := POSTData{
 		Username:  wh.User,
 		AvatarURL: wh.Icon,
-		Content:   fmt.Sprintf("%s\n```%s\n```", e.Details(), e.Data()),
+		Content:   webhook.ChatText(e),
 	}
 
 	return json.Marshal(postBody)

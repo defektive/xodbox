@@ -47,6 +47,8 @@ func TestNotifier_Payload(t *testing.T) {
 			want1: []any{
 				"details",
 				"HTTPX: DELETE http://localhost/test from 127.0.0.1:56429",
+				"curl",
+				"curl -X DELETE 'http://localhost/test' --data-raw 'pizza'",
 			},
 		},
 	}

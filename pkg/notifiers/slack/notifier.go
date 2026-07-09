@@ -2,7 +2,6 @@ package slack
 
 import (
 	"encoding/json"
-	"fmt"
 
 	"github.com/defektive/xodbox/pkg/notifiers/webhook"
 	"github.com/defektive/xodbox/pkg/types"
@@ -47,7 +46,7 @@ func (wh *Notifier) Payload(e types.InteractionEvent) ([]byte, error) {
 		Channel:   wh.Channel,
 		Username:  wh.User,
 		IconEmoji: wh.Icon,
-		Text:      fmt.Sprintf("%s\n```%s\n```", e.Details(), e.Data()),
+		Text:      webhook.ChatText(e),
 	}
 
 	return json.Marshal(postBody)

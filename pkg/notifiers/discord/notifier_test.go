@@ -64,7 +64,7 @@ func TestDiscordNotifier_Payload(t *testing.T) {
 			args: args{
 				httpx.NewEvent(newHTTPRequest("http://localhost/")),
 			},
-			want: []byte(`{"username":"user","avatar_url":"icon","content":"HTTPX: DELETE http://localhost/ from 127.0.0.1:56429\n` + "```" + `DELETE / HTTP/1.1\r\nHost: localhost\r\n\r\npizza\n` + "```" + `"}`),
+			want: []byte(`{"username":"user","avatar_url":"icon","content":"HTTPX: DELETE http://localhost/ from 127.0.0.1:56429\n` + "```" + `DELETE / HTTP/1.1\r\nHost: localhost\r\n\r\npizza\n` + "```" + `\nReplay:\n` + "```" + `curl -X DELETE 'http://localhost/' --data-raw 'pizza'\n` + "```" + `"}`),
 		},
 		{
 			name: "HTTP Request with port",
@@ -76,7 +76,7 @@ func TestDiscordNotifier_Payload(t *testing.T) {
 			args: args{
 				httpx.NewEvent(newHTTPRequest("http://localhost:9090/")),
 			},
-			want: []byte(`{"username":"user","avatar_url":"icon","content":"HTTPX: DELETE http://localhost:9090/ from 127.0.0.1:56429\n` + "```" + `DELETE / HTTP/1.1\r\nHost: localhost:9090\r\n\r\npizza\n` + "```" + `"}`),
+			want: []byte(`{"username":"user","avatar_url":"icon","content":"HTTPX: DELETE http://localhost:9090/ from 127.0.0.1:56429\n` + "```" + `DELETE / HTTP/1.1\r\nHost: localhost:9090\r\n\r\npizza\n` + "```" + `\nReplay:\n` + "```" + `curl -X DELETE 'http://localhost:9090/' --data-raw 'pizza'\n` + "```" + `"}`),
 		},
 		{
 			name: "HTTPS Request with port",
@@ -88,7 +88,7 @@ func TestDiscordNotifier_Payload(t *testing.T) {
 			args: args{
 				httpx.NewEvent(newHTTPRequest("https://localhost:8443/")),
 			},
-			want: []byte(`{"username":"user","avatar_url":"icon","content":"HTTPX: DELETE https://localhost:8443/ from 127.0.0.1:56429\n` + "```" + `DELETE / HTTP/1.1\r\nHost: localhost:8443\r\n\r\npizza\n` + "```" + `"}`),
+			want: []byte(`{"username":"user","avatar_url":"icon","content":"HTTPX: DELETE https://localhost:8443/ from 127.0.0.1:56429\n` + "```" + `DELETE / HTTP/1.1\r\nHost: localhost:8443\r\n\r\npizza\n` + "```" + `\nReplay:\n` + "```" + `curl -X DELETE 'https://localhost:8443/' --data-raw 'pizza'\n` + "```" + `"}`),
 		},
 	}
 	for _, tt := range tests {

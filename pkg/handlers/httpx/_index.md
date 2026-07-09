@@ -13,6 +13,26 @@ ACME-DNS-01. Every request produces an `InteractionEvent` so
 out-of-band HTTP reach-out from an application under test can be
 asserted against expected paths and headers.
 
+## Replaying captured requests (SSRF)
+
+Every HTTP interaction can render a `curl` command that reproduces the
+captured request — method, target URL, all headers, and the body. Notifiers
+include it automatically: `slack`/`discord` add a `Replay:` code block,
+`webhook` adds a `Curl` JSON field, and `app_log` logs a `curl` attribute.
+
+This is aimed at SSRF: when a vulnerable server is coerced into calling
+xodbox, the captured request often carries the headers, cookies, or
+cloud-metadata tokens the victim attached. Copy the generated command,
+swap the URL for the intended internal target, and re-run it from the CLI
+to inspect that service with the victim's own request:
+
+```sh
+curl -X POST 'http://your-xodbox/x/beacon?id=1' -H 'Authorization: Bearer …' --data-raw '…'
+```
+
+The command is single-line for easy copy-paste and shell-safe (values are
+single-quoted); `Content-Length` is dropped so curl recomputes it.
+
 ## Behaviour
 
 - HTTP serves the bundled payload database (see `payload_db_seed.go`

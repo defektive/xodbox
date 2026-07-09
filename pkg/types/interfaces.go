@@ -27,6 +27,15 @@ type InteractionEvent interface {
 	Dispatch(cc chan InteractionEvent)
 }
 
+// CurlProvider is an optional interface implemented by events that can
+// render a curl command reproducing the captured request (currently HTTP).
+// Notifiers type-assert to it to append a copy-pasteable replay command —
+// useful for turning an SSRF callback into a request you can re-run from
+// the CLI. Events that don't implement it are simply rendered without one.
+type CurlProvider interface {
+	CurlCommand() string
+}
+
 // Handler is a listening protocol implementation (HTTP, SMTP, DNS, ...).
 // Start blocks serving requests; Stop should release the listening
 // socket and any goroutines the handler owns. ctx provides a deadline
