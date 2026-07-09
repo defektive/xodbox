@@ -20,6 +20,7 @@ type Handler struct {
 	name            string
 	Listener        string
 	Persist         bool
+	TargetName      string
 	dispatchChannel chan types.InteractionEvent
 
 	mu       sync.Mutex
@@ -35,10 +36,16 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 		listener = ":445"
 	}
 
+	targetName := handlerConfig["target_name"]
+	if targetName == "" {
+		targetName = defaultTargetName
+	}
+
 	return &Handler{
-		name:     "SMB",
-		Listener: listener,
-		Persist:  handlerConfig["persist"] == "true",
+		name:       "SMB",
+		Listener:   listener,
+		Persist:    handlerConfig["persist"] == "true",
+		TargetName: targetName,
 	}
 }
 
@@ -187,7 +194,7 @@ func (h *Handler) handleSessionSetup(c net.Conn, done <-chan struct{}, msg []byt
 	switch ntlmMessageType(ntlm) {
 	case ntlmNegotiate:
 		// Client kicked off NTLM: hand back our challenge and ask for more.
-		secBuf := buildNegTokenResp(buildChallenge())
+		secBuf := buildNegTokenResp(buildChallenge(h.TargetName))
 		resp := buildSessionSetupResponse(mid, statusMoreProcessingReqd, secBuf)
 		if err := writePacket(c, resp); err != nil {
 			return true

@@ -46,10 +46,11 @@ const (
 	msvAvDNSDomain   = 0x0004
 )
 
-// targetName is the fake NetBIOS/DNS name the server advertises. It only
-// affects what the client believes it is talking to and shows up in the
-// AV pairs; it is not security-sensitive.
-const targetName = "XODBOX"
+// defaultTargetName is the fake NetBIOS/DNS name the server advertises when
+// none is configured. It only affects what the client believes it is
+// talking to and shows up in the AV pairs; it is not security-sensitive,
+// but it is fingerprintable, so operators can override it via config.
+const defaultTargetName = "XODBOX"
 
 // isNTLMSSP reports whether b begins with the NTLMSSP signature.
 func isNTLMSSP(b []byte) bool {
@@ -95,10 +96,10 @@ func avPair(buf *bytes.Buffer, id uint16, value []byte) {
 }
 
 // buildChallenge builds an NTLMSSP CHALLENGE (type 2) message carrying
-// ServerChallenge and a synthetic target info block. This is the token
-// the server hands back inside SESSION_SETUP to make the client compute
-// and send its NetNTLMv2 response.
-func buildChallenge() []byte {
+// ServerChallenge and a synthetic target info block built from targetName.
+// This is the token the server hands back inside SESSION_SETUP to make the
+// client compute and send its NetNTLMv2 response.
+func buildChallenge(targetName string) []byte {
 	tn := utf16le(targetName)
 
 	var info bytes.Buffer
