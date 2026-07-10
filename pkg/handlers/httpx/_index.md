@@ -115,8 +115,36 @@ JSON admin API. It lets an operator log in and:
   smb), so the log spans all protocols, not just HTTP,
 - inspect a **request detail** with a one-click **copy-as-curl**,
 - get a **webhook-style view** of every hit to a specific `target` path,
+- manage **sinks** — named, described slugs with a per-slug event feed,
 - review detected **bots**,
 - manage **users** and **API keys**, and rotate their own password.
+
+### Sinks
+
+A **sink** is a named, described slug you embed in a payload (a URL path, a DNS
+label, a query value) to correlate out-of-band interactions. Creating a sink
+does not change what the honeypot captures — every path and name is already
+recorded — it labels and groups the hits so you can remember what a slug is for
+and review its whole feed in one place. An interaction belongs to a sink when
+the slug appears in its `request_target` (HTTP path, DNS qname) or its raw
+request headers (the request line + `Host`), so `/<slug>`, `<slug>.your.domain`,
+and `?x=<slug>` all correlate. Deleting a sink leaves its captured interactions
+untouched.
+
+Sinks are managed in the UI (create with an optional slug + description, then
+open one to see its events, newest first) and over the API — `GET/POST
+/api/sinks`, `GET /api/sinks/{slug}` (sink + event feed), `DELETE
+/api/sinks/{slug}`.
+
+From the CLI (handy for scripting payload generation — only the slug is written
+to stdout, so it is clean to capture):
+
+```sh
+SLUG=$(xodbox sink add --description "prod SSRF beacon")   # random slug
+xodbox sink add my-label --description "a named one"        # explicit slug
+xodbox sink list
+xodbox sink rm my-label
+```
 
 ### Serving the console
 

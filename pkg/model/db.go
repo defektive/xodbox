@@ -71,6 +71,7 @@ func LoadDBWithOptions(options DBOptions) {
 			&User{},
 			&Session{},
 			&APIKey{},
+			&Sink{},
 		}
 
 		err = db.AutoMigrate(models...)

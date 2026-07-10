@@ -44,6 +44,20 @@ export interface ApiKey {
   expires_at: string | null;
 }
 
+export interface Sink {
+  slug: string;
+  description: string;
+  created_at: string;
+  event_count: number;
+}
+
+export interface SinkDetail extends Sink {
+  events: InteractionSummary[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
 export interface Payload {
   id: number;
   name: string;

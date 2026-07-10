@@ -8,6 +8,8 @@ import RequestDetail from "@/pages/RequestDetail";
 import Bots from "@/pages/Bots";
 import Payloads from "@/pages/Payloads";
 import PayloadEditor from "@/pages/PayloadEditor";
+import Sinks from "@/pages/Sinks";
+import SinkDetail from "@/pages/SinkDetail";
 import Users from "@/pages/Users";
 import ApiKeys from "@/pages/ApiKeys";
 import Account from "@/pages/Account";
@@ -35,6 +37,7 @@ export default function Shell({
   const isAdmin = user.role === "admin";
   const nav = [
     { to: "/requests", label: "Requests" },
+    { to: "/sinks", label: "Sinks" },
     { to: "/bots", label: "Bots" },
     { to: "/payloads", label: "Payloads" },
     ...(isAdmin ? [{ to: "/users", label: "Users" }] : []),
@@ -80,6 +83,8 @@ export default function Shell({
           <Route path="/payloads" element={<Payloads />} />
           <Route path="/payloads/new" element={<PayloadEditor />} />
           <Route path="/payloads/:id" element={<PayloadEditor />} />
+          <Route path="/sinks" element={<Sinks />} />
+          <Route path="/sinks/:slug" element={<SinkDetail />} />
           <Route path="/users" element={<Users currentUserId={user.id} />} />
           <Route path="/keys" element={<ApiKeys />} />
           <Route path="/account" element={<Account />} />

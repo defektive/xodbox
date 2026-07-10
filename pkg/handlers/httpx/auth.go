@@ -71,6 +71,12 @@ func (a *adminAuth) mux() *http.ServeMux {
 	mux.HandleFunc("PUT /api/payloads/{id}", a.requireAdmin(a.handleUpdatePayload))
 	mux.HandleFunc("DELETE /api/payloads/{id}", a.requireAdmin(a.handleDeletePayload))
 
+	// Sinks: named/described slugs with a per-slug event feed.
+	mux.HandleFunc("GET /api/sinks", a.requireAuth(a.handleSinks))
+	mux.HandleFunc("POST /api/sinks", a.requireAuth(a.handleCreateSink))
+	mux.HandleFunc("GET /api/sinks/{slug}", a.requireAuth(a.handleSink))
+	mux.HandleFunc("DELETE /api/sinks/{slug}", a.requireAuth(a.handleDeleteSink))
+
 	// User management (admin) + account + API keys (Phase 5).
 	mux.HandleFunc("GET /api/users", a.requireAdmin(a.handleUsers))
 	mux.HandleFunc("POST /api/users", a.requireAdmin(a.handleCreateUser))
