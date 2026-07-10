@@ -108,6 +108,10 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	// served there instead of on the main httpx listener.
 	adminListener := handlerConfig["admin_listener"]
 
+	if handlerConfig["api_token"] != "" {
+		lg().Warn("api_token is deprecated; create admin users and API keys with 'xodbox user add' and the admin UI")
+	}
+
 	tlsNames := []string{}
 	if tlsNamesOpt != "" {
 		tlsNames = strings.Split(tlsNamesOpt, ",")

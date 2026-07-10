@@ -1,30 +1,51 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+const { mockAuth } = vi.hoisted(() => ({
+  mockAuth: {
+    user: null as { id: number; username: string; role: string } | null,
+    loading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+  },
+}));
+
+vi.mock("@/lib/auth", () => ({
+  useAuth: () => mockAuth,
+  AuthProvider: ({ children }: { children: React.ReactNode }) => children,
+}));
+
 import App from "@/App";
 
-function renderAt(path: string) {
+function renderApp() {
   return render(
-    <MemoryRouter initialEntries={[path]}>
+    <MemoryRouter>
       <App />
     </MemoryRouter>,
   );
 }
 
-describe("App shell", () => {
-  it("renders the nav and dashboard by default", () => {
-    renderAt("/");
-    expect(screen.getByText("xodbox")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Requests" })).toBeInTheDocument();
-    // Page content lives in <main>; scope to it to avoid matching nav links.
-    const main = screen.getByRole("main");
-    expect(within(main).getByText("Dashboard")).toBeInTheDocument();
-    expect(within(main).getByText("Coming soon.")).toBeInTheDocument();
+describe("App auth gate", () => {
+  it("shows the login page when signed out", () => {
+    mockAuth.user = null;
+    mockAuth.loading = false;
+    renderApp();
+    expect(screen.getByText("Sign in to xodbox")).toBeInTheDocument();
   });
 
-  it("routes to the requests placeholder", () => {
-    renderAt("/requests");
-    const main = screen.getByRole("main");
-    expect(within(main).getByText("Requests")).toBeInTheDocument();
+  it("shows a loading state while the session is checked", () => {
+    mockAuth.user = null;
+    mockAuth.loading = true;
+    renderApp();
+    expect(screen.getByText("Loading…")).toBeInTheDocument();
+  });
+
+  it("shows the app shell when signed in", () => {
+    mockAuth.user = { id: 1, username: "alice", role: "admin" };
+    mockAuth.loading = false;
+    renderApp();
+    expect(screen.getByText("alice")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Requests" })).toBeInTheDocument();
   });
 });
