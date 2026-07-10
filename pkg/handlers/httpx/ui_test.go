@@ -14,6 +14,38 @@ func uiHandler(t *testing.T, cfg map[string]string) *Handler {
 	return h
 }
 
+func TestUIServesPWAManifestAndIcon(t *testing.T) {
+	h := uiHandler(t, map[string]string{"listener": ":0", "ui_path": "admin"})
+	mux := h.serverMux()
+
+	// The SPA links the manifest under the mount path.
+	idx := httptest.NewRecorder()
+	mux.ServeHTTP(idx, httptest.NewRequest(http.MethodGet, "/admin/", nil))
+	if !strings.Contains(idx.Body.String(), `rel="manifest" href="/admin/manifest.webmanifest"`) {
+		t.Error("index.html missing manifest link under ui_path")
+	}
+
+	// The manifest is served with the correct content type and relative URLs.
+	man := httptest.NewRecorder()
+	mux.ServeHTTP(man, httptest.NewRequest(http.MethodGet, "/admin/manifest.webmanifest", nil))
+	if man.Code != http.StatusOK {
+		t.Fatalf("GET manifest = %d, want 200", man.Code)
+	}
+	if ct := man.Header().Get("Content-Type"); !strings.Contains(ct, "manifest+json") {
+		t.Errorf("manifest Content-Type = %q, want application/manifest+json", ct)
+	}
+	if !strings.Contains(man.Body.String(), `"start_url": "."`) {
+		t.Error("manifest should use a relative start_url so it works under any ui_path")
+	}
+
+	// An icon asset is served as an image.
+	icon := httptest.NewRecorder()
+	mux.ServeHTTP(icon, httptest.NewRequest(http.MethodGet, "/admin/icon-192.png", nil))
+	if icon.Code != http.StatusOK || !strings.HasPrefix(icon.Header().Get("Content-Type"), "image/") {
+		t.Errorf("icon: code=%d type=%q", icon.Code, icon.Header().Get("Content-Type"))
+	}
+}
+
 func TestUIMountServesSPAWithInjectedBase(t *testing.T) {
 	h := uiHandler(t, map[string]string{"listener": ":0", "ui_path": "admin"})
 	if h.UIPath != "/admin/" {

@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
@@ -44,6 +44,15 @@ describe("Shell", () => {
     renderAt("/", onLogout);
     screen.getByRole("button", { name: "Sign out" }).click();
     expect(onLogout).toHaveBeenCalledTimes(1);
+  });
+
+  it("toggles the mobile nav drawer", () => {
+    renderAt("/");
+    // Only the desktop nav is rendered until the menu opens.
+    expect(screen.getAllByRole("link", { name: "Requests" })).toHaveLength(1);
+    fireEvent.click(screen.getByRole("button", { name: "Toggle menu" }));
+    // Opening the drawer adds a second copy of each nav link.
+    expect(screen.getAllByRole("link", { name: "Requests" })).toHaveLength(2);
   });
 
   it("hides the Users nav for non-admins", () => {

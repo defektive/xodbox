@@ -1,11 +1,13 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: ["class"],
+  // Dark mode follows the OS setting (prefers-color-scheme); the palette lives
+  // in index.css as CSS variables under a media query.
+  darkMode: "media",
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     container: {
       center: true,
-      padding: "2rem",
+      padding: { DEFAULT: "1rem", sm: "1.5rem", lg: "2rem" },
       screens: { "2xl": "1400px" },
     },
     extend: {

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { NavLink, Route, Routes } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import type { User } from "@/lib/auth";
@@ -45,34 +46,92 @@ export default function Shell({
     { to: "/account", label: "Account" },
   ];
 
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  const linkClass = ({ isActive }: { isActive: boolean }) =>
+    cn(
+      "text-muted-foreground transition-colors hover:text-foreground",
+      isActive && "text-foreground",
+    );
+
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b">
+      <header className="sticky top-0 z-20 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="container flex h-14 items-center gap-6">
           <span className="font-semibold">xodbox</span>
-          <nav className="flex items-center gap-4 text-sm">
+
+          {/* Desktop nav */}
+          <nav className="hidden items-center gap-4 text-sm sm:flex">
             {nav.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                className={({ isActive }) =>
-                  cn(
-                    "text-muted-foreground transition-colors hover:text-foreground",
-                    isActive && "text-foreground",
-                  )
-                }
-              >
+              <NavLink key={item.to} to={item.to} className={linkClass}>
                 {item.label}
               </NavLink>
             ))}
           </nav>
+
           <div className="ml-auto flex items-center gap-3 text-sm">
-            <span className="text-muted-foreground">{user.username}</span>
-            <Button variant="outline" size="sm" onClick={onLogout}>
+            <span className="hidden text-muted-foreground sm:inline">
+              {user.username}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={onLogout}
+              className="hidden sm:inline-flex"
+            >
               Sign out
             </Button>
+
+            {/* Mobile menu toggle */}
+            <button
+              type="button"
+              className="-mr-1 inline-flex h-9 w-9 items-center justify-center rounded-md hover:bg-accent sm:hidden"
+              aria-label="Toggle menu"
+              aria-expanded={menuOpen}
+              onClick={() => setMenuOpen((v) => !v)}
+            >
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+              >
+                {menuOpen ? (
+                  <path d="M6 6l12 12M18 6L6 18" />
+                ) : (
+                  <path d="M4 7h16M4 12h16M4 17h16" />
+                )}
+              </svg>
+            </button>
           </div>
         </div>
+
+        {/* Mobile nav drawer */}
+        {menuOpen && (
+          <nav className="border-t bg-background sm:hidden">
+            <div className="container flex flex-col py-2">
+              {nav.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setMenuOpen(false)}
+                  className={(s) => cn(linkClass(s), "py-2.5")}
+                >
+                  {item.label}
+                </NavLink>
+              ))}
+              <div className="mt-2 flex items-center justify-between border-t pt-3">
+                <span className="text-muted-foreground">{user.username}</span>
+                <Button variant="outline" size="sm" onClick={onLogout}>
+                  Sign out
+                </Button>
+              </div>
+            </div>
+          </nav>
+        )}
       </header>
       <main className="container py-6">
         <Routes>

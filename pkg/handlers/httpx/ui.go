@@ -2,10 +2,17 @@ package httpx
 
 import (
 	"io/fs"
+	"mime"
 	"net"
 	"net/http"
 	"strings"
 )
+
+func init() {
+	// Go's default MIME table has no entry for .webmanifest; register it so the
+	// PWA manifest is served as application/manifest+json rather than text/plain.
+	_ = mime.AddExtensionType(".webmanifest", "application/manifest+json")
+}
 
 // uiBasePlaceholder is substituted in index.html with the configured mount
 // path so the same compiled bundle works under any ui_path. It carries the
