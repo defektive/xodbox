@@ -17,6 +17,20 @@ import (
 
 const PayloadName = "HTTPX"
 
+// payloadFuncMap returns the Sprig template functions available to payload
+// authors, with the process-environment accessors removed. Payloads are
+// authored through the admin API and rendered directly into attacker-facing
+// responses, so they must never be able to read the server's environment
+// (which holds notifier tokens, webhook URLs, and other operator secrets).
+// Returns an unnamed map so it satisfies both text/template and html/template
+// Funcs signatures.
+func payloadFuncMap() map[string]interface{} {
+	fm := sprig.GenericFuncMap()
+	delete(fm, "env")
+	delete(fm, "expandenv")
+	return fm
+}
+
 // caches payloads so we only load them once
 var payloads = []*Payload{}
 
@@ -65,8 +79,8 @@ func (h *Payload) HeaderTemplates() []*HeaderTemplate {
 		var i = 0
 		for header, value := range h.Data.Headers {
 			t := &HeaderTemplate{
-				HeaderTemplate: textTemplate.Must(textTemplate.New(fmt.Sprintf("HTTP_PAYLOAD_%d_h_header_%d", h.ID, i)).Funcs(sprig.FuncMap()).Parse(header)),
-				ValueTemplate:  textTemplate.Must(textTemplate.New(fmt.Sprintf("HTTP_PAYLOAD_%d_h_value_%d", h.ID, i)).Funcs(sprig.FuncMap()).Parse(value)),
+				HeaderTemplate: textTemplate.Must(textTemplate.New(fmt.Sprintf("HTTP_PAYLOAD_%d_h_header_%d", h.ID, i)).Funcs(payloadFuncMap()).Parse(header)),
+				ValueTemplate:  textTemplate.Must(textTemplate.New(fmt.Sprintf("HTTP_PAYLOAD_%d_h_value_%d", h.ID, i)).Funcs(payloadFuncMap()).Parse(value)),
 			}
 			h.headerTemplates = append(h.headerTemplates, t)
 		}
@@ -78,7 +92,7 @@ func (h *Payload) HeaderTemplates() []*HeaderTemplate {
 // BodyTextTemplate initialize and/or return already initialized body textTemplate
 func (h *Payload) BodyTextTemplate() (*textTemplate.Template, error) {
 	if h.bodyTextTemplate == nil {
-		tp := textTemplate.New(fmt.Sprintf("HTTP_PAYLOAD_%d_body", h.ID)).Funcs(sprig.FuncMap())
+		tp := textTemplate.New(fmt.Sprintf("HTTP_PAYLOAD_%d_body", h.ID)).Funcs(payloadFuncMap())
 		return tp.Parse(h.Data.Body)
 	}
 
@@ -88,7 +102,7 @@ func (h *Payload) BodyTextTemplate() (*textTemplate.Template, error) {
 // BodyHTMLTemplate initialize and/or return already initialized body textTemplate
 func (h *Payload) BodyHTMLTemplate() (*htmlTemplate.Template, error) {
 	if h.bodyHTMLTemplate == nil {
-		tp := htmlTemplate.New(fmt.Sprintf("HTTP_PAYLOAD_%d_body", h.ID)).Funcs(sprig.FuncMap())
+		tp := htmlTemplate.New(fmt.Sprintf("HTTP_PAYLOAD_%d_body", h.ID)).Funcs(payloadFuncMap())
 		return tp.Parse(h.Data.Body)
 	}
 
@@ -117,7 +131,7 @@ func (h *Payload) ExecuteBodyTemplate(wr io.Writer, data any) error {
 // StatusTemplate initialize and/or return already initialized status textTemplate
 func (h *Payload) StatusTemplate() *textTemplate.Template {
 	if h.statusTemplate == nil {
-		h.statusTemplate = textTemplate.Must(textTemplate.New(fmt.Sprintf("%s_status_code", PayloadName)).Funcs(sprig.FuncMap()).Parse(h.Data.StatusCode))
+		h.statusTemplate = textTemplate.Must(textTemplate.New(fmt.Sprintf("%s_status_code", PayloadName)).Funcs(payloadFuncMap()).Parse(h.Data.StatusCode))
 	}
 	return h.statusTemplate
 }

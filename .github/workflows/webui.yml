@@ -1,0 +1,44 @@
+name: Web UI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'webui/**'
+      - 'pkg/handlers/httpx/webui/**'
+      - '.github/workflows/webui.yml'
+      - 'Makefile'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'webui/**'
+      - 'pkg/handlers/httpx/webui/**'
+      - '.github/workflows/webui.yml'
+      - 'Makefile'
+
+permissions:
+  contents: read
+
+jobs:
+  webui:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      # Builds the SPA and stages it into pkg/handlers/httpx/webui/ (npm ci +
+      # vite build + copy). Uses the runner's preinstalled Node.
+      - name: Build admin UI
+        run: make ui
+
+      - name: Unit tests
+        run: npm --prefix webui run test
+
+      # The compiled SPA is committed so `go build`/tests need no Node. Fail if
+      # a change to webui/ source wasn't re-embedded via `make ui`.
+      - name: Verify embedded assets are up to date
+        run: |
+          if ! git diff --quiet -- pkg/handlers/httpx/webui; then
+            echo "::error::Embedded admin UI assets are stale. Run 'make ui' and commit pkg/handlers/httpx/webui."
+            git --no-pager diff --stat -- pkg/handlers/httpx/webui
+            exit 1
+          fi

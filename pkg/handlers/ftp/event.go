@@ -3,6 +3,7 @@ package ftp
 import (
 	"fmt"
 
+	"github.com/defektive/xodbox/pkg/model"
 	"github.com/defektive/xodbox/pkg/types"
 	"github.com/defektive/xodbox/pkg/util"
 )
@@ -71,4 +72,16 @@ func (e *Event) Details() string {
 // "FTP AuthSuccess from 10.0.0.5".
 func (e *Event) FilterString() string {
 	return fmt.Sprintf("FTP %s from %s", e.action, e.RemoteAddr)
+}
+
+// Interaction records the FTP action for the DB / web UI.
+func (e *Event) Interaction() *model.Interaction {
+	return &model.Interaction{
+		RemoteAddr:  e.RemoteAddr,
+		RemotePort:  fmt.Sprintf("%d", e.RemotePortNumber),
+		Handler:     "ftp",
+		Protocol:    "ftp",
+		RequestType: e.action.String(),
+		Data:        e.RawData,
+	}
 }

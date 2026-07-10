@@ -68,6 +68,10 @@ func LoadDBWithOptions(options DBOptions) {
 			&Project{},
 			&Payload{},
 			&Interaction{},
+			&User{},
+			&Session{},
+			&APIKey{},
+			&Sink{},
 		}
 
 		err = db.AutoMigrate(models...)

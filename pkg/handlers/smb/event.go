@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/defektive/xodbox/pkg/model"
 	"github.com/defektive/xodbox/pkg/types"
 	"github.com/defektive/xodbox/pkg/util"
 )
@@ -45,6 +46,21 @@ func (e *Event) FilterString() string {
 		return fmt.Sprintf("SMB %s %s from %s", e.action, e.Account, e.RemoteAddr)
 	}
 	return fmt.Sprintf("SMB %s from %s", e.action, e.RemoteAddr)
+}
+
+// Interaction records the SMB event for the DB / web UI. For Auth events the
+// captured NetNTLMv2 hash (hashcat mode 5600) rides in Data and the
+// DOMAIN\User the client authenticated as rides in RequestTarget.
+func (e *Event) Interaction() *model.Interaction {
+	return &model.Interaction{
+		RemoteAddr:    e.RemoteAddr,
+		RemotePort:    fmt.Sprintf("%d", e.RemotePortNumber),
+		Handler:       "smb",
+		Protocol:      "smb",
+		RequestType:   e.action.String(),
+		RequestTarget: e.Account,
+		Data:          e.RawData,
+	}
 }
 
 // Dispatch sends the concrete *Event (not the embedded *BaseEvent) onto

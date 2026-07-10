@@ -60,12 +60,18 @@ func TestPayloadPatternRegexpType(t *testing.T) {
 
 // resetDB clears the package-level singleton and points the next
 // LoadDBWithOptions call at a fresh sqlite file inside the test's temp
-// directory. Tests that hit the database must call this first.
+// directory. Tests that hit the database must call this first. On cleanup it
+// restores the package-scoped DB (TestMain's pkgDBPath) rather than leaving the
+// singleton nil, which would make later tests lazily create the default
+// "xodbox.db" in the source tree.
 func resetDB(t *testing.T) {
 	t.Helper()
 	db = nil
 	LoadDBWithOptions(DBOptions{Path: filepath.Join(t.TempDir(), "test.db")})
-	t.Cleanup(func() { db = nil })
+	t.Cleanup(func() {
+		db = nil
+		LoadDBWithOptions(DBOptions{Path: pkgDBPath})
+	})
 }
 
 func TestLoadDBWithOptionsSeedsDefaultProject(t *testing.T) {

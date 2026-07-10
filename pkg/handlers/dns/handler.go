@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"sync"
 
+	"github.com/defektive/xodbox/pkg/model"
 	"github.com/defektive/xodbox/pkg/types"
 	"github.com/defektive/xodbox/pkg/util"
 	"github.com/factomproject/basen"
@@ -82,6 +83,27 @@ func (e *Event) FilterString() string {
 		}
 	}
 	return fmt.Sprintf("DNS %s %s from %s", qtype, qname, e.RemoteAddr)
+}
+
+// Interaction records the DNS query (type + queried name) for the DB / web UI.
+func (e *Event) Interaction() *model.Interaction {
+	qtype, qname := "", ""
+	for _, q := range e.msg.Question {
+		if q.Name != "" {
+			qtype = dns.TypeToString[q.Qtype]
+			qname = q.Name
+			break
+		}
+	}
+	return &model.Interaction{
+		RemoteAddr:    e.RemoteAddr,
+		RemotePort:    fmt.Sprintf("%d", e.RemotePortNumber),
+		Handler:       "dns",
+		Protocol:      "dns",
+		RequestType:   qtype,
+		RequestTarget: qname,
+		Data:          e.RawData,
+	}
 }
 
 func (h *Handler) dispatchEvent(w dns.ResponseWriter, req *dns.Msg) {

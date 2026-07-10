@@ -13,6 +13,9 @@ before:
   hooks:
     # You may remove this if you don't use go modules.
     - go mod tidy
+    # Build the admin web UI and stage it into the embedded assets so release
+    # binaries always ship a fresh SPA (requires Node; see the release workflow).
+    - make ui
     # you may remove this if you don't need go generate
     - go generate ./...
 

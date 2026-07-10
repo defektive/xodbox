@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/defektive/xodbox/pkg/model"
 	"github.com/defektive/xodbox/pkg/types"
 )
 
@@ -15,11 +16,17 @@ import (
 // drain after a SIGINT/SIGTERM before returning anyway.
 const shutdownTimeout = 10 * time.Second
 
+// persistQueueSize bounds the buffer of interactions waiting to be written by
+// the single persister goroutine. When it fills (e.g. a write-locked DB under a
+// flood), new records are dropped rather than stalling the event loop.
+const persistQueueSize = 1024
+
 func NewApp(config *Config) *App {
 
 	newApp := &App{
 		appConfig:            config,
 		eventChan:            make(chan types.InteractionEvent),
+		persistChan:          make(chan types.InteractionEvent, persistQueueSize),
 		notificationHandlers: []types.Notifier{},
 		stop:                 make(chan struct{}),
 	}
@@ -48,6 +55,7 @@ func NewApp(config *Config) *App {
 type App struct {
 	appConfig            *Config
 	eventChan            chan types.InteractionEvent
+	persistChan          chan types.InteractionEvent
 	notificationHandlers []types.Notifier
 
 	// stop is closed once by Shutdown to unblock waitForEvents.
@@ -55,6 +63,10 @@ type App struct {
 }
 
 func (x *App) Run() {
+	// The persister writes to the DB off the event loop so a slow/locked SQLite
+	// write never delays notifier delivery.
+	go x.runPersister()
+
 	for _, h := range x.appConfig.Handlers {
 		lg().Debug("Running handler", "handler", h)
 		go func(h types.Handler) {
@@ -107,6 +119,42 @@ func (x *App) GetTemplateData() map[string]string {
 	return maps.Clone(x.appConfig.TemplateData)
 }
 
+// runPersister is the single writer goroutine: it drains persistChan and stores
+// each event, off the event loop, so a slow/locked SQLite write never delays
+// notifier dispatch. One writer keeps the pure-Go SQLite driver (which dislikes
+// concurrent writers) happy.
+func (x *App) runPersister() {
+	for {
+		select {
+		case <-x.stop:
+			return
+		case e := <-x.persistChan:
+			persistInteraction(e)
+		}
+	}
+}
+
+// persistInteraction stores an event as an Interaction when the event supports
+// it (implements types.Persistable), so every handler's activity — not just
+// httpx — shows up in the DB and the web UI. A nil record means the event opted
+// out of persistence.
+func persistInteraction(e types.InteractionEvent) {
+	p, ok := e.(types.Persistable)
+	if !ok {
+		return
+	}
+	i := p.Interaction()
+	if i == nil {
+		return
+	}
+	if tx := model.DB().Create(i); tx.Error != nil {
+		lg().Error("failed to persist interaction", "err", tx.Error, "handler", i.Handler)
+		return
+	}
+	// Fan out to any live subscribers (the admin UI's realtime stream).
+	model.PublishInteraction(i)
+}
+
 func (x *App) waitForEvents() {
 	lg().Debug("Waiting for events...")
 	for {
@@ -115,6 +163,18 @@ func (x *App) waitForEvents() {
 			lg().Debug("event loop shutting down")
 			return
 		case newEvent := <-x.eventChan:
+			// Hand the event to the persister (non-blocking so a write backlog
+			// can't stall the loop), then dispatch to notifiers — unless the
+			// event opts out of notification (e.g. a suspected bot), which stays
+			// recorded but silent.
+			select {
+			case x.persistChan <- newEvent:
+			default:
+				lg().Warn("persist queue full; dropping interaction record")
+			}
+			if s, ok := newEvent.(types.NotifySuppressor); ok && s.NotifySuppressed() {
+				continue
+			}
 			for _, h := range x.notificationHandlers {
 				go func(h types.Notifier) {
 					if err := h.Send(newEvent); err != nil {

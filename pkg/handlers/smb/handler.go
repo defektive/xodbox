@@ -19,7 +19,6 @@ import (
 type Handler struct {
 	name            string
 	Listener        string
-	Persist         bool
 	TargetName      string
 	dispatchChannel chan types.InteractionEvent
 
@@ -44,7 +43,6 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	return &Handler{
 		name:       "SMB",
 		Listener:   listener,
-		Persist:    handlerConfig["persist"] == "true",
 		TargetName: targetName,
 	}
 }
@@ -208,9 +206,6 @@ func (h *Handler) handleSessionSetup(c net.Conn, done <-chan struct{}, msg []byt
 		} else {
 			hash := info.HashcatLine()
 			lg().Info("captured NetNTLMv2", "account", info.Account())
-			if h.Persist {
-				persistAuth(c, info, hash)
-			}
 			ev := NewEvent(c, Auth, []byte(hash))
 			ev.Account = info.Account()
 			h.send(done, ev)

@@ -20,16 +20,30 @@ BIN_DIR         := bin
 COVERAGE_FILE   := coverage.out
 PKG             := ./...
 
+UI_DIR          := webui
+UI_EMBED_DIR    := pkg/handlers/httpx/webui
+
 VERSION         := $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 COMMIT          := $(shell git rev-parse --short HEAD 2>/dev/null || echo unknown)
 LDFLAGS         := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help test race cover lint fmt build run tidy release-dry clean
+.PHONY: help test race cover lint fmt build run tidy release-dry clean ui ui-test
 
 help: ## print every target
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ {printf "  %-15s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
+
+ui: ## build the admin web UI and stage it into the embedded assets
+	npm --prefix $(UI_DIR) ci
+	npm --prefix $(UI_DIR) run build
+	rm -rf $(UI_EMBED_DIR)
+	mkdir -p $(UI_EMBED_DIR)
+	cp -r $(UI_DIR)/dist/. $(UI_EMBED_DIR)/
+
+ui-test: ## run the admin web UI unit tests
+	npm --prefix $(UI_DIR) ci
+	npm --prefix $(UI_DIR) run test
 
 test: ## run the full test suite
 	$(GO) test -timeout 120s $(PKG)

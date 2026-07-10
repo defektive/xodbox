@@ -17,11 +17,13 @@ handlers:
 #    dns_provider_api_user: namecheap-user
 #    dns_provider_api_key: namecheap-secret
 #    bot_exempt_private: "false" # apply bot detection to local/private IPs too (default exempts them)
+#    ui_path: /admin # mount the embedded admin web UI here (empty = disabled)
+#    ui_allow_cidrs: "127.0.0.1/32,10.0.0.0/8" # restrict UI access to these source CIDRs (peer IP)
+#    admin_listener: 127.0.0.1:9091 # serve the admin UI on this isolated bind instead of the public listener
     listener: :80
   ## Docs: https://defektive.github.io/xodbox/docs/pkg/handlers/smb/
 #  - handler: SMB
 #    listener: :445 # fake SMB server; captures NetNTLMv2 hashes (hashcat mode 5600)
-#    persist: true # save captured hashes to the database (off by default)
 #    target_name: CORP-FS01 # advertised NetBIOS/DNS name (default XODBOX); customize to avoid fingerprinting
 ## Docs: https://defektive.github.io/xodbox/docs/pkg/notifiers/
 notifiers:

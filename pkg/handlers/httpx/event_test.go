@@ -103,7 +103,7 @@ func TestEventDispatchNonBot(t *testing.T) {
 	}
 }
 
-func TestEventDispatchBotSuppressed(t *testing.T) {
+func TestBotEventDispatchedButNotifySuppressed(t *testing.T) {
 	// Public IP: not exempt, so volume-based bot detection still applies.
 	const botIP = "203.0.113.99"
 
@@ -119,20 +119,23 @@ func TestEventDispatchBotSuppressed(t *testing.T) {
 	r.RemoteAddr = botIP + ":12345"
 	e := NewEvent(r)
 
+	// Dispatch now always delivers so the bot's traffic is still persisted; the
+	// suppression applies only to notifiers, via NotifySuppressed().
 	ch := make(chan types.InteractionEvent, 1)
 	e.Dispatch(ch)
-
 	select {
-	case evt := <-ch:
-		t.Errorf("bot should be suppressed, got event %+v", evt)
-	case <-time.After(200 * time.Millisecond):
-		// expected: nothing delivered
+	case <-ch: // expected: still delivered (and persisted by the event loop)
+	case <-time.After(time.Second):
+		t.Fatal("Dispatch should still deliver a bot event so it is persisted")
+	}
+	if !e.NotifySuppressed() {
+		t.Error("a suspected bot should be notify-suppressed")
 	}
 }
 
-func TestEventDispatchPrivateExemptFromBot(t *testing.T) {
-	// A private IP that trips bot detection should still dispatch when
-	// bot_exempt_private is on (the default), and be suppressed when off.
+func TestPrivateExemptFromBotNotifySuppression(t *testing.T) {
+	// A private IP that trips bot detection is exempt from notify-suppression
+	// when bot_exempt_private is on (the default), and suppressed when off.
 	const botIP = "10.0.0.77"
 	for i := 0; i < 31; i++ {
 		model.DB().Create(&model.Interaction{RemoteAddr: botIP, Handler: "test"})
@@ -144,26 +147,17 @@ func TestEventDispatchPrivateExemptFromBot(t *testing.T) {
 	r := newPOSTRequest(t, "http://example.com/", "")
 	r.RemoteAddr = botIP + ":12345"
 
-	// Exempt (default): dispatched despite bot volume.
+	// Exempt (default): not suppressed despite bot volume.
 	e := NewEvent(r) // botExemptPrivate defaults true
-	ch := make(chan types.InteractionEvent, 1)
-	e.Dispatch(ch)
-	select {
-	case <-ch: // expected
-	case <-time.After(200 * time.Millisecond):
-		t.Error("private source should be exempt from bot detection and dispatch")
+	if e.NotifySuppressed() {
+		t.Error("private source should be exempt from bot detection (not notify-suppressed)")
 	}
 
 	// Exemption disabled: suppressed like any other bot.
 	e2 := NewEvent(r)
 	e2.botExemptPrivate = false
-	ch2 := make(chan types.InteractionEvent, 1)
-	e2.Dispatch(ch2)
-	select {
-	case evt := <-ch2:
-		t.Errorf("with exemption off, private bot should be suppressed, got %+v", evt)
-	case <-time.After(200 * time.Millisecond):
-		// expected
+	if !e2.NotifySuppressed() {
+		t.Error("with exemption off, a private bot should be notify-suppressed")
 	}
 }
 

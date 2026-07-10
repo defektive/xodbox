@@ -1,7 +1,7 @@
 package httpx
 
 import (
-	"fmt"
+	"crypto/subtle"
 	"net/http"
 
 	"github.com/defektive/xodbox/pkg/model"
@@ -40,14 +40,20 @@ func APIHAndler(apiPath, apiToken string) http.Handler {
 	return r.Handler()
 }
 
+// AuthRequired guards the legacy config-token API. Deprecated: prefer per-user
+// accounts and API keys (the admin UI / `xodbox user add`). Kept for backward
+// compatibility; the token is compared in constant time.
 func AuthRequired(apiToken string) gin.HandlerFunc {
+	expected := "Token " + apiToken
 	return func(c *gin.Context) {
 		if apiToken == "" {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"status": "unauthorized"})
+			return
 		}
-
-		if c.Request.Header.Get("Authorization") != fmt.Sprintf("Token %s", apiToken) {
+		got := c.Request.Header.Get("Authorization")
+		if subtle.ConstantTimeCompare([]byte(got), []byte(expected)) != 1 {
 			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"status": "unauthorized"})
+			return
 		}
 	}
 }

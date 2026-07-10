@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net"
 
+	"github.com/defektive/xodbox/pkg/model"
 	"github.com/defektive/xodbox/pkg/types"
 	"github.com/defektive/xodbox/pkg/util"
 )
@@ -36,6 +37,19 @@ func (e *Event) Details() string {
 // "TCP Data from 10.0.0.5".
 func (e *Event) FilterString() string {
 	return fmt.Sprintf("TCP %s from %s", e.action.String(), e.RemoteAddr)
+}
+
+// Interaction records the TCP event (any received bytes ride in Data) for the
+// DB / web UI.
+func (e *Event) Interaction() *model.Interaction {
+	return &model.Interaction{
+		RemoteAddr:  e.RemoteAddr,
+		RemotePort:  fmt.Sprintf("%d", e.RemotePortNumber),
+		Handler:     "tcp",
+		Protocol:    "tcp",
+		RequestType: e.action.String(),
+		Data:        e.RawData,
+	}
 }
 
 func NewEvent(ctx net.Conn, action Action, packet []byte) *Event {

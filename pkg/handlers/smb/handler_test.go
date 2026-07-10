@@ -6,11 +6,9 @@ import (
 	"encoding/binary"
 	"errors"
 	"net"
-	"path/filepath"
 	"testing"
 	"time"
 
-	"github.com/defektive/xodbox/pkg/model"
 	"github.com/defektive/xodbox/pkg/types"
 )
 
@@ -36,18 +34,8 @@ func TestDefaultListener(t *testing.T) {
 	if h.Listener != ":445" {
 		t.Errorf("default listener = %q, want :445", h.Listener)
 	}
-	if h.Persist {
-		t.Error("persist should default to false")
-	}
 	if h.TargetName != defaultTargetName {
 		t.Errorf("default target name = %q, want %q", h.TargetName, defaultTargetName)
-	}
-}
-
-func TestPersistParsedFromConfig(t *testing.T) {
-	h := NewHandler(map[string]string{"persist": "true"}).(*Handler)
-	if !h.Persist {
-		t.Error("persist=true config should enable persistence")
 	}
 }
 
@@ -58,9 +46,7 @@ func TestTargetNameParsedFromConfig(t *testing.T) {
 	}
 }
 
-func TestPersistAuthWritesInteraction(t *testing.T) {
-	model.LoadDBWithOptions(model.DBOptions{Path: filepath.Join(t.TempDir(), "smb-test.db")})
-
+func TestAuthEventInteraction(t *testing.T) {
 	nt := append(bytes.Repeat([]byte{0xEE}, 16), 0x01, 0x02, 0x03, 0x04)
 	info, err := parseAuthenticate(buildAuthenticate("CORP", "carol", nt))
 	if err != nil {
@@ -71,24 +57,23 @@ func TestPersistAuthWritesInteraction(t *testing.T) {
 	defer server.Close()
 	defer client.Close()
 
-	persistAuth(server, info, info.HashcatLine())
+	// Build the event exactly as the handler does on capture; central
+	// persistence (pkg/xodbox) stores whatever Interaction() returns.
+	ev := NewEvent(server, Auth, []byte(info.HashcatLine()))
+	ev.Account = info.Account()
 
-	// The model DB is a process singleton that persists across -count runs,
-	// so assert on the newest row (the one we just wrote) rather than an
-	// absolute count.
-	rows := model.SortedInteractions(100)
-	if len(rows) == 0 {
-		t.Fatal("no interaction persisted")
+	got := ev.Interaction()
+	if got == nil {
+		t.Fatal("Auth event produced no Interaction")
 	}
-	got := rows[0]
-	if got.Handler != "smb" || got.RequestType != "Auth" {
-		t.Errorf("row Handler/RequestType = %q/%q, want smb/Auth", got.Handler, got.RequestType)
+	if got.Handler != "smb" || got.Protocol != "smb" || got.RequestType != "Auth" {
+		t.Errorf("Handler/Protocol/RequestType = %q/%q/%q, want smb/smb/Auth", got.Handler, got.Protocol, got.RequestType)
 	}
 	if got.RequestTarget != "CORP\\carol" {
-		t.Errorf("row RequestTarget = %q, want CORP\\carol", got.RequestTarget)
+		t.Errorf("RequestTarget = %q, want CORP\\carol", got.RequestTarget)
 	}
 	if !bytes.HasPrefix(got.Data, []byte("carol::CORP:")) {
-		t.Errorf("row Data = %q, want hashcat line", got.Data)
+		t.Errorf("Data = %q, want hashcat line", got.Data)
 	}
 }
 

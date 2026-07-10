@@ -47,8 +47,13 @@ verified and no shares are served.
 |------------|----------|---------|--------------------------------------------------------------|
 | `handler`  | yes      | —       | Must be `SMB`.                                                |
 | `listener` | no       | `:445`  | Bind address. Binding `:445` usually needs elevated privileges. |
-| `persist`  | no       | `false` | Must be the literal string `"true"` to save captured hashes to the database (the `interactions` table). Off by default because captured NetNTLMv2 hashes are crackable credential material sitting on disk. |
 | `target_name` | no    | `XODBOX` | The NetBIOS/DNS name advertised in the NTLMSSP challenge (target name + AV pairs). Set a realistic value (e.g. `CORP-FS01`) to blend in and avoid fingerprinting the server as xodbox. Cosmetic — it only affects what the client believes it connected to. |
+
+> The old `persist` knob has been removed. Every handler's interactions —
+> including SMB — are now persisted centrally by the application (see below), so
+> captured hashes always land in the `interactions` table and the web view.
+> Note that NetNTLMv2 hashes are crackable credential material sitting on disk;
+> protect the SQLite database accordingly.
 
 ## Events
 
@@ -62,8 +67,9 @@ verified and no shares are served.
 Feed a captured `Auth` payload straight to `hashcat -m 5600` or
 `john --format=netntlmv2`.
 
-With `persist: true`, each `Auth` capture is also written to the
-`interactions` table (`handler=smb`, `request_type=Auth`), with the
+Each event is persisted to the `interactions` table by the application's
+central event loop (every handler's events are stored, not just SMB's). An
+`Auth` capture lands as `handler=smb`, `request_type=Auth`, with the
 `DOMAIN\User` in `request_target` and the hashcat line in `data`, so it
 survives restarts and appears in the web view.
 

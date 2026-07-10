@@ -46,6 +46,10 @@ type Handler struct {
 	APIToken           string
 	BotExemptPrivate   bool
 
+	UIPath        string
+	UIAllowCIDRs  []*net.IPNet
+	AdminListener string
+
 	StaticDir       string
 	dispatchChannel chan types.InteractionEvent
 	app             types.App
@@ -55,6 +59,7 @@ type Handler struct {
 	httpServer          *http.Server
 	httpChallengeServer *http.Server // ACME HTTP-01 listener on :80 (HTTPS path only)
 	httpsServer         *http.Server // TLS-terminated listener on :443
+	adminServer         *http.Server // optional isolated admin UI listener
 	watchCancel         context.CancelFunc
 }
 
@@ -82,6 +87,31 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	// bot_exempt_private: "false" to subject every source to bot detection.
 	botExemptPrivate := handlerConfig["bot_exempt_private"] != "false"
 
+	// Admin web UI: mounted under a normalized ui_path prefix (empty =
+	// disabled). Access is restricted to ui_allow_cidrs (checked against the
+	// real TCP peer IP) on top of the auth added in later phases.
+	uiPath := handlerConfig["ui_path"]
+	if uiPath != "" {
+		if !strings.HasPrefix(uiPath, "/") {
+			uiPath = "/" + uiPath
+		}
+		if !strings.HasSuffix(uiPath, "/") {
+			uiPath = uiPath + "/"
+		}
+	}
+	uiCIDRs, badCIDRs := parseCIDRs(handlerConfig["ui_allow_cidrs"])
+	for _, b := range badCIDRs {
+		lg().Warn("ignoring invalid ui_allow_cidrs entry", "entry", b)
+	}
+	// admin_listener isolates the admin UI on its own bind (e.g.
+	// 127.0.0.1:9091), off the attacker-facing port. When set, the UI is
+	// served there instead of on the main httpx listener.
+	adminListener := handlerConfig["admin_listener"]
+
+	if handlerConfig["api_token"] != "" {
+		lg().Warn("api_token is deprecated; create admin users and API keys with 'xodbox user add' and the admin UI")
+	}
+
 	tlsNames := []string{}
 	if tlsNamesOpt != "" {
 		tlsNames = strings.Split(tlsNamesOpt, ",")
@@ -106,6 +136,9 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 		APIPath:            handlerConfig["api_path"],
 		APIToken:           handlerConfig["api_token"],
 		BotExemptPrivate:   botExemptPrivate,
+		UIPath:             uiPath,
+		UIAllowCIDRs:       uiCIDRs,
+		AdminListener:      adminListener,
 	}
 
 	if payloadDir != "" {
@@ -156,6 +189,14 @@ func (h *Handler) serverMux() *http.ServeMux {
 			}
 
 			h.mux.Handle(h.APIPath, APIHAndler(h.APIPath, h.APIToken))
+		}
+
+		// Admin UI on the main listener: only when no isolated admin_listener
+		// is configured. It is registered on its own prefix so it never falls
+		// through to the honeypot catchall (no InteractionEvents for admin
+		// traffic). Auth is layered on in a later phase.
+		if h.AdminListener == "" && h.UIPath != "" && h.UIPath != "/" {
+			h.mountUI(h.mux, h.UIPath)
 		}
 
 		subFs, err := fs.Sub(embeddedStaticFS, "static")
@@ -312,10 +353,71 @@ func (h *Handler) serveTLS(domainNames []string, mux http.Handler, forwardHTTP b
 	return nil
 }
 
+// mountUI registers the embedded admin SPA (CIDR-gated) on mux at the given
+// normalized path prefix. path "/" mounts at the listener root (used by the
+// isolated admin_listener); any other path is prefix-stripped.
+func (h *Handler) mountUI(mux *http.ServeMux, path string) {
+	handler, err := h.adminHandler(path)
+	if err != nil {
+		lg().Error("failed to init admin UI", "err", err)
+		return
+	}
+	inner := handler
+	if path != "/" {
+		inner = http.StripPrefix(strings.TrimSuffix(path, "/"), handler)
+	}
+	mux.Handle(path, cidrAllowlist(h.UIAllowCIDRs, inner))
+	lg().Info("admin UI mounted", "path", path, "allow_cidrs", len(h.UIAllowCIDRs))
+}
+
+// adminMux builds the mux for the isolated admin_listener: only the admin UI
+// (and, in later phases, the admin API) — never the honeypot catchall.
+func (h *Handler) adminMux() *http.ServeMux {
+	mux := &http.ServeMux{}
+	path := h.UIPath
+	if path == "" {
+		path = "/"
+	}
+	h.mountUI(mux, path)
+	return mux
+}
+
+// startAdminServer binds and serves the isolated admin listener in the
+// background (no-op when admin_listener is unset). A bind failure is returned
+// synchronously so Start can surface it.
+func (h *Handler) startAdminServer() error {
+	if h.AdminListener == "" {
+		return nil
+	}
+	srv := &http.Server{
+		Addr:              h.AdminListener,
+		Handler:           h.adminMux(),
+		ReadHeaderTimeout: 5 * time.Second,
+	}
+	ln, err := net.Listen("tcp", h.AdminListener)
+	if err != nil {
+		return fmt.Errorf("admin listener %q: %w", h.AdminListener, err)
+	}
+	h.mu.Lock()
+	h.adminServer = srv
+	h.mu.Unlock()
+	lg().Info("Starting admin UI server", "listener", h.AdminListener, "ui_path", h.UIPath)
+	go func() {
+		if err := srv.Serve(ln); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			lg().Error("admin server error", "err", err)
+		}
+	}()
+	return nil
+}
+
 func (h *Handler) Start(app types.App, eventChan chan types.InteractionEvent) error {
 	// capture these for later
 	h.app = app
 	h.dispatchChannel = eventChan
+
+	if err := h.startAdminServer(); err != nil {
+		return err
+	}
 
 	if h.AutoCert {
 		lg().Info("Starting HTTPS server", "listener", h.Listener)
@@ -336,6 +438,7 @@ func (h *Handler) Stop(ctx context.Context) error {
 	srv := h.httpServer
 	challenge := h.httpChallengeServer
 	tlsSrv := h.httpsServer
+	admin := h.adminServer
 	cancel := h.watchCancel
 	h.watchCancel = nil
 	h.mu.Unlock()
@@ -356,6 +459,7 @@ func (h *Handler) Stop(ctx context.Context) error {
 	shutdown(srv)
 	shutdown(challenge)
 	shutdown(tlsSrv)
+	shutdown(admin)
 	return firstErr
 }
 
