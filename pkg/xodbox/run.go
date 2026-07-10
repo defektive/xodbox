@@ -124,7 +124,10 @@ func persistInteraction(e types.InteractionEvent) {
 	}
 	if tx := model.DB().Create(i); tx.Error != nil {
 		lg().Error("failed to persist interaction", "err", tx.Error, "handler", i.Handler)
+		return
 	}
+	// Fan out to any live subscribers (the admin UI's realtime stream).
+	model.PublishInteraction(i)
 }
 
 func (x *App) waitForEvents() {

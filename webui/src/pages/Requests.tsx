@@ -1,6 +1,8 @@
+import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useApi } from "@/lib/useApi";
-import type { InteractionPage } from "@/lib/types";
+import { useInteractionStream } from "@/lib/useStream";
+import type { InteractionPage, InteractionSummary } from "@/lib/types";
 import {
   Table,
   TableBody,
@@ -31,6 +33,25 @@ export default function Requests() {
     "interactions" + (qs ? "?" + qs : ""),
   );
 
+  // Seed from the fetched page, then prepend live events. The server applies
+  // the same filters to the stream, so anything received belongs in this view.
+  const [items, setItems] = useState<InteractionSummary[]>([]);
+  const [liveCount, setLiveCount] = useState(0);
+  useEffect(() => {
+    setItems(data?.items ?? []);
+    setLiveCount(0);
+  }, [data]);
+
+  useInteractionStream(
+    qs,
+    useCallback((i: InteractionSummary) => {
+      setItems((prev) =>
+        prev.some((x) => x.id === i.id) ? prev : [i, ...prev].slice(0, 200),
+      );
+      setLiveCount((c) => c + 1);
+    }, []),
+  );
+
   function setFilter(key: string, value: string) {
     const next = new URLSearchParams(params);
     if (value) next.set(key, value);
@@ -45,7 +66,7 @@ export default function Requests() {
           <div key={key} className="space-y-1">
             <label className="text-xs text-muted-foreground">{label}</label>
             <Input
-              className="h-8 w-48"
+              className="h-8 w-full sm:w-48"
               placeholder={label}
               defaultValue={params.get(key) ?? ""}
               onBlur={(e) => setFilter(key, e.target.value.trim())}
@@ -61,6 +82,16 @@ export default function Requests() {
             Clear
           </Button>
         )}
+        <span
+          className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground"
+          title="Live updates via server-sent events"
+        >
+          <span className="relative flex h-2 w-2">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+          </span>
+          Live
+        </span>
       </div>
 
       {error && (
@@ -87,14 +118,14 @@ export default function Requests() {
               </TableCell>
             </TableRow>
           )}
-          {!loading && data?.items.length === 0 && (
+          {!loading && items.length === 0 && (
             <TableRow>
               <TableCell colSpan={5} className="text-muted-foreground">
                 No requests.
               </TableCell>
             </TableRow>
           )}
-          {data?.items.map((i) => (
+          {items.map((i) => (
             <TableRow key={i.id}>
               <TableCell className="whitespace-nowrap text-muted-foreground">
                 {new Date(i.created_at).toLocaleString()}
@@ -114,7 +145,8 @@ export default function Requests() {
 
       {data && (
         <p className="text-xs text-muted-foreground">
-          {data.total} total{qs ? " (filtered)" : ""}
+          {data.total + liveCount} total{qs ? " (filtered)" : ""}
+          {liveCount > 0 && ` · ${liveCount} new`}
         </p>
       )}
     </div>

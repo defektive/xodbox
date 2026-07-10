@@ -71,6 +71,9 @@ func (a *adminAuth) mux() *http.ServeMux {
 	mux.HandleFunc("PUT /api/payloads/{id}", a.requireAdmin(a.handleUpdatePayload))
 	mux.HandleFunc("DELETE /api/payloads/{id}", a.requireAdmin(a.handleDeletePayload))
 
+	// Realtime: SSE stream of newly captured interactions (filterable).
+	mux.HandleFunc("GET /api/stream", a.requireAuth(a.handleStream))
+
 	// Sinks: named/described slugs with a per-slug event feed.
 	mux.HandleFunc("GET /api/sinks", a.requireAuth(a.handleSinks))
 	mux.HandleFunc("POST /api/sinks", a.requireAuth(a.handleCreateSink))

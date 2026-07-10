@@ -1,6 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { act, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import { MockEventSource } from "@/test/setup";
 
 const { getMock } = vi.hoisted(() => ({ getMock: vi.fn() }));
 
@@ -11,6 +12,8 @@ vi.mock("@/lib/api", () => ({
 }));
 
 import Requests from "@/pages/Requests";
+
+beforeEach(() => MockEventSource.reset());
 
 describe("Requests", () => {
   it("renders interaction rows", async () => {
@@ -53,5 +56,37 @@ describe("Requests", () => {
       </MemoryRouter>,
     );
     expect(await screen.findByText("No requests.")).toBeInTheDocument();
+  });
+
+  it("prepends live interactions from the SSE stream", async () => {
+    getMock.mockResolvedValue({ items: [], total: 0, limit: 50, offset: 0 });
+    render(
+      <MemoryRouter>
+        <Requests />
+      </MemoryRouter>,
+    );
+    // The stream connection was opened.
+    expect(await screen.findByText("No requests.")).toBeInTheDocument();
+    const es =
+      MockEventSource.instances[MockEventSource.instances.length - 1];
+    expect(es.url).toContain("stream");
+
+    act(() => {
+      es.emit("interaction", {
+        id: 42,
+        created_at: new Date().toISOString(),
+        remote_addr: "9.9.9.9",
+        remote_port: "1",
+        handler: "dns",
+        request_type: "A",
+        request_target: "live.example.",
+        protocol: "dns",
+        user_agent: "",
+      });
+    });
+
+    expect(
+      await screen.findByRole("link", { name: "live.example." }),
+    ).toHaveAttribute("href", "/requests/42");
   });
 });

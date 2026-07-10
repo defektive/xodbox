@@ -1,6 +1,11 @@
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useApi } from "@/lib/useApi";
-import type { SinkDetail as SinkDetailData } from "@/lib/types";
+import { useInteractionStream } from "@/lib/useStream";
+import type {
+  InteractionSummary,
+  SinkDetail as SinkDetailData,
+} from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -18,6 +23,24 @@ export default function SinkDetail() {
     `sinks/${encodeURIComponent(slug)}`,
   );
 
+  // Hooks must run unconditionally (before the early returns below).
+  const [events, setEvents] = useState<InteractionSummary[]>([]);
+  const [liveCount, setLiveCount] = useState(0);
+  useEffect(() => {
+    setEvents(data?.events ?? []);
+    setLiveCount(0);
+  }, [data]);
+
+  useInteractionStream(
+    `sink=${encodeURIComponent(slug)}`,
+    useCallback((i: InteractionSummary) => {
+      setEvents((prev) =>
+        prev.some((x) => x.id === i.id) ? prev : [i, ...prev].slice(0, 200),
+      );
+      setLiveCount((c) => c + 1);
+    }, []),
+  );
+
   if (loading) return <p className="text-muted-foreground">Loading…</p>;
   if (error)
     return (
@@ -27,10 +50,15 @@ export default function SinkDetail() {
     );
   if (!data) return null;
 
+  const total = data.total + liveCount;
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-3">
-        <Link to="/sinks" className="text-sm text-muted-foreground hover:underline">
+        <Link
+          to="/sinks"
+          className="text-sm text-muted-foreground hover:underline"
+        >
           ← Sinks
         </Link>
       </div>
@@ -40,7 +68,11 @@ export default function SinkDetail() {
           <CardTitle className="font-mono text-lg">{data.slug}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          <p>{data.description || <span className="text-muted-foreground">No description.</span>}</p>
+          <p>
+            {data.description || (
+              <span className="text-muted-foreground">No description.</span>
+            )}
+          </p>
           <div className="flex items-center gap-3">
             <code className="rounded bg-muted p-2 text-xs">{data.slug}</code>
             <Button
@@ -52,14 +84,26 @@ export default function SinkDetail() {
             </Button>
           </div>
           <p className="text-muted-foreground">
-            {data.total} event{data.total === 1 ? "" : "s"} · created{" "}
+            {total} event{total === 1 ? "" : "s"} · created{" "}
             {new Date(data.created_at).toLocaleString()}
           </p>
         </CardContent>
       </Card>
 
       <div>
-        <h2 className="mb-2 text-sm font-medium">Events (most recent first)</h2>
+        <div className="mb-2 flex items-center gap-2">
+          <h2 className="text-sm font-medium">Events (most recent first)</h2>
+          <span
+            className="flex items-center gap-1.5 text-xs text-muted-foreground"
+            title="Live updates via server-sent events"
+          >
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+            </span>
+            Live
+          </span>
+        </div>
         <Table>
           <TableHeader>
             <TableRow>
@@ -71,14 +115,14 @@ export default function SinkDetail() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.events.length === 0 && (
+            {events.length === 0 && (
               <TableRow>
                 <TableCell colSpan={5} className="text-muted-foreground">
                   No events for this sink yet.
                 </TableCell>
               </TableRow>
             )}
-            {data.events.map((e) => (
+            {events.map((e) => (
               <TableRow key={e.id}>
                 <TableCell className="whitespace-nowrap text-muted-foreground">
                   {new Date(e.created_at).toLocaleString()}
