@@ -353,14 +353,14 @@ func (h *Handler) serveTLS(domainNames []string, mux http.Handler, forwardHTTP b
 // normalized path prefix. path "/" mounts at the listener root (used by the
 // isolated admin_listener); any other path is prefix-stripped.
 func (h *Handler) mountUI(mux *http.ServeMux, path string) {
-	uiHandler, err := newUIHandler(path)
+	handler, err := h.adminHandler(path)
 	if err != nil {
 		lg().Error("failed to init admin UI", "err", err)
 		return
 	}
-	var inner http.Handler = uiHandler
+	inner := handler
 	if path != "/" {
-		inner = http.StripPrefix(strings.TrimSuffix(path, "/"), uiHandler)
+		inner = http.StripPrefix(strings.TrimSuffix(path, "/"), handler)
 	}
 	mux.Handle(path, cidrAllowlist(h.UIAllowCIDRs, inner))
 	lg().Info("admin UI mounted", "path", path, "allow_cidrs", len(h.UIAllowCIDRs))

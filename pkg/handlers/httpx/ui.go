@@ -51,6 +51,24 @@ func newUIHandler(mountPath string) (http.Handler, error) {
 	}), nil
 }
 
+// adminHandler serves one admin surface at basePath: the JSON API under
+// "/api/" and the embedded SPA for everything else. It is the unit mounted
+// (behind the CIDR gate) on the httpx listener or the isolated admin listener.
+func (h *Handler) adminHandler(basePath string) (http.Handler, error) {
+	ui, err := newUIHandler(basePath)
+	if err != nil {
+		return nil, err
+	}
+	apiMux := newAdminAuth(basePath).mux()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/api/") {
+			apiMux.ServeHTTP(w, r)
+			return
+		}
+		ui.ServeHTTP(w, r)
+	}), nil
+}
+
 // uiSecurityHeaders applies a strict, self-contained security posture to the
 // admin UI. The SPA loads only its own bundled assets, so a tight CSP with no
 // external origins is safe and blocks injected content.
