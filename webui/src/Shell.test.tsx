@@ -24,11 +24,11 @@ function renderAt(path: string, onLogout = vi.fn()) {
 }
 
 describe("Shell", () => {
-  it("renders nav, username, and the requests view by default", () => {
+  it("renders nav, username, and the events view by default", () => {
     renderAt("/");
     expect(screen.getByText("xodbox")).toBeInTheDocument();
     expect(screen.getByText("alice")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Requests" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Events" })).toBeInTheDocument();
     const main = screen.getByRole("main");
     expect(within(main).getByText("Method")).toBeInTheDocument();
   });
@@ -49,10 +49,10 @@ describe("Shell", () => {
   it("toggles the mobile nav drawer", () => {
     renderAt("/");
     // Only the desktop nav is rendered until the menu opens.
-    expect(screen.getAllByRole("link", { name: "Requests" })).toHaveLength(1);
+    expect(screen.getAllByRole("link", { name: "Events" })).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Toggle menu" }));
     // Opening the drawer adds a second copy of each nav link.
-    expect(screen.getAllByRole("link", { name: "Requests" })).toHaveLength(2);
+    expect(screen.getAllByRole("link", { name: "Events" })).toHaveLength(2);
   });
 
   it("hides the Users nav for non-admins", () => {

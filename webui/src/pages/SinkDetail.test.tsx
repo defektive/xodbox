@@ -26,7 +26,7 @@ function renderSink() {
 }
 
 describe("SinkDetail", () => {
-  it("shows the sink description and its events newest first", async () => {
+  it("renders an event timeline with full details, hiding empty replays", async () => {
     getMock.mockResolvedValue({
       slug: "abc123",
       description: "prod ssrf beacon",
@@ -37,15 +37,20 @@ describe("SinkDetail", () => {
       offset: 0,
       events: [
         {
+          // SMB auth capture: no raw HTTP request, no replay — only a body
+          // (the hash). The empty Replay and Raw request blocks must be hidden.
           id: 9,
           created_at: new Date().toISOString(),
           remote_addr: "10.0.0.5",
-          remote_port: "443",
-          handler: "dns",
-          request_type: "A",
-          request_target: "abc123.oob.example.",
-          protocol: "dns",
+          remote_port: "445",
+          handler: "smb",
+          request_type: "Auth",
+          request_target: "CORP\\alice",
+          protocol: "smb",
           user_agent: "",
+          headers: "",
+          body: "alice::CORP:1122...hashcatline",
+          curl: "",
         },
         {
           id: 8,
@@ -57,6 +62,9 @@ describe("SinkDetail", () => {
           request_target: "/abc123/beacon",
           protocol: "http",
           user_agent: "",
+          headers: "GET /abc123/beacon HTTP/1.1\r\nHost: h\r\n\r\n",
+          body: "",
+          curl: "curl 'http://h/abc123/beacon'",
         },
       ],
     });
@@ -71,11 +79,20 @@ describe("SinkDetail", () => {
 
     expect(await screen.findByText("prod ssrf beacon")).toBeInTheDocument();
 
-    // Both events render, linking to their request detail.
-    const dnsLink = screen.getByRole("link", { name: "abc123.oob.example." });
-    expect(dnsLink).toHaveAttribute("href", "/requests/9");
-    const httpLink = screen.getByRole("link", { name: "/abc123/beacon" });
-    expect(httpLink).toHaveAttribute("href", "/requests/8");
+    // Only the httpx event has a raw request and a replay; the SMB event's
+    // empty blocks are hidden (not rendered as empty code boxes).
+    expect(screen.getAllByRole("button", { name: "Copy raw request" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Copy as curl" })).toHaveLength(1);
+    expect(screen.getByText(/GET \/abc123\/beacon HTTP/)).toBeInTheDocument();
+
+    // The SMB event still shows its captured hash (a body).
+    expect(screen.getAllByRole("button", { name: "Copy body" })).toHaveLength(1);
+    expect(screen.getByText(/hashcatline/)).toBeInTheDocument();
+
+    // Each entry links to its full request detail.
+    const opens = screen.getAllByRole("link", { name: /open/ });
+    expect(opens[0]).toHaveAttribute("href", "/events/9");
+    expect(opens[1]).toHaveAttribute("href", "/events/8");
 
     // Slug is fetched from the URL param.
     expect(getMock).toHaveBeenCalledWith("sinks/abc123");

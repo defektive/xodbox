@@ -10,19 +10,19 @@ vi.mock("@/lib/api", () => ({
   setCsrfToken: vi.fn(),
 }));
 
-import RequestDetail from "@/pages/RequestDetail";
+import EventDetail from "@/pages/EventDetail";
 
 function renderDetail() {
   return render(
-    <MemoryRouter initialEntries={["/requests/7"]}>
+    <MemoryRouter initialEntries={["/events/7"]}>
       <Routes>
-        <Route path="/requests/:id" element={<RequestDetail />} />
+        <Route path="/events/:id" element={<EventDetail />} />
       </Routes>
     </MemoryRouter>,
   );
 }
 
-describe("RequestDetail", () => {
+describe("EventDetail", () => {
   it("shows the request and copies the curl command", async () => {
     const writeText = vi.fn().mockResolvedValue(undefined);
     Object.assign(navigator, { clipboard: { writeText } });

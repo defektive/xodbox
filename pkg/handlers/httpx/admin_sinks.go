@@ -61,13 +61,14 @@ func (a *adminAuth) handleCreateSink(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, toSinkView(*s))
 }
 
-// sinkDetail is a sink plus a page of its attributed events, newest first.
+// sinkDetail is a sink plus a page of its attributed events (full detail so the
+// UI can render an event timeline), newest first.
 type sinkDetail struct {
 	sinkView
-	Events []interactionSummary `json:"events"`
-	Total  int64                `json:"total"`
-	Limit  int                  `json:"limit"`
-	Offset int                  `json:"offset"`
+	Events []interactionDetail `json:"events"`
+	Total  int64               `json:"total"`
+	Limit  int                 `json:"limit"`
+	Offset int                 `json:"offset"`
 }
 
 func (a *adminAuth) handleSink(w http.ResponseWriter, r *http.Request) {
@@ -95,9 +96,9 @@ func (a *adminAuth) handleSink(w http.ResponseWriter, r *http.Request) {
 	}
 
 	rows := model.SinkEvents(s.Slug, limit, offset)
-	events := make([]interactionSummary, 0, len(rows))
-	for _, row := range rows {
-		events = append(events, summarize(row))
+	events := make([]interactionDetail, 0, len(rows))
+	for i := range rows {
+		events = append(events, toDetail(&rows[i]))
 	}
 	writeJSON(w, http.StatusOK, sinkDetail{
 		sinkView: toSinkView(*s),

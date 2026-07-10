@@ -53,9 +53,9 @@ export default function Bots() {
               <TableCell>
                 <Link
                   className="text-sm hover:underline"
-                  to={`/requests?remote=${encodeURIComponent(b.remote_addr)}`}
+                  to={`/events?remote=${encodeURIComponent(b.remote_addr)}`}
                 >
-                  view requests
+                  view events
                 </Link>
               </TableCell>
             </TableRow>

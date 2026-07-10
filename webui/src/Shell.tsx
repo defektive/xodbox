@@ -4,8 +4,8 @@ import { cn } from "@/lib/utils";
 import type { User } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import Requests from "@/pages/Requests";
-import RequestDetail from "@/pages/RequestDetail";
+import Events from "@/pages/Events";
+import EventDetail from "@/pages/EventDetail";
 import Bots from "@/pages/Bots";
 import Payloads from "@/pages/Payloads";
 import PayloadEditor from "@/pages/PayloadEditor";
@@ -37,7 +37,7 @@ export default function Shell({
 }) {
   const isAdmin = user.role === "admin";
   const nav = [
-    { to: "/requests", label: "Requests" },
+    { to: "/events", label: "Events" },
     { to: "/sinks", label: "Sinks" },
     { to: "/bots", label: "Bots" },
     { to: "/payloads", label: "Payloads" },
@@ -135,9 +135,9 @@ export default function Shell({
       </header>
       <main className="container py-6">
         <Routes>
-          <Route path="/" element={<Requests />} />
-          <Route path="/requests" element={<Requests />} />
-          <Route path="/requests/:id" element={<RequestDetail />} />
+          <Route path="/" element={<Events />} />
+          <Route path="/events" element={<Events />} />
+          <Route path="/events/:id" element={<EventDetail />} />
           <Route path="/bots" element={<Bots />} />
           <Route path="/payloads" element={<Payloads />} />
           <Route path="/payloads/new" element={<PayloadEditor />} />

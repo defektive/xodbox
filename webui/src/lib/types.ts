@@ -52,7 +52,7 @@ export interface Sink {
 }
 
 export interface SinkDetail extends Sink {
-  events: InteractionSummary[];
+  events: InteractionDetail[];
   total: number;
   limit: number;
   offset: number;

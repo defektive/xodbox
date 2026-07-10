@@ -78,17 +78,23 @@ func (a *adminAuth) handleInteractions(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// toDetail builds the full detail view (raw request, body, replay curl) for an
+// interaction. Curl is empty for non-httpx handlers (nothing to replay).
+func toDetail(i *model.Interaction) interactionDetail {
+	return interactionDetail{
+		interactionSummary: summarize(*i),
+		Headers:            i.Headers,
+		Body:               string(i.Data),
+		Curl:               interactionCurl(i),
+	}
+}
+
 func (a *adminAuth) handleInteraction(w http.ResponseWriter, r *http.Request) {
 	i := a.lookupInteraction(w, r)
 	if i == nil {
 		return
 	}
-	writeJSON(w, http.StatusOK, interactionDetail{
-		interactionSummary: summarize(*i),
-		Headers:            i.Headers,
-		Body:               string(i.Data),
-		Curl:               interactionCurl(i),
-	})
+	writeJSON(w, http.StatusOK, toDetail(i))
 }
 
 func (a *adminAuth) handleInteractionCurl(w http.ResponseWriter, r *http.Request) {

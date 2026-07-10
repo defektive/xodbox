@@ -54,6 +54,6 @@ describe("App auth gate", () => {
     mockAuth.loading = false;
     renderApp();
     expect(screen.getByText("alice")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Requests" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Events" })).toBeInTheDocument();
   });
 });

@@ -20,7 +20,7 @@ const FILTERS = [
   { key: "handler", label: "Handler" },
 ] as const;
 
-export default function Requests() {
+export default function Events() {
   const [params, setParams] = useSearchParams();
 
   const query = new URLSearchParams();
@@ -121,7 +121,7 @@ export default function Requests() {
           {!loading && items.length === 0 && (
             <TableRow>
               <TableCell colSpan={5} className="text-muted-foreground">
-                No requests.
+                No events.
               </TableCell>
             </TableRow>
           )}
@@ -132,7 +132,7 @@ export default function Requests() {
               </TableCell>
               <TableCell>{i.request_type}</TableCell>
               <TableCell className="font-mono">
-                <Link className="hover:underline" to={`/requests/${i.id}`}>
+                <Link className="hover:underline" to={`/events/${i.id}`}>
                   {i.request_target || "/"}
                 </Link>
               </TableCell>
