@@ -1,9 +1,12 @@
 package httpx
 
 import (
+	"bufio"
 	"net/http"
 	"sort"
 	"strings"
+
+	"github.com/defektive/xodbox/pkg/model"
 )
 
 // curlSkipHeaders are request headers curl derives itself; reproducing them
@@ -43,17 +46,48 @@ func (e *Event) CurlCommand() string {
 		host = r.URL.Host
 	}
 	target := scheme + "://" + host + r.URL.RequestURI()
+	return buildCurl(r.Method, target, r.Header, e.body)
+}
 
+// CurlFromInteraction reconstructs a replay curl command from a persisted
+// interaction (for the admin UI's copy-as-curl). The stored Headers field is
+// the raw request dump (request line + headers, with the body appended); we
+// parse the header section and pair it with the stored body.
+func CurlFromInteraction(i *model.Interaction) string {
+	raw := i.Headers
+	if idx := strings.Index(raw, "\r\n\r\n"); idx >= 0 {
+		raw = raw[:idx+4] // headers only; drop the appended body copy
+	}
+	req, err := http.ReadRequest(bufio.NewReader(strings.NewReader(raw)))
+	if err != nil {
+		// Fall back to the structured columns when the dump can't be parsed.
+		scheme := schemeFor(i.Protocol)
+		return buildCurl(i.RequestType, scheme+"://"+i.RemoteAddr+i.RequestTarget, http.Header{}, i.Data)
+	}
+	target := schemeFor(i.Protocol) + "://" + req.Host + req.URL.RequestURI()
+	return buildCurl(req.Method, target, req.Header, i.Data)
+}
+
+func schemeFor(protocol string) string {
+	if protocol == "https" {
+		return "https"
+	}
+	return "http"
+}
+
+// buildCurl renders a single-line, shell-safe curl command from the request
+// parts. Content-Length is skipped (curl derives it); headers are emitted in a
+// stable order for reproducibility.
+func buildCurl(method, target string, header http.Header, body []byte) string {
 	var b strings.Builder
 	b.WriteString("curl")
-	if r.Method != http.MethodGet || len(e.body) > 0 {
-		b.WriteString(" -X " + r.Method)
+	if method != "" && (method != http.MethodGet || len(body) > 0) {
+		b.WriteString(" -X " + method)
 	}
 	b.WriteString(" " + shellSingleQuote(target))
 
-	// Emit headers in a stable order so the command is reproducible.
-	keys := make([]string, 0, len(r.Header))
-	for k := range r.Header {
+	keys := make([]string, 0, len(header))
+	for k := range header {
 		if curlSkipHeaders[http.CanonicalHeaderKey(k)] {
 			continue
 		}
@@ -61,14 +95,13 @@ func (e *Event) CurlCommand() string {
 	}
 	sort.Strings(keys)
 	for _, k := range keys {
-		for _, v := range r.Header[k] {
+		for _, v := range header[k] {
 			b.WriteString(" -H " + shellSingleQuote(k+": "+v))
 		}
 	}
 
-	if len(e.body) > 0 {
-		b.WriteString(" --data-raw " + shellSingleQuote(string(e.body)))
+	if len(body) > 0 {
+		b.WriteString(" --data-raw " + shellSingleQuote(string(body)))
 	}
-
 	return b.String()
 }

@@ -55,6 +55,12 @@ func (a *adminAuth) mux() *http.ServeMux {
 	mux.HandleFunc("POST /api/login", a.handleLogin)
 	mux.HandleFunc("POST /api/logout", a.requireAuth(a.handleLogout))
 	mux.HandleFunc("GET /api/me", a.requireAuth(a.handleMe))
+
+	// Read views (Phase 3).
+	mux.HandleFunc("GET /api/interactions", a.requireAuth(a.handleInteractions))
+	mux.HandleFunc("GET /api/interactions/{id}", a.requireAuth(a.handleInteraction))
+	mux.HandleFunc("GET /api/interactions/{id}/curl", a.requireAuth(a.handleInteractionCurl))
+	mux.HandleFunc("GET /api/bots", a.requireAuth(a.handleBots))
 	return mux
 }
 

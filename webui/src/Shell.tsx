@@ -2,6 +2,9 @@ import { NavLink, Route, Routes } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import Requests from "@/pages/Requests";
+import RequestDetail from "@/pages/RequestDetail";
+import Bots from "@/pages/Bots";
 
 // Shell is the authenticated app frame: header nav + routed content. Real
 // pages (request log, payloads, bots, users, API keys) land in later phases;
@@ -67,9 +70,10 @@ export default function Shell({
       </header>
       <main className="container py-6">
         <Routes>
-          <Route path="/" element={<Placeholder title="Dashboard" />} />
-          <Route path="/requests" element={<Placeholder title="Requests" />} />
-          <Route path="/bots" element={<Placeholder title="Bots" />} />
+          <Route path="/" element={<Requests />} />
+          <Route path="/requests" element={<Requests />} />
+          <Route path="/requests/:id" element={<RequestDetail />} />
+          <Route path="/bots" element={<Bots />} />
           <Route path="/payloads" element={<Placeholder title="Payloads" />} />
           <Route path="/users" element={<Placeholder title="Users" />} />
           <Route path="/keys" element={<Placeholder title="API Keys" />} />
