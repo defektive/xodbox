@@ -5,6 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Requests from "@/pages/Requests";
 import RequestDetail from "@/pages/RequestDetail";
 import Bots from "@/pages/Bots";
+import Payloads from "@/pages/Payloads";
+import PayloadEditor from "@/pages/PayloadEditor";
 
 // Shell is the authenticated app frame: header nav + routed content. Real
 // pages (request log, payloads, bots, users, API keys) land in later phases;
@@ -74,7 +76,9 @@ export default function Shell({
           <Route path="/requests" element={<Requests />} />
           <Route path="/requests/:id" element={<RequestDetail />} />
           <Route path="/bots" element={<Bots />} />
-          <Route path="/payloads" element={<Placeholder title="Payloads" />} />
+          <Route path="/payloads" element={<Payloads />} />
+          <Route path="/payloads/new" element={<PayloadEditor />} />
+          <Route path="/payloads/:id" element={<PayloadEditor />} />
           <Route path="/users" element={<Placeholder title="Users" />} />
           <Route path="/keys" element={<Placeholder title="API Keys" />} />
           <Route path="*" element={<Placeholder title="Not found" />} />

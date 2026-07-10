@@ -105,12 +105,11 @@ func (a *adminAuth) handleBots(w http.ResponseWriter, r *http.Request) {
 
 // lookupInteraction resolves the {id} path value or writes a 400/404.
 func (a *adminAuth) lookupInteraction(w http.ResponseWriter, r *http.Request) *model.Interaction {
-	id, err := strconv.ParseUint(r.PathValue("id"), 10, 64)
-	if err != nil {
-		writeErr(w, http.StatusBadRequest, "invalid id")
+	id, ok := pathID(w, r)
+	if !ok {
 		return nil
 	}
-	i, err := model.InteractionByID(uint(id))
+	i, err := model.InteractionByID(id)
 	if err != nil {
 		writeErr(w, http.StatusNotFound, "not found")
 		return nil

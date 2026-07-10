@@ -61,6 +61,13 @@ func (a *adminAuth) mux() *http.ServeMux {
 	mux.HandleFunc("GET /api/interactions/{id}", a.requireAuth(a.handleInteraction))
 	mux.HandleFunc("GET /api/interactions/{id}/curl", a.requireAuth(a.handleInteractionCurl))
 	mux.HandleFunc("GET /api/bots", a.requireAuth(a.handleBots))
+
+	// Payload CRUD (Phase 4).
+	mux.HandleFunc("GET /api/payloads", a.requireAuth(a.handlePayloads))
+	mux.HandleFunc("POST /api/payloads", a.requireAuth(a.handleCreatePayload))
+	mux.HandleFunc("GET /api/payloads/{id}", a.requireAuth(a.handlePayload))
+	mux.HandleFunc("PUT /api/payloads/{id}", a.requireAuth(a.handleUpdatePayload))
+	mux.HandleFunc("DELETE /api/payloads/{id}", a.requireAuth(a.handleDeletePayload))
 	return mux
 }
 

@@ -28,3 +28,17 @@ export interface Bot {
   total: number;
   minute_group: number;
 }
+
+export interface Payload {
+  id: number;
+  name: string;
+  description: string;
+  type: string;
+  pattern: string;
+  is_final: boolean;
+  sort_order: number;
+  internal_function: string;
+  headers: Record<string, string> | null;
+  body: string;
+  status_code: string;
+}
