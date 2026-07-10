@@ -29,7 +29,7 @@ func TestUIMountServesSPAWithInjectedBase(t *testing.T) {
 		t.Fatalf("GET /admin/ = %d, want 200", rr.Code)
 	}
 	body := rr.Body.String()
-	if !strings.Contains(body, `window.__XODBOX_BASE__ = "/admin/"`) {
+	if !strings.Contains(body, `data-xodbox-base="/admin/"`) {
 		t.Errorf("index.html did not have base injected:\n%s", body[:min(len(body), 300)])
 	}
 	if ct := rr.Header().Get("Content-Type"); !strings.HasPrefix(ct, "text/html") {
@@ -109,7 +109,7 @@ func TestAdminListenerIsolatesUI(t *testing.T) {
 	arr := httptest.NewRecorder()
 	h.adminMux().ServeHTTP(arr, httptest.NewRequest(http.MethodGet, "/admin/", nil))
 	if arr.Code != http.StatusOK ||
-		!strings.Contains(arr.Body.String(), `window.__XODBOX_BASE__ = "/admin/"`) {
+		!strings.Contains(arr.Body.String(), `data-xodbox-base="/admin/"`) {
 		t.Fatalf("adminMux should serve the SPA; code=%d", arr.Code)
 	}
 

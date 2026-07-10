@@ -5,14 +5,14 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="robots" content="noindex, nofollow" />
     <title>xodbox admin</title>
-    <!-- The Go server replaces {{XODBOX_BASE}} with the configured ui_path
-         (e.g. "/admin/") when serving this file. Left as-is in dev. -->
-    <script>
-      window.__XODBOX_BASE__ = "{{XODBOX_BASE}}";
-    </script>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- The Go server replaces {{XODBOX_BASE}} with the configured ui_path
+         (e.g. "/admin/") when serving this file. The value rides on a data
+         attribute rather than an inline script so the strict CSP
+         (script-src 'self', no 'unsafe-inline') needs no exception. Left as-is
+         in dev, where base.ts falls back to "/". -->
+    <div id="root" data-xodbox-base="{{XODBOX_BASE}}"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
