@@ -8,8 +8,15 @@ import (
 )
 
 // uiBasePlaceholder is substituted in index.html with the configured mount
-// path so the same compiled bundle works under any ui_path.
+// path so the same compiled bundle works under any ui_path. It carries the
+// base to the SPA (the #root data-xodbox-base attribute).
 const uiBasePlaceholder = "{{XODBOX_BASE}}"
+
+// uiAssetBasePlaceholder is the absolute base Vite bakes into asset URLs
+// (script/link hrefs) at build time. It is rewritten to the mount path so
+// assets load from an absolute path (e.g. /admin/assets/...) at any SPA route
+// depth. Must match `base` in webui/vite.config.ts.
+const uiAssetBasePlaceholder = "/__XODBOX_BASE__/"
 
 // newUIHandler serves the embedded admin SPA. mountPath is the normalized
 // path prefix the UI is mounted at (e.g. "/admin/"); requests reaching this
@@ -24,7 +31,9 @@ func newUIHandler(mountPath string) (http.Handler, error) {
 	if err != nil {
 		return nil, err
 	}
-	indexHTML := []byte(strings.ReplaceAll(string(raw), uiBasePlaceholder, mountPath))
+	injected := strings.ReplaceAll(string(raw), uiBasePlaceholder, mountPath)
+	injected = strings.ReplaceAll(injected, uiAssetBasePlaceholder, mountPath)
+	indexHTML := []byte(injected)
 	fileServer := http.FileServer(http.FS(sub))
 
 	serveIndex := func(w http.ResponseWriter) {
