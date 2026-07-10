@@ -100,6 +100,48 @@ func TestPayloadCRUD(t *testing.T) {
 	g3.Body.Close()
 }
 
+func TestPayloadMutationsRequireAdmin(t *testing.T) {
+	srv, _, _ := adminTestServer(t)
+
+	// A non-admin user's key must be rejected by payload mutation routes:
+	// payloads are global and control honeypot responses, so only admins may
+	// create/update/delete them.
+	nonAdmin, err := model.CreateUser(uniqueName("plebe"), testPassword, model.RoleUser)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key, _, _ := model.NewAPIKey(nonAdmin.ID, "k", nil)
+	base := srv.URL + "/api/payloads"
+
+	in := payloadView{Name: uniqueName("nope"), Pattern: "^/nope", StatusCode: "200"}
+
+	create := doAuthed(t, http.MethodPost, base, key, in)
+	if create.StatusCode != http.StatusForbidden {
+		t.Errorf("non-admin create = %d, want 403", create.StatusCode)
+	}
+	create.Body.Close()
+
+	one := fmt.Sprintf("%s/1", base)
+	up := doAuthed(t, http.MethodPut, one, key, in)
+	if up.StatusCode != http.StatusForbidden {
+		t.Errorf("non-admin update = %d, want 403", up.StatusCode)
+	}
+	up.Body.Close()
+
+	del := doAuthed(t, http.MethodDelete, one, key, nil)
+	if del.StatusCode != http.StatusForbidden {
+		t.Errorf("non-admin delete = %d, want 403", del.StatusCode)
+	}
+	del.Body.Close()
+
+	// Reads remain available to any authenticated operator.
+	list := doAuthed(t, http.MethodGet, base, key, nil)
+	if list.StatusCode != http.StatusOK {
+		t.Errorf("non-admin list = %d, want 200", list.StatusCode)
+	}
+	list.Body.Close()
+}
+
 func TestPayloadValidation(t *testing.T) {
 	srv, _, u := adminTestServer(t)
 	key, _, _ := model.NewAPIKey(u.ID, "k", nil)

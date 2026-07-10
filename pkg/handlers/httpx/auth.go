@@ -62,12 +62,14 @@ func (a *adminAuth) mux() *http.ServeMux {
 	mux.HandleFunc("GET /api/interactions/{id}/curl", a.requireAuth(a.handleInteractionCurl))
 	mux.HandleFunc("GET /api/bots", a.requireAuth(a.handleBots))
 
-	// Payload CRUD (Phase 4).
+	// Payload CRUD (Phase 4). Payloads are global and control how the honeypot
+	// responds to every inbound request, so mutations are admin-only. Reads stay
+	// open to any authenticated operator.
 	mux.HandleFunc("GET /api/payloads", a.requireAuth(a.handlePayloads))
-	mux.HandleFunc("POST /api/payloads", a.requireAuth(a.handleCreatePayload))
+	mux.HandleFunc("POST /api/payloads", a.requireAdmin(a.handleCreatePayload))
 	mux.HandleFunc("GET /api/payloads/{id}", a.requireAuth(a.handlePayload))
-	mux.HandleFunc("PUT /api/payloads/{id}", a.requireAuth(a.handleUpdatePayload))
-	mux.HandleFunc("DELETE /api/payloads/{id}", a.requireAuth(a.handleDeletePayload))
+	mux.HandleFunc("PUT /api/payloads/{id}", a.requireAdmin(a.handleUpdatePayload))
+	mux.HandleFunc("DELETE /api/payloads/{id}", a.requireAdmin(a.handleDeletePayload))
 
 	// User management (admin) + account + API keys (Phase 5).
 	mux.HandleFunc("GET /api/users", a.requireAdmin(a.handleUsers))

@@ -131,6 +131,30 @@ func TestBodyTextTemplateExecutes(t *testing.T) {
 	}
 }
 
+func TestPayloadTemplatesCannotReadEnv(t *testing.T) {
+	t.Setenv("XODBOX_SECRET_TEST", "topsecret")
+
+	// env / expandenv are stripped from the payload FuncMap so an authored
+	// payload can never exfiltrate the process environment into a response.
+	for _, body := range []string{`{{ env "XODBOX_SECRET_TEST" }}`, `{{ expandenv "$XODBOX_SECRET_TEST" }}`} {
+		p := newPayload(PayloadData{Body: body})
+		if _, err := p.BodyTextTemplate(); err == nil {
+			t.Errorf("payload body %q should fail to parse (env funcs removed), got no error", body)
+		}
+	}
+
+	if _, ok := payloadFuncMap()["env"]; ok {
+		t.Error("payloadFuncMap must not expose env")
+	}
+	if _, ok := payloadFuncMap()["expandenv"]; ok {
+		t.Error("payloadFuncMap must not expose expandenv")
+	}
+	// A non-env Sprig function should still be available.
+	if _, ok := payloadFuncMap()["upper"]; !ok {
+		t.Error("payloadFuncMap should still expose ordinary Sprig funcs like upper")
+	}
+}
+
 func TestBodyHTMLTemplateEscapesContent(t *testing.T) {
 	p := newPayload(PayloadData{Body: "<p>{{.NotifyString}}</p>"})
 	tmpl, err := p.BodyHTMLTemplate()
