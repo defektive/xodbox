@@ -19,5 +19,5 @@ export default function App() {
     return <Login />;
   }
 
-  return <Shell username={user.username} onLogout={() => void logout()} />;
+  return <Shell user={user} onLogout={() => void logout()} />;
 }

@@ -68,6 +68,16 @@ func (a *adminAuth) mux() *http.ServeMux {
 	mux.HandleFunc("GET /api/payloads/{id}", a.requireAuth(a.handlePayload))
 	mux.HandleFunc("PUT /api/payloads/{id}", a.requireAuth(a.handleUpdatePayload))
 	mux.HandleFunc("DELETE /api/payloads/{id}", a.requireAuth(a.handleDeletePayload))
+
+	// User management (admin) + account + API keys (Phase 5).
+	mux.HandleFunc("GET /api/users", a.requireAdmin(a.handleUsers))
+	mux.HandleFunc("POST /api/users", a.requireAdmin(a.handleCreateUser))
+	mux.HandleFunc("DELETE /api/users/{id}", a.requireAdmin(a.handleDeleteUser))
+	mux.HandleFunc("POST /api/users/{id}/password", a.requireAdmin(a.handleResetPassword))
+	mux.HandleFunc("POST /api/account/password", a.requireAuth(a.handleAccountPassword))
+	mux.HandleFunc("GET /api/apikeys", a.requireAuth(a.handleAPIKeys))
+	mux.HandleFunc("POST /api/apikeys", a.requireAuth(a.handleCreateAPIKey))
+	mux.HandleFunc("DELETE /api/apikeys/{id}", a.requireAuth(a.handleDeleteAPIKey))
 	return mux
 }
 

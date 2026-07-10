@@ -119,6 +119,14 @@ func CountUsers() int64 {
 	return n
 }
 
+// CountAdmins returns the number of admin users, used to prevent removing or
+// demoting the last administrator (which would lock everyone out).
+func CountAdmins() int64 {
+	var n int64
+	DB().Model(&User{}).Where("role = ?", RoleAdmin).Count(&n)
+	return n
+}
+
 // DeleteUser removes a user and cascades their sessions and API keys.
 func DeleteUser(id uint) error {
 	DeleteUserSessions(id)

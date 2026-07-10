@@ -1,5 +1,6 @@
 import { NavLink, Route, Routes } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import type { User } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import Requests from "@/pages/Requests";
@@ -7,18 +8,9 @@ import RequestDetail from "@/pages/RequestDetail";
 import Bots from "@/pages/Bots";
 import Payloads from "@/pages/Payloads";
 import PayloadEditor from "@/pages/PayloadEditor";
-
-// Shell is the authenticated app frame: header nav + routed content. Real
-// pages (request log, payloads, bots, users, API keys) land in later phases;
-// they render as placeholders for now.
-const NAV = [
-  { to: "/", label: "Dashboard", end: true },
-  { to: "/requests", label: "Requests" },
-  { to: "/bots", label: "Bots" },
-  { to: "/payloads", label: "Payloads" },
-  { to: "/users", label: "Users" },
-  { to: "/keys", label: "API Keys" },
-];
+import Users from "@/pages/Users";
+import ApiKeys from "@/pages/ApiKeys";
+import Account from "@/pages/Account";
 
 function Placeholder({ title }: { title: string }) {
   return (
@@ -34,23 +26,32 @@ function Placeholder({ title }: { title: string }) {
 }
 
 export default function Shell({
-  username,
+  user,
   onLogout,
 }: {
-  username: string;
+  user: User;
   onLogout: () => void;
 }) {
+  const isAdmin = user.role === "admin";
+  const nav = [
+    { to: "/requests", label: "Requests" },
+    { to: "/bots", label: "Bots" },
+    { to: "/payloads", label: "Payloads" },
+    ...(isAdmin ? [{ to: "/users", label: "Users" }] : []),
+    { to: "/keys", label: "API Keys" },
+    { to: "/account", label: "Account" },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">
         <div className="container flex h-14 items-center gap-6">
           <span className="font-semibold">xodbox</span>
           <nav className="flex items-center gap-4 text-sm">
-            {NAV.map((item) => (
+            {nav.map((item) => (
               <NavLink
                 key={item.to}
                 to={item.to}
-                end={item.end}
                 className={({ isActive }) =>
                   cn(
                     "text-muted-foreground transition-colors hover:text-foreground",
@@ -63,7 +64,7 @@ export default function Shell({
             ))}
           </nav>
           <div className="ml-auto flex items-center gap-3 text-sm">
-            <span className="text-muted-foreground">{username}</span>
+            <span className="text-muted-foreground">{user.username}</span>
             <Button variant="outline" size="sm" onClick={onLogout}>
               Sign out
             </Button>
@@ -79,8 +80,9 @@ export default function Shell({
           <Route path="/payloads" element={<Payloads />} />
           <Route path="/payloads/new" element={<PayloadEditor />} />
           <Route path="/payloads/:id" element={<PayloadEditor />} />
-          <Route path="/users" element={<Placeholder title="Users" />} />
-          <Route path="/keys" element={<Placeholder title="API Keys" />} />
+          <Route path="/users" element={<Users currentUserId={user.id} />} />
+          <Route path="/keys" element={<ApiKeys />} />
+          <Route path="/account" element={<Account />} />
           <Route path="*" element={<Placeholder title="Not found" />} />
         </Routes>
       </main>

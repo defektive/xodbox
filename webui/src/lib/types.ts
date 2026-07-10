@@ -29,6 +29,21 @@ export interface Bot {
   minute_group: number;
 }
 
+export interface UserRow {
+  id: number;
+  username: string;
+  role: string;
+}
+
+export interface ApiKey {
+  id: number;
+  name: string;
+  prefix: string;
+  created_at: string;
+  last_used_at: string | null;
+  expires_at: string | null;
+}
+
 export interface Payload {
   id: number;
   name: string;

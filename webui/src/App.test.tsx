@@ -16,6 +16,14 @@ vi.mock("@/lib/auth", () => ({
   AuthProvider: ({ children }: { children: React.ReactNode }) => children,
 }));
 
+vi.mock("@/lib/api", () => ({
+  api: {
+    get: vi.fn().mockResolvedValue({ items: [], total: 0, limit: 50, offset: 0 }),
+  },
+  ApiError: class ApiError extends Error {},
+  setCsrfToken: vi.fn(),
+}));
+
 import App from "@/App";
 
 function renderApp() {

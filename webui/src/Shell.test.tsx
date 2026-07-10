@@ -12,11 +12,13 @@ vi.mock("@/lib/api", () => ({
 
 import Shell from "@/Shell";
 
+const user = { id: 1, username: "alice", role: "admin" };
+
 function renderAt(path: string, onLogout = vi.fn()) {
   getMock.mockResolvedValue({ items: [], total: 0, limit: 50, offset: 0 });
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <Shell username="alice" onLogout={onLogout} />
+      <Shell user={user} onLogout={onLogout} />
     </MemoryRouter>,
   );
 }
@@ -42,5 +44,19 @@ describe("Shell", () => {
     renderAt("/", onLogout);
     screen.getByRole("button", { name: "Sign out" }).click();
     expect(onLogout).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides the Users nav for non-admins", () => {
+    getMock.mockResolvedValue({ items: [], total: 0, limit: 50, offset: 0 });
+    render(
+      <MemoryRouter>
+        <Shell
+          user={{ id: 2, username: "bob", role: "user" }}
+          onLogout={vi.fn()}
+        />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole("link", { name: "Users" })).toBeNull();
+    expect(screen.getByRole("link", { name: "API Keys" })).toBeInTheDocument();
   });
 });
