@@ -96,17 +96,23 @@ func UpdateSinkDescription(slug, description string) (*Sink, error) {
 	return s, nil
 }
 
-// DeleteSink removes a sink by slug. Its interactions are left untouched.
+// DeleteSink removes a sink by slug. It hard-deletes (Unscoped) so the slug can
+// be reused; a GORM soft-delete would leave the row occupying the unique index
+// and make the slug permanently un-recreatable. Its interactions are left
+// untouched (a separate table).
 func DeleteSink(slug string) error {
-	return DB().Where("slug = ?", slug).Delete(&Sink{}).Error
+	return DB().Unscoped().Where("slug = ?", slug).Delete(&Sink{}).Error
 }
 
 // sinkMatch scopes a query to interactions attributed to slug: the slug appears
 // in the request target (HTTP path, DNS qname) or the raw request headers dump
-// (HTTP request line + Host, so path/query/subdomain all correlate).
+// (HTTP request line + Host, so path/query/subdomain all correlate). LIKE
+// wildcards in the slug are escaped so the match is literal — matching the SSE
+// stream's strings.Contains — since ValidSlug permits '_' (a LIKE wildcard).
 func sinkMatch(q *gorm.DB, slug string) *gorm.DB {
-	like := "%" + slug + "%"
-	return q.Where("request_target LIKE ? OR headers LIKE ?", like, like)
+	esc := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(slug)
+	like := "%" + esc + "%"
+	return q.Where(`request_target LIKE ? ESCAPE '\' OR headers LIKE ? ESCAPE '\'`, like, like)
 }
 
 // SinkEvents returns the interactions attributed to the slug, newest first.

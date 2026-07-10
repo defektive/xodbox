@@ -138,7 +138,13 @@ func (x *App) waitForEvents() {
 			lg().Debug("event loop shutting down")
 			return
 		case newEvent := <-x.eventChan:
+			// Persist every event, then dispatch to notifiers — unless the event
+			// opts out of notification (e.g. a suspected bot), which stays
+			// recorded but silent.
 			persistInteraction(newEvent)
+			if s, ok := newEvent.(types.NotifySuppressor); ok && s.NotifySuppressed() {
+				continue
+			}
 			for _, h := range x.notificationHandlers {
 				go func(h types.Notifier) {
 					if err := h.Send(newEvent); err != nil {

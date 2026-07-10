@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, ApiError } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
@@ -28,11 +28,16 @@ export default function SinkDetail() {
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
+  // Track ids already shown so a duplicate stream frame doesn't double-count or
+  // trigger a redundant detail fetch.
+  const seen = useRef<Set<number>>(new Set());
   useEffect(() => {
-    setEvents(data?.events ?? []);
+    const initial = data?.events ?? [];
+    setEvents(initial);
     setLiveCount(0);
     setDescription(data?.description ?? "");
     setEditing(false);
+    seen.current = new Set(initial.map((x) => x.id));
   }, [data]);
 
   // The stream carries summaries; fetch the full detail for each new hit so the
@@ -40,16 +45,17 @@ export default function SinkDetail() {
   useInteractionStream(
     `sink=${encodeURIComponent(slug)}`,
     useCallback((s: InteractionSummary) => {
+      if (seen.current.has(s.id)) return;
+      seen.current.add(s.id);
       api
         .get<InteractionDetail>(`interactions/${s.id}`)
         .then((d) => {
-          setEvents((prev) =>
-            prev.some((x) => x.id === d.id) ? prev : [d, ...prev].slice(0, 200),
-          );
+          setEvents((prev) => [d, ...prev].slice(0, 200));
           setLiveCount((c) => c + 1);
         })
         .catch(() => {
-          /* transient; the next reload will catch up */
+          // transient; drop from seen so a later reload/frame can retry.
+          seen.current.delete(s.id);
         });
     }, []),
   );

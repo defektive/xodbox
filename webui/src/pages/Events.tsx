@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useApi } from "@/lib/useApi";
 import { useInteractionStream } from "@/lib/useStream";
@@ -37,17 +37,22 @@ export default function Events() {
   // the same filters to the stream, so anything received belongs in this view.
   const [items, setItems] = useState<InteractionSummary[]>([]);
   const [liveCount, setLiveCount] = useState(0);
+  // Track ids we've already shown so a duplicate stream frame (reconnect,
+  // fetch/stream overlap) doesn't double-count or re-insert.
+  const seen = useRef<Set<number>>(new Set());
   useEffect(() => {
-    setItems(data?.items ?? []);
+    const initial = data?.items ?? [];
+    setItems(initial);
     setLiveCount(0);
+    seen.current = new Set(initial.map((x) => x.id));
   }, [data]);
 
   useInteractionStream(
     qs,
     useCallback((i: InteractionSummary) => {
-      setItems((prev) =>
-        prev.some((x) => x.id === i.id) ? prev : [i, ...prev].slice(0, 200),
-      );
+      if (seen.current.has(i.id)) return;
+      seen.current.add(i.id);
+      setItems((prev) => [i, ...prev].slice(0, 200));
       setLiveCount((c) => c + 1);
     }, []),
   );

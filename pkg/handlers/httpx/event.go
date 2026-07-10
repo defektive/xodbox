@@ -20,6 +20,10 @@ type Event struct {
 	body             []byte
 	requestHeader    []byte
 	botExemptPrivate bool
+	// interaction is a snapshot of the request built synchronously in NewEvent,
+	// so the event loop can persist it without touching the live *http.Request
+	// on another goroutine (which the handler may still be using or have freed).
+	interaction *model.Interaction
 }
 
 func NewEvent(req *http.Request) *Event {
@@ -29,6 +33,11 @@ func NewEvent(req *http.Request) *Event {
 	dump, _ := httputil.DumpRequest(req, false)
 	dump = append(dump, body...)
 	hostname, portNum := util.GetHostAndPortFromRequest(req)
+
+	protocol := "http"
+	if req.TLS != nil {
+		protocol = "https"
+	}
 
 	ev := &Event{
 		BaseEvent: &types.BaseEvent{
@@ -41,30 +50,24 @@ func NewEvent(req *http.Request) *Event {
 		body:             body,
 		requestHeader:    dump,
 		botExemptPrivate: true,
+		interaction: &model.Interaction{
+			RemoteAddr:    hostname,
+			RemotePort:    fmt.Sprintf("%d", portNum),
+			Handler:       "httpx",
+			Protocol:      protocol,
+			RequestType:   req.Method,
+			RequestTarget: req.URL.Path,
+			UserAgent:     req.UserAgent(),
+			Headers:       string(dump), // full request dump for curl reconstruction
+			Data:          body,
+		},
 	}
 	return ev
 }
 
-// Interaction builds the persisted record for this request. The app event loop
-// stores it (see types.Persistable); Headers carries the full request dump so
-// CurlFromInteraction can reconstruct a replay curl.
+// Interaction returns the record snapshotted in NewEvent (see types.Persistable).
 func (e *Event) Interaction() *model.Interaction {
-	protocol := "http"
-	if e.req.TLS != nil {
-		protocol = "https"
-	}
-	hostname, portNum := util.GetHostAndPortFromRequest(e.req)
-	return &model.Interaction{
-		RemoteAddr:    hostname,
-		RemotePort:    fmt.Sprintf("%d", portNum),
-		Handler:       "httpx",
-		Protocol:      protocol,
-		RequestType:   e.req.Method,
-		RequestTarget: e.req.URL.Path,
-		UserAgent:     e.req.UserAgent(),
-		Headers:       string(e.requestHeader),
-		Data:          e.body,
-	}
+	return e.interaction
 }
 
 func (e *Event) Details() string {
@@ -100,21 +103,24 @@ func (e *Event) RemoteAddr() string {
 }
 
 func (e *Event) Dispatch(cc chan types.InteractionEvent) {
-	addr := e.BaseEvent.RemoteAddr
-
-	// Loopback/private sources are usually the operator or an internal SSRF
-	// callback, so (when enabled) they bypass volume-based bot detection —
-	// otherwise a burst of local testing or captures silently stops
-	// dispatching and every notifier goes quiet.
-	exempt := e.botExemptPrivate && util.IsPrivateOrLoopback(addr)
-	if !exempt && model.IsBot(addr) {
-		lg().Warn("not dispatching suspected bot (high request volume); set bot_exempt_private to exempt local/private sources", "remote_addr", addr)
-		return
-	}
-
 	go func() {
 		cc <- e
 	}()
+}
+
+// NotifySuppressed reports whether notifiers should skip this event. Suspected
+// bots (high request volume) are still persisted and shown in the Events log,
+// but don't fire notifications — otherwise a scanner floods every notifier.
+// Loopback/private sources are usually the operator or an internal SSRF
+// callback, so (when enabled) they bypass volume-based bot detection.
+func (e *Event) NotifySuppressed() bool {
+	addr := e.BaseEvent.RemoteAddr
+	exempt := e.botExemptPrivate && util.IsPrivateOrLoopback(addr)
+	if !exempt && model.IsBot(addr) {
+		lg().Warn("suppressing notifiers for suspected bot (high request volume); still recorded. Set bot_exempt_private to exempt local/private sources", "remote_addr", addr)
+		return true
+	}
+	return false
 }
 
 func (e *Event) TemplateContext(templateData map[string]string) *TemplateContext {

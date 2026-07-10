@@ -1,6 +1,43 @@
 package model
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
+
+func TestDeleteSinkAllowsSlugReuse(t *testing.T) {
+	s, err := CreateSink("", "first")
+	if err != nil {
+		t.Fatal(err)
+	}
+	slug := s.Slug
+	if err := DeleteSink(slug); err != nil {
+		t.Fatalf("DeleteSink: %v", err)
+	}
+	// Hard-delete must free the slug for reuse (a soft-delete would leave the
+	// unique index occupied and reject this with ErrSlugExists).
+	if _, err := CreateSink(slug, "second"); err != nil {
+		t.Errorf("recreating a deleted slug should succeed, got %v", err)
+	}
+}
+
+func TestSinkEventsEscapesLikeWildcards(t *testing.T) {
+	// A slug containing '_' (a LIKE single-char wildcard) must match literally,
+	// not as a wildcard — consistent with the SSE stream's strings.Contains.
+	slug := "s_" + uniqueUsername() // e.g. "s_u7"; contains '_'
+	if _, err := CreateSink(slug, ""); err != nil {
+		t.Fatal(err)
+	}
+
+	// Literal occurrence → matches. Wildcard-only occurrence (the '_' position
+	// replaced by another char) → must NOT match.
+	DB().Create(&Interaction{Handler: "httpx", RequestTarget: "/x/" + slug})
+	DB().Create(&Interaction{Handler: "httpx", RequestTarget: "/x/" + strings.Replace(slug, "_", "Z", 1)})
+
+	if n := SinkEventCount(slug); n != 1 {
+		t.Errorf("SinkEventCount = %d, want 1 (underscore must not act as a LIKE wildcard)", n)
+	}
+}
 
 func TestCreateSinkGeneratesSlug(t *testing.T) {
 	s, err := CreateSink("", "generated one")

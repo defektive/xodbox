@@ -10,3 +10,11 @@ import "github.com/defektive/xodbox/pkg/model"
 type Persistable interface {
 	Interaction() *model.Interaction
 }
+
+// NotifySuppressor is implemented by events that should still be persisted but
+// skip notifier delivery. httpx uses this to suppress suspected bots (high
+// request volume): the traffic is still recorded in the DB / Events log, but
+// notifiers stay quiet so a scanner doesn't flood Slack/webhooks.
+type NotifySuppressor interface {
+	NotifySuppressed() bool
+}

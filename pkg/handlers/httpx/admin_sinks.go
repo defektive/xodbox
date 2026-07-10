@@ -20,11 +20,17 @@ type sinkView struct {
 }
 
 func toSinkView(s model.Sink) sinkView {
+	return sinkViewCounted(s, model.SinkEventCount(s.Slug))
+}
+
+// sinkViewCounted builds the view with a caller-supplied count, so a handler
+// that already knows the event count doesn't run the COUNT query twice.
+func sinkViewCounted(s model.Sink, count int64) sinkView {
 	return sinkView{
 		Slug:        s.Slug,
 		Description: s.Description,
 		CreatedAt:   s.CreatedAt,
-		EventCount:  model.SinkEventCount(s.Slug),
+		EventCount:  count,
 	}
 }
 
@@ -100,10 +106,11 @@ func (a *adminAuth) handleSink(w http.ResponseWriter, r *http.Request) {
 	for i := range rows {
 		events = append(events, toDetail(&rows[i]))
 	}
+	total := model.SinkEventCount(s.Slug)
 	writeJSON(w, http.StatusOK, sinkDetail{
-		sinkView: toSinkView(*s),
+		sinkView: sinkViewCounted(*s, total),
 		Events:   events,
-		Total:    model.SinkEventCount(s.Slug),
+		Total:    total,
 		Limit:    limit,
 		Offset:   offset,
 	})
