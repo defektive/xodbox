@@ -83,6 +83,19 @@ func SinkBySlug(slug string) (*Sink, error) {
 	return &s, nil
 }
 
+// UpdateSinkDescription sets a sink's description (the slug is immutable) and
+// returns the updated record.
+func UpdateSinkDescription(slug, description string) (*Sink, error) {
+	s, err := SinkBySlug(slug)
+	if err != nil {
+		return nil, err
+	}
+	if err := DB().Model(s).Update("description", description).Error; err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
 // DeleteSink removes a sink by slug. Its interactions are left untouched.
 func DeleteSink(slug string) error {
 	return DB().Where("slug = ?", slug).Delete(&Sink{}).Error

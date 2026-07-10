@@ -1,13 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { api, ApiError } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useInteractionStream } from "@/lib/useStream";
 import type {
   InteractionSummary,
+  Sink,
   SinkDetail as SinkDetailData,
 } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -26,10 +29,33 @@ export default function SinkDetail() {
   // Hooks must run unconditionally (before the early returns below).
   const [events, setEvents] = useState<InteractionSummary[]>([]);
   const [liveCount, setLiveCount] = useState(0);
+  const [description, setDescription] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   useEffect(() => {
     setEvents(data?.events ?? []);
     setLiveCount(0);
+    setDescription(data?.description ?? "");
+    setEditing(false);
   }, [data]);
+
+  async function saveDescription() {
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const updated = await api.put<Sink>(`sinks/${encodeURIComponent(slug)}`, {
+        description: draft,
+      });
+      setDescription(updated.description);
+      setEditing(false);
+    } catch (err) {
+      setSaveError(err instanceof ApiError ? err.message : "save failed");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   useInteractionStream(
     `sink=${encodeURIComponent(slug)}`,
@@ -68,11 +94,54 @@ export default function SinkDetail() {
           <CardTitle className="font-mono text-lg">{data.slug}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3 text-sm">
-          <p>
-            {data.description || (
-              <span className="text-muted-foreground">No description.</span>
-            )}
-          </p>
+          {editing ? (
+            <div className="space-y-2">
+              <Textarea
+                aria-label="Sink description"
+                rows={3}
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                placeholder="What is this sink for?"
+              />
+              {saveError && (
+                <p className="text-sm text-destructive" role="alert">
+                  {saveError}
+                </p>
+              )}
+              <div className="flex gap-2">
+                <Button size="sm" onClick={saveDescription} disabled={saving}>
+                  {saving ? "Saving…" : "Save"}
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setEditing(false)}
+                  disabled={saving}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-start justify-between gap-3">
+              <p>
+                {description || (
+                  <span className="text-muted-foreground">No description.</span>
+                )}
+              </p>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setDraft(description);
+                  setSaveError(null);
+                  setEditing(true);
+                }}
+              >
+                Edit
+              </Button>
+            </div>
+          )}
           <div className="flex items-center gap-3">
             <code className="rounded bg-muted p-2 text-xs">{data.slug}</code>
             <Button

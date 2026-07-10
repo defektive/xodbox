@@ -77,6 +77,44 @@ func TestSinkCRUDAndEvents(t *testing.T) {
 	miss.Body.Close()
 }
 
+func TestSinkUpdateDescription(t *testing.T) {
+	srv, _, u := adminTestServer(t)
+	key, _, _ := model.NewAPIKey(u.ID, "k", nil)
+	base := srv.URL + "/api/sinks"
+
+	slug := uniqueName("sinkupd")
+	create := doAuthed(t, http.MethodPost, base, key, createSinkRequest{Slug: slug, Description: "before"})
+	create.Body.Close()
+
+	// Update the description.
+	up := doAuthed(t, http.MethodPut, base+"/"+slug, key, updateSinkRequest{Description: "after"})
+	if up.StatusCode != http.StatusOK {
+		t.Fatalf("update = %d, want 200", up.StatusCode)
+	}
+	var updated sinkView
+	_ = json.NewDecoder(up.Body).Decode(&updated)
+	up.Body.Close()
+	if updated.Description != "after" {
+		t.Errorf("updated description = %q, want after", updated.Description)
+	}
+
+	// It persisted.
+	var got sinkDetail
+	if err := json.Unmarshal(getAuthed(t, base+"/"+slug, key), &got); err != nil {
+		t.Fatal(err)
+	}
+	if got.Description != "after" {
+		t.Errorf("fetched description = %q, want after", got.Description)
+	}
+
+	// Unknown slug -> 404.
+	miss := doAuthed(t, http.MethodPut, base+"/does-not-exist", key, updateSinkRequest{Description: "x"})
+	if miss.StatusCode != http.StatusNotFound {
+		t.Errorf("update unknown = %d, want 404", miss.StatusCode)
+	}
+	miss.Body.Close()
+}
+
 func TestSinkCreateValidation(t *testing.T) {
 	srv, _, u := adminTestServer(t)
 	key, _, _ := model.NewAPIKey(u.ID, "k", nil)

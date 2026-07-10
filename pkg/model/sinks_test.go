@@ -31,6 +31,34 @@ func TestCreateSinkRejectsInvalidAndDuplicateSlugs(t *testing.T) {
 	}
 }
 
+func TestUpdateSinkDescription(t *testing.T) {
+	s, err := CreateSink("", "old description")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	updated, err := UpdateSinkDescription(s.Slug, "new description")
+	if err != nil {
+		t.Fatalf("UpdateSinkDescription: %v", err)
+	}
+	if updated.Description != "new description" {
+		t.Errorf("returned description = %q, want %q", updated.Description, "new description")
+	}
+	// Persisted.
+	got, err := SinkBySlug(s.Slug)
+	if err != nil || got.Description != "new description" {
+		t.Errorf("persisted description = %q (err %v)", got.Description, err)
+	}
+	// Slug is unchanged.
+	if got.Slug != s.Slug {
+		t.Errorf("slug changed: %q -> %q", s.Slug, got.Slug)
+	}
+
+	if _, err := UpdateSinkDescription("no-such-slug-here", "x"); err == nil {
+		t.Error("updating an unknown slug should error")
+	}
+}
+
 func TestSinkEventsMatchTargetAndHeaders(t *testing.T) {
 	s, err := CreateSink("", "matcher")
 	if err != nil {

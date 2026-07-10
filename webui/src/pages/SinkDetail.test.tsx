@@ -1,16 +1,29 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 
-const { getMock } = vi.hoisted(() => ({ getMock: vi.fn() }));
+const { getMock, putMock } = vi.hoisted(() => ({
+  getMock: vi.fn(),
+  putMock: vi.fn(),
+}));
 
 vi.mock("@/lib/api", () => ({
-  api: { get: getMock, post: vi.fn(), del: vi.fn() },
+  api: { get: getMock, post: vi.fn(), put: putMock, del: vi.fn() },
   ApiError: class ApiError extends Error {},
   setCsrfToken: vi.fn(),
 }));
 
 import SinkDetail from "@/pages/SinkDetail";
+
+function renderSink() {
+  return render(
+    <MemoryRouter initialEntries={["/sinks/abc123"]}>
+      <Routes>
+        <Route path="/sinks/:slug" element={<SinkDetail />} />
+      </Routes>
+    </MemoryRouter>,
+  );
+}
 
 describe("SinkDetail", () => {
   it("shows the sink description and its events newest first", async () => {
@@ -66,5 +79,41 @@ describe("SinkDetail", () => {
 
     // Slug is fetched from the URL param.
     expect(getMock).toHaveBeenCalledWith("sinks/abc123");
+  });
+
+  it("edits the sink description", async () => {
+    getMock.mockResolvedValue({
+      slug: "abc123",
+      description: "old",
+      created_at: new Date().toISOString(),
+      event_count: 0,
+      total: 0,
+      limit: 50,
+      offset: 0,
+      events: [],
+    });
+    putMock.mockResolvedValue({
+      slug: "abc123",
+      description: "updated purpose",
+      created_at: new Date().toISOString(),
+      event_count: 0,
+    });
+
+    renderSink();
+
+    // Enter edit mode, change the text, save.
+    fireEvent.click(await screen.findByRole("button", { name: "Edit" }));
+    fireEvent.change(screen.getByLabelText("Sink description"), {
+      target: { value: "updated purpose" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() =>
+      expect(putMock).toHaveBeenCalledWith("sinks/abc123", {
+        description: "updated purpose",
+      }),
+    );
+    // The new description is shown after saving.
+    expect(await screen.findByText("updated purpose")).toBeInTheDocument();
   });
 });

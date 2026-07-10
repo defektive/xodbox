@@ -108,6 +108,28 @@ func (a *adminAuth) handleSink(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+type updateSinkRequest struct {
+	Description string `json:"description"`
+}
+
+func (a *adminAuth) handleUpdateSink(w http.ResponseWriter, r *http.Request) {
+	var req updateSinkRequest
+	if err := json.NewDecoder(http.MaxBytesReader(w, r.Body, maxLoginBody)).Decode(&req); err != nil {
+		writeErr(w, http.StatusBadRequest, "bad request")
+		return
+	}
+	s, err := model.UpdateSinkDescription(r.PathValue("slug"), req.Description)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			writeErr(w, http.StatusNotFound, "sink not found")
+			return
+		}
+		writeErr(w, http.StatusInternalServerError, "could not update sink")
+		return
+	}
+	writeJSON(w, http.StatusOK, toSinkView(*s))
+}
+
 func (a *adminAuth) handleDeleteSink(w http.ResponseWriter, r *http.Request) {
 	if err := model.DeleteSink(r.PathValue("slug")); err != nil {
 		writeErr(w, http.StatusInternalServerError, "could not delete sink")
