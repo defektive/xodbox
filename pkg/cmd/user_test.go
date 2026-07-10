@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"testing"
 
 	"github.com/defektive/xodbox/pkg/model"
@@ -29,10 +31,14 @@ func TestUserAddAndRemove(t *testing.T) {
 	userRoleAdmin = true
 	t.Cleanup(func() { userPassword = ""; userRoleAdmin = false })
 
-	if err := userAddCmd.RunE(userAddCmd, []string{"cli-admin"}); err != nil {
+	// Unique per run: the model DB is a persistent singleton, so a fixed name
+	// would collide under -count reruns.
+	name := fmt.Sprintf("cli-admin-%d", cliUserSeq.Add(1))
+
+	if err := userAddCmd.RunE(userAddCmd, []string{name}); err != nil {
 		t.Fatalf("user add: %v", err)
 	}
-	u, err := model.UserByUsername("cli-admin")
+	u, err := model.UserByUsername(name)
 	if err != nil {
 		t.Fatalf("user not created: %v", err)
 	}
@@ -40,13 +46,15 @@ func TestUserAddAndRemove(t *testing.T) {
 		t.Error("--admin should create an admin user")
 	}
 
-	if err := userRmCmd.RunE(userRmCmd, []string{"cli-admin"}); err != nil {
+	if err := userRmCmd.RunE(userRmCmd, []string{name}); err != nil {
 		t.Fatalf("user rm: %v", err)
 	}
-	if _, err := model.UserByUsername("cli-admin"); err == nil {
+	if _, err := model.UserByUsername(name); err == nil {
 		t.Error("user should be removed")
 	}
 }
+
+var cliUserSeq atomic.Int64
 
 func TestGeneratePasswordMeetsPolicy(t *testing.T) {
 	p, err := generatePassword()

@@ -54,8 +54,13 @@ single-quoted); `Content-Length` is dropped so curl recomputes it.
   `bot_exempt_private: "false"` to subject every source to bot detection.
 - The private API (mounted at `api_path`) requires the header
   `Authorization: Token <api_token>` on every request. An empty
-  `api_token` rejects all callers.
+  `api_token` rejects all callers. **`api_token` is deprecated** in
+  favour of the admin console's user accounts and API keys (see below);
+  setting it logs a deprecation warning at start-up.
 - Embedded static assets ship at `/ixdbxi/`.
+- An embedded **admin web UI** (React SPA + JSON API) ships in the binary
+  and is served under `ui_path` — or on a separate `admin_listener` bind —
+  behind session/API-key auth and a CIDR allowlist (see below).
 
 ## Configuration
 
@@ -68,8 +73,11 @@ single-quoted); `Content-Length` is dropped so curl recomputes it.
 | `static_dir`   | no       | —       | Directory served at `/static/`. Created on first start with mode `0750` if missing.    |
 | `payload_dir`  | no       | —       | Directory of `*.md` payload definitions. Watched at runtime; updates are upserted.     |
 | `api_path`     | no       | —       | URL path prefix to mount the JSON API on, e.g. `/api`. Normalised to leading/trailing slash. |
-| `api_token`    | no       | —       | Bearer-style token required by the `/private/*` API routes.                            |
+| `api_token`    | no       | —       | **Deprecated.** Bearer-style token for the legacy `/private/*` API. Prefer admin users + API keys. Setting it warns at start-up. |
 | `bot_exempt_private` | no | `true` | Exempt loopback/private/link-local sources from volume-based bot suppression. Set to `"false"` to apply bot detection to every source. |
+| `ui_path`      | no       | —       | URL path prefix to mount the admin web UI on, e.g. `/admin`. Empty disables it on the main listener. Normalised to leading/trailing slash. Ignored when `admin_listener` is set. |
+| `ui_allow_cidrs` | no     | —       | Comma-separated CIDRs allowed to reach the admin UI/API, checked against the **real TCP peer IP** (never `X-Forwarded-For`). Empty allows any source (auth still required). Invalid entries are logged and ignored. |
+| `admin_listener` | no     | —       | Separate bind address (e.g. `127.0.0.1:8443`) that serves **only** the admin UI/API, isolated from the attacker-facing listener. When set, the UI is not mounted under `ui_path` on the main listener. |
 
 ### TLS / ACME
 
@@ -94,6 +102,69 @@ route. Only useful when payloads request a build.
 | `mdaas_bind_listener`| no       | —       | Listener address baked into the built MDaaS binary.                                    |
 | `mdaas_allowed_cidr` | no       | —       | CIDR allowed to connect to the built MDaaS binary at runtime.                          |
 | `mdaas_notify_url`   | no       | —       | Webhook URL the built binary calls back to.                                            |
+
+## Admin web UI
+
+The binary embeds a responsive React admin console (built with Vite +
+shadcn/ui, compiled into `pkg/handlers/httpx/webui/` via `//go:embed`) plus a
+JSON admin API. It lets an operator log in and:
+
+- view/edit/create/delete **payloads**,
+- browse the **request log** with filters (target, remote, handler),
+- inspect a **request detail** with a one-click **copy-as-curl**,
+- get a **webhook-style view** of every hit to a specific `target` path,
+- review detected **bots**,
+- manage **users** and **API keys**, and rotate their own password.
+
+### Serving the console
+
+Choose one of two mount strategies:
+
+- **Same listener, sub-path:** set `ui_path` (e.g. `/admin`). The SPA and its
+  `/api/*` routes are served under that prefix on the main HTTP(S) listener,
+  with an SPA fallback for client-side routes.
+- **Isolated listener (recommended):** set `admin_listener` (e.g.
+  `127.0.0.1:8443`). The console binds there, fully separated from the
+  attacker-facing port; `ui_path` is then ignored on the main listener.
+
+Either way, access is gated by `ui_allow_cidrs` (evaluated against the real TCP
+peer IP) **and** authentication. Admin routes never emit honeypot
+`InteractionEvent`s.
+
+### Authentication model
+
+- **Browser sessions:** cookie-based, server-side session tokens (hashed at
+  rest), `HttpOnly` + `SameSite=Strict` + `Secure` under TLS. State-changing
+  requests require a double-submit **CSRF** token (`X-CSRF-Token` header echoing
+  the `xodbox_csrf` cookie). Login is rate-limited and enumeration-resistant.
+- **API keys:** send `Authorization: Bearer xdbx_…`. Keys are `sha256`-hashed at
+  rest, compared in constant time, and shown in plaintext exactly once at
+  creation. Bearer requests are CSRF-exempt.
+- **Passwords:** bcrypt, 12-character minimum.
+- **Roles:** `admin` (may manage users) and `user`.
+
+### Bootstrapping users (CLI)
+
+Create the first admin before starting the server (there is no default
+account). API keys are then minted from the console.
+
+```sh
+xodbox user add alice --admin   # prints a generated password once
+xodbox user list
+xodbox user passwd alice        # reset a password (revokes active sessions)
+xodbox user rm alice            # delete a user + their keys and sessions
+```
+
+### Example config
+
+```yaml
+handlers:
+  - handler: HTTPX
+    listener: ":80"
+    admin_listener: "127.0.0.1:8443"   # console isolated from the honeypot port
+    ui_allow_cidrs: "127.0.0.1/32,10.0.0.0/8"
+    # ui_path: "/admin"                # alternative: same listener, sub-path
+```
 
 ## Filters
 
@@ -122,10 +193,15 @@ And would not match:
   HTTP-01 challenge listener on :80 and the TLS listener on :443. The
   payload-directory watcher goroutine (if `payload_dir` was set) is
   also cancelled. ctx bounds how long in-flight requests have to
-  drain.
+  drain. When `admin_listener` is set, its dedicated server is started
+  in `Start` and shut down under the same `Stop(ctx)` drain.
 - Sensitive operator keys (`api_token`, `dns_provider_api_key`) end up
   in the xodbox config file. Restrict that file's permissions to `0600`
   and the running user.
+- Admin passwords, session tokens, and API keys live in the SQLite
+  database (hashed), never in the config file. Prefer binding the admin
+  console to an isolated `admin_listener` and/or a tight `ui_allow_cidrs`
+  so it is never reachable from the attacker-facing port.
 
 ## Backlog
 

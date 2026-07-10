@@ -54,7 +54,7 @@ func getAuthed(t *testing.T, url, key string) []byte {
 }
 
 func TestInteractionsReadAPI(t *testing.T) {
-	target := "/p3-" + t.Name()
+	target := uniqueName("/p3")
 	for i := 0; i < 3; i++ {
 		model.DB().Create(&model.Interaction{
 			Handler: "httpx", RemoteAddr: "10.0.0.1", RequestType: "GET",
@@ -63,7 +63,7 @@ func TestInteractionsReadAPI(t *testing.T) {
 		})
 	}
 	model.DB().Create(&model.Interaction{
-		Handler: "httpx", RequestType: "GET", RequestTarget: "/other-" + t.Name(),
+		Handler: "httpx", RequestType: "GET", RequestTarget: uniqueName("/other"),
 		Headers: "GET /other HTTP/1.1\r\nHost: h\r\n\r\n",
 	})
 

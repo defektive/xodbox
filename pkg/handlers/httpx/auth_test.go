@@ -3,11 +3,13 @@ package httpx
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/defektive/xodbox/pkg/model"
@@ -15,11 +17,20 @@ import (
 
 const testPassword = "correct horse battery staple"
 
+// testSeq makes test-created names unique across tests and across -count reruns
+// (the model DB is a shared, persistent singleton, so t.Name() alone collides
+// on the second run).
+var testSeq atomic.Int64
+
+func uniqueName(prefix string) string {
+	return fmt.Sprintf("%s-%d", prefix, testSeq.Add(1))
+}
+
 // adminTestServer starts the admin surface (API + SPA) at base "/" with a
 // cookie-jar client, and creates a user to log in as.
 func adminTestServer(t *testing.T) (*httptest.Server, *http.Client, *model.User) {
 	t.Helper()
-	u, err := model.CreateUser(t.Name(), testPassword, model.RoleAdmin)
+	u, err := model.CreateUser(uniqueName("admin"), testPassword, model.RoleAdmin)
 	if err != nil {
 		t.Fatalf("create user: %v", err)
 	}
@@ -183,7 +194,10 @@ func TestAdminHandlerServesSPAOutsideAPI(t *testing.T) {
 	handler, _ := (&Handler{}).adminHandler("/")
 	srv := httptest.NewServer(handler)
 	defer srv.Close()
-	resp, _ := http.Get(srv.URL + "/dashboard")
+	resp, err := http.Get(srv.URL + "/dashboard")
+	if err != nil {
+		t.Fatalf("GET /dashboard: %v", err)
+	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode != http.StatusOK || !strings.Contains(string(body), `id="root"`) {

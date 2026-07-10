@@ -13,7 +13,7 @@ func TestUsersRequireAdmin(t *testing.T) {
 	srv, _, _ := adminTestServer(t)
 
 	// A non-admin user's key must be rejected by admin-only routes.
-	nonAdmin, err := model.CreateUser("plebe-"+t.Name(), testPassword, model.RoleUser)
+	nonAdmin, err := model.CreateUser(uniqueName("plebe"), testPassword, model.RoleUser)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -32,7 +32,7 @@ func TestUserManagement(t *testing.T) {
 
 	// Create a user.
 	resp := doAuthed(t, http.MethodPost, srv.URL+"/api/users", adminKey, createUserRequest{
-		Username: "newbie-" + t.Name(), Password: "a-strong-password!!", Role: "user",
+		Username: uniqueName("newbie"), Password: "a-strong-password!!", Role: "user",
 	})
 	if resp.StatusCode != http.StatusCreated {
 		t.Fatalf("create user = %d, want 201", resp.StatusCode)

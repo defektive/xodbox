@@ -41,7 +41,7 @@ func TestPayloadCRUD(t *testing.T) {
 
 	// Create
 	in := payloadView{
-		Name:       "crud-" + t.Name(),
+		Name:       uniqueName("crud"),
 		Pattern:    "^/crud",
 		Body:       "hello",
 		StatusCode: "200",
