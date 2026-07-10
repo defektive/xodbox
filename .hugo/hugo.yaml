@@ -261,6 +261,9 @@ module:
     target: content/docs/pkg/
     files:
       - '! **.go'
+      # Exclude the embedded admin SPA build output (index.html/js/css/…); it is
+      # compiled assets, not docs, and Hugo blocks its text/html content.
+      - '! **/webui/**'
 
   - source: ../README.md
     target: content/docs/_index.md
