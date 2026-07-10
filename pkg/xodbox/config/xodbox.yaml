@@ -17,6 +17,8 @@ handlers:
 #    dns_provider_api_user: namecheap-user
 #    dns_provider_api_key: namecheap-secret
 #    bot_exempt_private: "false" # apply bot detection to local/private IPs too (default exempts them)
+#    ui_path: /admin # mount the embedded admin web UI here (empty = disabled)
+#    ui_allow_cidrs: "127.0.0.1/32,10.0.0.0/8" # restrict UI access to these source CIDRs (peer IP)
     listener: :80
   ## Docs: https://defektive.github.io/xodbox/docs/pkg/handlers/smb/
 #  - handler: SMB

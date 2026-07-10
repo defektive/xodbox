@@ -46,6 +46,9 @@ type Handler struct {
 	APIToken           string
 	BotExemptPrivate   bool
 
+	UIPath       string
+	UIAllowCIDRs []*net.IPNet
+
 	StaticDir       string
 	dispatchChannel chan types.InteractionEvent
 	app             types.App
@@ -82,6 +85,23 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	// bot_exempt_private: "false" to subject every source to bot detection.
 	botExemptPrivate := handlerConfig["bot_exempt_private"] != "false"
 
+	// Admin web UI: mounted under a normalized ui_path prefix (empty =
+	// disabled). Access is restricted to ui_allow_cidrs (checked against the
+	// real TCP peer IP) on top of the auth added in later phases.
+	uiPath := handlerConfig["ui_path"]
+	if uiPath != "" {
+		if !strings.HasPrefix(uiPath, "/") {
+			uiPath = "/" + uiPath
+		}
+		if !strings.HasSuffix(uiPath, "/") {
+			uiPath = uiPath + "/"
+		}
+	}
+	uiCIDRs, badCIDRs := parseCIDRs(handlerConfig["ui_allow_cidrs"])
+	for _, b := range badCIDRs {
+		lg().Warn("ignoring invalid ui_allow_cidrs entry", "entry", b)
+	}
+
 	tlsNames := []string{}
 	if tlsNamesOpt != "" {
 		tlsNames = strings.Split(tlsNamesOpt, ",")
@@ -106,6 +126,8 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 		APIPath:            handlerConfig["api_path"],
 		APIToken:           handlerConfig["api_token"],
 		BotExemptPrivate:   botExemptPrivate,
+		UIPath:             uiPath,
+		UIAllowCIDRs:       uiCIDRs,
 	}
 
 	if payloadDir != "" {
@@ -156,6 +178,21 @@ func (h *Handler) serverMux() *http.ServeMux {
 			}
 
 			h.mux.Handle(h.APIPath, APIHAndler(h.APIPath, h.APIToken))
+		}
+
+		// Admin UI: served under ui_path, restricted to ui_allow_cidrs. It is
+		// registered on its own prefix so it never falls through to the
+		// honeypot catchall (no InteractionEvents for admin traffic). Auth is
+		// layered on in a later phase.
+		if h.UIPath != "" && h.UIPath != "/" {
+			uiHandler, err := newUIHandler(h.UIPath)
+			if err != nil {
+				lg().Error("failed to init admin UI", "err", err)
+			} else {
+				gated := cidrAllowlist(h.UIAllowCIDRs, http.StripPrefix(strings.TrimSuffix(h.UIPath, "/"), uiHandler))
+				h.mux.Handle(h.UIPath, gated)
+				lg().Info("admin UI mounted", "ui_path", h.UIPath, "allow_cidrs", len(h.UIAllowCIDRs))
+			}
 		}
 
 		subFs, err := fs.Sub(embeddedStaticFS, "static")
