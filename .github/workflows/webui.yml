@@ -16,6 +16,9 @@ on:
       - '.github/workflows/webui.yml'
       - 'Makefile'
 
+permissions:
+  contents: read
+
 jobs:
   webui:
     runs-on: ubuntu-latest

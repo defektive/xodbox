@@ -134,7 +134,7 @@ func decodePayload(w http.ResponseWriter, r *http.Request) (payloadView, bool) {
 }
 
 func pathID(w http.ResponseWriter, r *http.Request) (uint, bool) {
-	id, err := strconv.ParseUint(r.PathValue("id"), 10, 64)
+	id, err := strconv.ParseUint(r.PathValue("id"), 10, strconv.IntSize)
 	if err != nil {
 		writeErr(w, http.StatusBadRequest, "invalid id")
 		return 0, false
