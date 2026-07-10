@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useApi } from "@/lib/useApi";
 import { useInteractionStream } from "@/lib/useStream";
+import { useLiveFeed } from "@/lib/useLiveFeed";
 import type { InteractionPage, InteractionSummary } from "@/lib/types";
 import {
   Table,
@@ -13,9 +14,10 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { LiveIndicator } from "@/components/LiveIndicator";
 
 const FILTERS = [
-  { key: "target", label: "Path" },
+  { key: "target", label: "Target" },
   { key: "remote", label: "Source IP" },
   { key: "handler", label: "Handler" },
 ] as const;
@@ -35,26 +37,17 @@ export default function Events() {
 
   // Seed from the fetched page, then prepend live events. The server applies
   // the same filters to the stream, so anything received belongs in this view.
-  const [items, setItems] = useState<InteractionSummary[]>([]);
-  const [liveCount, setLiveCount] = useState(0);
-  // Track ids we've already shown so a duplicate stream frame (reconnect,
-  // fetch/stream overlap) doesn't double-count or re-insert.
-  const seen = useRef<Set<number>>(new Set());
-  useEffect(() => {
-    const initial = data?.items ?? [];
-    setItems(initial);
-    setLiveCount(0);
-    seen.current = new Set(initial.map((x) => x.id));
-  }, [data]);
-
+  const { items, liveCount, claim, add } = useLiveFeed<InteractionSummary>(
+    data?.items,
+  );
   useInteractionStream(
     qs,
-    useCallback((i: InteractionSummary) => {
-      if (seen.current.has(i.id)) return;
-      seen.current.add(i.id);
-      setItems((prev) => [i, ...prev].slice(0, 200));
-      setLiveCount((c) => c + 1);
-    }, []),
+    useCallback(
+      (i: InteractionSummary) => {
+        if (claim(i.id)) add(i);
+      },
+      [claim, add],
+    ),
   );
 
   function setFilter(key: string, value: string) {
@@ -87,15 +80,8 @@ export default function Events() {
             Clear
           </Button>
         )}
-        <span
-          className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground"
-          title="Live updates via server-sent events"
-        >
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-          </span>
-          Live
+        <span className="ml-auto">
+          <LiveIndicator />
         </span>
       </div>
 
@@ -109,8 +95,8 @@ export default function Events() {
         <TableHeader>
           <TableRow>
             <TableHead>Time</TableHead>
-            <TableHead>Method</TableHead>
-            <TableHead>Path</TableHead>
+            <TableHead>Type</TableHead>
+            <TableHead>Target</TableHead>
             <TableHead>Source</TableHead>
             <TableHead>Handler</TableHead>
           </TableRow>

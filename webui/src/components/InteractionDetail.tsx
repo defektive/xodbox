@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { useCopy } from "@/lib/useCopy";
 import type { InteractionDetail } from "@/lib/types";
 
 function ClipboardIcon() {
@@ -41,20 +41,11 @@ function CheckIcon() {
 
 // CopyButton copies text to the clipboard and briefly confirms.
 export function CopyButton({ text, label }: { text: string; label: string }) {
-  const [copied, setCopied] = useState(false);
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      setCopied(false);
-    }
-  }
+  const { copied, copy } = useCopy();
   return (
     <button
       type="button"
-      onClick={copy}
+      onClick={() => copy(text)}
       aria-label={label}
       title={copied ? "Copied!" : label}
       className="absolute right-2 top-2 inline-flex items-center gap-1 rounded-md border bg-background/80 px-1.5 py-1 text-xs text-muted-foreground backdrop-blur hover:text-foreground"

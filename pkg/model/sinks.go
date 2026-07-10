@@ -25,15 +25,18 @@ type Sink struct {
 var (
 	// ErrInvalidSlug is returned when a caller-supplied slug is empty or
 	// contains characters outside the safe set.
-	ErrInvalidSlug = errors.New("slug must be 3-64 chars of [a-zA-Z0-9_-]")
+	ErrInvalidSlug = errors.New("slug must be 6-64 chars of [a-zA-Z0-9_-]")
 	// ErrSlugExists is returned when creating a sink whose slug is taken.
 	ErrSlugExists = errors.New("a sink with that slug already exists")
 
-	slugPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]{3,64}$`)
+	// Minimum 6 chars: a short custom slug (e.g. "api", "get") would match by
+	// substring inside unrelated targets/headers and pull in noise.
+	slugPattern = regexp.MustCompile(`^[a-zA-Z0-9_-]{6,64}$`)
 )
 
-// GenerateSlug returns a short, URL/DNS-safe random slug (lowercase base32, no
-// padding) suitable for embedding in payloads.
+// GenerateSlug returns a short, random slug for embedding in payloads. It uses
+// lowercase base32 (not model.randomToken's base64url) so the slug is a valid
+// DNS label — no '_' or uppercase — since slugs are often used as DNS subdomains.
 func GenerateSlug() (string, error) {
 	b := make([]byte, 6) // ~10 base32 chars
 	if _, err := rand.Read(b); err != nil {

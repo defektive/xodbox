@@ -24,7 +24,7 @@ func TestDeleteSinkAllowsSlugReuse(t *testing.T) {
 func TestSinkEventsEscapesLikeWildcards(t *testing.T) {
 	// A slug containing '_' (a LIKE single-char wildcard) must match literally,
 	// not as a wildcard — consistent with the SSE stream's strings.Contains.
-	slug := "s_" + uniqueUsername() // e.g. "s_u7"; contains '_'
+	slug := "sink_" + uniqueUsername() // e.g. "sink_u7"; ≥6 chars, contains '_'
 	if _, err := CreateSink(slug, ""); err != nil {
 		t.Fatal(err)
 	}
@@ -53,7 +53,8 @@ func TestCreateSinkGeneratesSlug(t *testing.T) {
 }
 
 func TestCreateSinkRejectsInvalidAndDuplicateSlugs(t *testing.T) {
-	for _, bad := range []string{"ab", "has space", "no/slash", "bang!"} {
+	// "short" is a valid charset but under the 6-char minimum.
+	for _, bad := range []string{"ab", "short", "has space", "no/slash", "bang!"} {
 		if _, err := CreateSink(bad, ""); err != ErrInvalidSlug {
 			t.Errorf("CreateSink(%q) err = %v, want ErrInvalidSlug", bad, err)
 		}

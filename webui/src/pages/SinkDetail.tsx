@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, ApiError } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useInteractionStream } from "@/lib/useStream";
+import { useLiveFeed } from "@/lib/useLiveFeed";
+import { useCopy } from "@/lib/useCopy";
 import type {
   InteractionDetail,
   InteractionSummary,
@@ -13,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { InteractionDetailView } from "@/components/InteractionDetail";
+import { LiveIndicator } from "@/components/LiveIndicator";
 
 export default function SinkDetail() {
   const { slug = "" } = useParams();
@@ -21,43 +24,38 @@ export default function SinkDetail() {
   );
 
   // Hooks must run unconditionally (before the early returns below).
-  const [events, setEvents] = useState<InteractionDetail[]>([]);
-  const [liveCount, setLiveCount] = useState(0);
+  const {
+    items: events,
+    liveCount,
+    claim,
+    add,
+    release,
+  } = useLiveFeed<InteractionDetail>(data?.events);
   const [description, setDescription] = useState("");
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState("");
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
-  // Track ids already shown so a duplicate stream frame doesn't double-count or
-  // trigger a redundant detail fetch.
-  const seen = useRef<Set<number>>(new Set());
+  const slugCopy = useCopy();
   useEffect(() => {
-    const initial = data?.events ?? [];
-    setEvents(initial);
-    setLiveCount(0);
     setDescription(data?.description ?? "");
     setEditing(false);
-    seen.current = new Set(initial.map((x) => x.id));
   }, [data]);
 
   // The stream carries summaries; fetch the full detail for each new hit so the
   // timeline can render it inline.
   useInteractionStream(
     `sink=${encodeURIComponent(slug)}`,
-    useCallback((s: InteractionSummary) => {
-      if (seen.current.has(s.id)) return;
-      seen.current.add(s.id);
-      api
-        .get<InteractionDetail>(`interactions/${s.id}`)
-        .then((d) => {
-          setEvents((prev) => [d, ...prev].slice(0, 200));
-          setLiveCount((c) => c + 1);
-        })
-        .catch(() => {
-          // transient; drop from seen so a later reload/frame can retry.
-          seen.current.delete(s.id);
-        });
-    }, []),
+    useCallback(
+      (s: InteractionSummary) => {
+        if (!claim(s.id)) return;
+        api
+          .get<InteractionDetail>(`interactions/${s.id}`)
+          .then(add)
+          .catch(() => release(s.id)); // transient; allow a later retry
+      },
+      [claim, add, release],
+    ),
   );
 
   async function saveDescription() {
@@ -156,9 +154,9 @@ export default function SinkDetail() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => navigator.clipboard?.writeText(data.slug)}
+              onClick={() => slugCopy.copy(data.slug)}
             >
-              Copy slug
+              {slugCopy.copied ? "Copied!" : "Copy slug"}
             </Button>
           </div>
           <p className="text-muted-foreground">
@@ -171,16 +169,7 @@ export default function SinkDetail() {
       <div>
         <div className="mb-3 flex items-center gap-2">
           <h2 className="text-sm font-medium">Event timeline</h2>
-          <span
-            className="flex items-center gap-1.5 text-xs text-muted-foreground"
-            title="Live updates via server-sent events"
-          >
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-500 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-            </span>
-            Live
-          </span>
+          <LiveIndicator />
         </div>
 
         {events.length === 0 ? (

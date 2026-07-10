@@ -30,7 +30,7 @@ describe("Shell", () => {
     expect(screen.getByText("alice")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Events" })).toBeInTheDocument();
     const main = screen.getByRole("main");
-    expect(within(main).getByText("Method")).toBeInTheDocument();
+    expect(within(main).getByText("Type")).toBeInTheDocument();
   });
 
   it("routes to the bots view", () => {
