@@ -3,6 +3,7 @@ package ssh
 import (
 	"fmt"
 
+	"github.com/defektive/xodbox/pkg/model"
 	"github.com/defektive/xodbox/pkg/types"
 	"github.com/defektive/xodbox/pkg/util"
 	"github.com/gliderlabs/ssh"
@@ -45,6 +46,21 @@ func (e *Event) Details() string {
 // "SSH PasswordAuth root from 10.0.0.5".
 func (e *Event) FilterString() string {
 	return fmt.Sprintf("SSH %s %s from %s", e.action, e.user, e.RemoteAddr)
+}
+
+// Interaction records the SSH auth attempt (target is the username tried) for
+// the DB / web UI.
+func (e *Event) Interaction() *model.Interaction {
+	return &model.Interaction{
+		RemoteAddr:    e.RemoteAddr,
+		RemotePort:    fmt.Sprintf("%d", e.RemotePortNumber),
+		Handler:       "ssh",
+		Protocol:      "ssh",
+		RequestType:   e.action.String(),
+		RequestTarget: e.user,
+		UserAgent:     e.UserAgentString,
+		Data:          e.RawData,
+	}
 }
 
 func NewEvent(ctx ssh.Context, action Action) *Event {

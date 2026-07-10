@@ -3,6 +3,7 @@ package smtp
 import (
 	"fmt"
 
+	"github.com/defektive/xodbox/pkg/model"
 	"github.com/defektive/xodbox/pkg/types"
 	"github.com/defektive/xodbox/pkg/util"
 )
@@ -54,6 +55,18 @@ func (e *Event) Details() string {
 // "SMTP Mail from 10.0.0.5".
 func (e *Event) FilterString() string {
 	return fmt.Sprintf("SMTP %s from %s", e.action, e.RemoteAddr)
+}
+
+// Interaction records the SMTP action for the DB / web UI.
+func (e *Event) Interaction() *model.Interaction {
+	return &model.Interaction{
+		RemoteAddr:  e.RemoteAddr,
+		RemotePort:  fmt.Sprintf("%d", e.RemotePortNumber),
+		Handler:     "smtp",
+		Protocol:    "smtp",
+		RequestType: e.action.String(),
+		Data:        e.RawData,
+	}
 }
 
 func NewEvent(ctx *SMTPSession, action Action) *Event {

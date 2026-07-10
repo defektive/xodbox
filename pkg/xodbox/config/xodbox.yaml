@@ -24,7 +24,6 @@ handlers:
   ## Docs: https://defektive.github.io/xodbox/docs/pkg/handlers/smb/
 #  - handler: SMB
 #    listener: :445 # fake SMB server; captures NetNTLMv2 hashes (hashcat mode 5600)
-#    persist: true # save captured hashes to the database (off by default)
 #    target_name: CORP-FS01 # advertised NetBIOS/DNS name (default XODBOX); customize to avoid fingerprinting
 ## Docs: https://defektive.github.io/xodbox/docs/pkg/notifiers/
 notifiers:

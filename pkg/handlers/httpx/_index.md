@@ -110,7 +110,9 @@ shadcn/ui, compiled into `pkg/handlers/httpx/webui/` via `//go:embed`) plus a
 JSON admin API. It lets an operator log in and:
 
 - view/edit/create/delete **payloads**,
-- browse the **request log** with filters (target, remote, handler),
+- browse the **request log** with filters (target, remote, handler) — the app
+  persists interactions from **every** handler (httpx, dns, ftp, smtp, ssh, tcp,
+  smb), so the log spans all protocols, not just HTTP,
 - inspect a **request detail** with a one-click **copy-as-curl**,
 - get a **webhook-style view** of every hit to a specific `target` path,
 - review detected **bots**,

@@ -8,6 +8,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/defektive/xodbox/pkg/model"
 	"github.com/defektive/xodbox/pkg/types"
 )
 
@@ -107,6 +108,25 @@ func (x *App) GetTemplateData() map[string]string {
 	return maps.Clone(x.appConfig.TemplateData)
 }
 
+// persistInteraction stores an event as an Interaction when the event supports
+// it (implements types.Persistable), so every handler's activity — not just
+// httpx — shows up in the DB and the web UI. Writes run on the single event-loop
+// goroutine, which serialises them (the pure-Go SQLite driver dislikes
+// concurrent writers). A nil record means the event opted out of persistence.
+func persistInteraction(e types.InteractionEvent) {
+	p, ok := e.(types.Persistable)
+	if !ok {
+		return
+	}
+	i := p.Interaction()
+	if i == nil {
+		return
+	}
+	if tx := model.DB().Create(i); tx.Error != nil {
+		lg().Error("failed to persist interaction", "err", tx.Error, "handler", i.Handler)
+	}
+}
+
 func (x *App) waitForEvents() {
 	lg().Debug("Waiting for events...")
 	for {
@@ -115,6 +135,7 @@ func (x *App) waitForEvents() {
 			lg().Debug("event loop shutting down")
 			return
 		case newEvent := <-x.eventChan:
+			persistInteraction(newEvent)
 			for _, h := range x.notificationHandlers {
 				go func(h types.Notifier) {
 					if err := h.Send(newEvent); err != nil {
