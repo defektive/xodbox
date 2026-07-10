@@ -98,6 +98,29 @@ func TestUIDisabledByDefault(t *testing.T) {
 	}
 }
 
+func TestAdminListenerIsolatesUI(t *testing.T) {
+	h := uiHandler(t, map[string]string{
+		"listener":       "127.0.0.1:0",
+		"ui_path":        "/admin",
+		"admin_listener": "127.0.0.1:0",
+	})
+
+	// The dedicated admin mux serves the SPA.
+	arr := httptest.NewRecorder()
+	h.adminMux().ServeHTTP(arr, httptest.NewRequest(http.MethodGet, "/admin/", nil))
+	if arr.Code != http.StatusOK ||
+		!strings.Contains(arr.Body.String(), `window.__XODBOX_BASE__ = "/admin/"`) {
+		t.Fatalf("adminMux should serve the SPA; code=%d", arr.Code)
+	}
+
+	// With admin_listener set, /admin/ is NOT registered on the main mux; it
+	// resolves to the honeypot catchall ("/") rather than a UI pattern.
+	_, pattern := h.serverMux().Handler(httptest.NewRequest(http.MethodGet, "/admin/", nil))
+	if pattern == "/admin/" {
+		t.Error("UI must not be mounted on the main listener when admin_listener is set")
+	}
+}
+
 func TestParseCIDRs(t *testing.T) {
 	nets, bad := parseCIDRs("10.0.0.0/8, 127.0.0.1 , , 2001:db8::/32, garbage")
 	if len(nets) != 3 {
