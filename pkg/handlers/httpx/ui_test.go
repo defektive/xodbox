@@ -75,6 +75,30 @@ func TestUIMountServesSPAWithInjectedBase(t *testing.T) {
 	}
 }
 
+func TestUIInjectsSinkBaseFromPublicURL(t *testing.T) {
+	// A configured public_url is injected onto the root element (trailing
+	// slash trimmed) so the SPA can build copy-able sink links.
+	h := uiHandler(t, map[string]string{
+		"listener":   ":0",
+		"ui_path":    "admin",
+		"public_url": "https://oob.example.com/",
+	})
+	rr := httptest.NewRecorder()
+	h.serverMux().ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/admin/", nil))
+	if !strings.Contains(rr.Body.String(), `data-xodbox-sink-base="https://oob.example.com"`) {
+		t.Errorf("public_url not injected as sink base:\n%s", rr.Body.String()[:min(len(rr.Body.String()), 400)])
+	}
+
+	// Without public_url the placeholder is replaced with an empty string
+	// (the SPA then falls back to its own origin).
+	h2 := uiHandler(t, map[string]string{"listener": ":0", "ui_path": "admin"})
+	rr2 := httptest.NewRecorder()
+	h2.serverMux().ServeHTTP(rr2, httptest.NewRequest(http.MethodGet, "/admin/", nil))
+	if !strings.Contains(rr2.Body.String(), `data-xodbox-sink-base=""`) {
+		t.Error("empty public_url should inject an empty sink base")
+	}
+}
+
 func TestUISPAFallbackForClientRoutes(t *testing.T) {
 	h := uiHandler(t, map[string]string{"listener": ":0", "ui_path": "admin"})
 	mux := h.serverMux()

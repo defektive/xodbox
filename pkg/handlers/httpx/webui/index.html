@@ -22,7 +22,7 @@
     <meta name="apple-mobile-web-app-title" content="xodbox" />
     <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#09090b" media="(prefers-color-scheme: dark)" />
-    <script type="module" crossorigin src="/__XODBOX_BASE__/assets/index-wFrSxz_O.js"></script>
+    <script type="module" crossorigin src="/__XODBOX_BASE__/assets/index-a41V112O.js"></script>
     <link rel="stylesheet" crossorigin href="/__XODBOX_BASE__/assets/index-DErNW5ZE.css">
   </head>
   <body>
@@ -31,6 +31,10 @@
          attribute rather than an inline script so the strict CSP
          (script-src 'self', no 'unsafe-inline') needs no exception. Left as-is
          in dev, where base.ts falls back to "/". -->
-    <div id="root" data-xodbox-base="{{XODBOX_BASE}}"></div>
+    <div
+      id="root"
+      data-xodbox-base="{{XODBOX_BASE}}"
+      data-xodbox-sink-base="{{XODBOX_SINK_BASE}}"
+    ></div>
   </body>
 </html>

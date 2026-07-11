@@ -78,6 +78,8 @@ single-quoted); `Content-Length` is dropped so curl recomputes it.
 | `ui_path`      | no       | —       | URL path prefix to mount the admin web UI on, e.g. `/admin`. Empty disables it on the main listener. Normalised to leading/trailing slash. Ignored when `admin_listener` is set. |
 | `ui_allow_cidrs` | no     | —       | Comma-separated CIDRs allowed to reach the admin UI/API, checked against the **real TCP peer IP** (never `X-Forwarded-For`). Empty allows any source (auth still required). Invalid entries are logged and ignored. |
 | `admin_listener` | no     | —       | Separate bind address (e.g. `127.0.0.1:8443`) that serves **only** the admin UI/API, isolated from the attacker-facing listener. When set, the UI is not mounted under `ui_path` on the main listener. |
+| `public_url`     | no     | —       | Externally-reachable base URL of the honeypot (e.g. `https://oob.example.com`). The admin UI's **Copy HTTP link** control on a sink builds `<public_url>/<slug>` from it. Empty falls back to the UI's own origin — correct when the UI is served on the honeypot listener, wrong on an isolated `admin_listener`. |
+| `notify_logins`  | no     | `false` | When `"true"`, a successful admin-UI login emits an `InteractionEvent` (recorded in the Events log and delivered to notifiers whose filter matches `^HTTPX Login`). See **Login notifications** below. |
 
 ### TLS / ACME
 
@@ -148,6 +150,27 @@ xodbox sink add my-label --description "a named one"        # explicit slug
 xodbox sink list
 xodbox sink rm my-label
 ```
+
+Each sink's detail page has two copy controls: **Copy slug** (the bare slug, for
+embedding in a payload) and **Copy HTTP link** (the full `<public_url>/<slug>`
+URL a target would hit to land in the sink). Set `public_url` so the link points
+at the honeypot's real address; without it the link uses the console's own
+origin, which is only correct when the UI is mounted on the honeypot listener.
+
+### Login notifications
+
+Admin traffic normally produces no `InteractionEvent`s. With `notify_logins:
+"true"`, each **successful** admin-UI login is an exception: it emits an event
+so operators can be alerted when someone accesses the console. The event is
+recorded in the Events log (as an `httpx` `LOGIN` interaction targeting the
+username) and dispatched to notifiers. Its filter string has the canonical shape
+
+```
+HTTPX Login <username> from <ip>
+```
+
+so a notifier selects logins with a filter like `^HTTPX Login`. Failed login
+attempts are **not** emitted (they are rate-limited and enumeration-resistant).
 
 ### Serving the console
 

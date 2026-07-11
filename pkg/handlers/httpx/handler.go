@@ -49,6 +49,15 @@ type Handler struct {
 	UIPath        string
 	UIAllowCIDRs  []*net.IPNet
 	AdminListener string
+	// NotifyLogins, when true, emits an InteractionEvent on each successful
+	// admin-UI login so it is recorded and fires notifiers whose Filter matches
+	// the "HTTPX Login <user> from <ip>" string.
+	NotifyLogins bool
+	// PublicURL is the externally-reachable base URL of the honeypot HTTP
+	// listener (e.g. "https://oob.example.com"). The admin UI uses it to build
+	// copy-able links to a sink's slug. Empty = the UI falls back to its own
+	// origin, which is correct when the UI is mounted on the honeypot listener.
+	PublicURL string
 
 	StaticDir       string
 	dispatchChannel chan types.InteractionEvent
@@ -108,6 +117,11 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	// served there instead of on the main httpx listener.
 	adminListener := handlerConfig["admin_listener"]
 
+	// Optional: notify on admin logins and advertise a public base URL for the
+	// admin UI's sink "copy link" control.
+	notifyLogins := handlerConfig["notify_logins"] == "true"
+	publicURL := strings.TrimRight(handlerConfig["public_url"], "/")
+
 	if handlerConfig["api_token"] != "" {
 		lg().Warn("api_token is deprecated; create admin users and API keys with 'xodbox user add' and the admin UI")
 	}
@@ -139,6 +153,8 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 		UIPath:             uiPath,
 		UIAllowCIDRs:       uiCIDRs,
 		AdminListener:      adminListener,
+		NotifyLogins:       notifyLogins,
+		PublicURL:          publicURL,
 	}
 
 	if payloadDir != "" {

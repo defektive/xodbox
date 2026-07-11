@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/defektive/xodbox/pkg/model"
+	"github.com/defektive/xodbox/pkg/types"
 )
 
 const (
@@ -37,13 +38,23 @@ func userFromContext(ctx context.Context) *model.User {
 type adminAuth struct {
 	basePath string
 	limiter  *loginLimiter
+	// notifyLogins gates emitting a login InteractionEvent on successful auth;
+	// events is the app's dispatch channel it is sent on (nil when disabled or
+	// when the handler hasn't started, e.g. in unit tests).
+	notifyLogins bool
+	events       chan types.InteractionEvent
 }
 
-func newAdminAuth(basePath string) *adminAuth {
+func newAdminAuth(basePath string, notifyLogins bool, events chan types.InteractionEvent) *adminAuth {
 	if basePath == "" {
 		basePath = "/"
 	}
-	return &adminAuth{basePath: basePath, limiter: newLoginLimiter(10, time.Minute)}
+	return &adminAuth{
+		basePath:     basePath,
+		limiter:      newLoginLimiter(10, time.Minute),
+		notifyLogins: notifyLogins,
+		events:       events,
+	}
 }
 
 // mux builds the admin JSON API. Request paths are expected relative to the
@@ -181,7 +192,19 @@ func (a *adminAuth) handleLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.setSessionCookie(w, r, token)
+	a.notifyLogin(u.Username, ip, r.UserAgent())
 	writeJSON(w, http.StatusOK, toUserView(u))
+}
+
+// notifyLogin dispatches a login InteractionEvent so a successful admin login is
+// recorded and delivered to notifiers whose Filter matches. It is a no-op unless
+// notify_logins is enabled and a dispatch channel is wired (both hold at
+// runtime; unit tests that build the handler directly leave events nil).
+func (a *adminAuth) notifyLogin(username, ip, userAgent string) {
+	if !a.notifyLogins || a.events == nil {
+		return
+	}
+	NewLoginEvent(username, ip, userAgent).Dispatch(a.events)
 }
 
 func (a *adminAuth) handleLogout(w http.ResponseWriter, r *http.Request) {

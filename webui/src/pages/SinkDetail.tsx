@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, ApiError } from "@/lib/api";
+import { sinkLink } from "@/lib/base";
 import { useApi } from "@/lib/useApi";
 import { useInteractionStream } from "@/lib/useStream";
 import { useLiveFeed } from "@/lib/useLiveFeed";
@@ -37,6 +38,7 @@ export default function SinkDetail() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState<string | null>(null);
   const slugCopy = useCopy();
+  const linkCopy = useCopy();
   useEffect(() => {
     setDescription(data?.description ?? "");
     setEditing(false);
@@ -149,7 +151,7 @@ export default function SinkDetail() {
               </Button>
             </div>
           )}
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-3">
             <code className="rounded bg-muted p-2 text-xs">{data.slug}</code>
             <Button
               size="sm"
@@ -157,6 +159,14 @@ export default function SinkDetail() {
               onClick={() => slugCopy.copy(data.slug)}
             >
               {slugCopy.copied ? "Copied!" : "Copy slug"}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => linkCopy.copy(sinkLink(data.slug))}
+              title={sinkLink(data.slug)}
+            >
+              {linkCopy.copied ? "Copied!" : "Copy HTTP link"}
             </Button>
           </div>
           <p className="text-muted-foreground">
