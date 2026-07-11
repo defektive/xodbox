@@ -38,16 +38,21 @@ Because the shape is uniform, one regexp can select across any handler:
 | Captured SMB hashes | `^SMB Auth` |
 | DNS lookups for a C2 domain | `^DNS (A\|AAAA) .*\.evil\.com` |
 | SSH login attempts as root | `^SSH \w+ root ` |
+| Admin console logins (needs `notify_logins`) | `^HTTPX Login` |
 | Anything from one source IP | `from .*10\.0\.0\.5` |
 
 Example canonical strings:
 
 ```
 HTTPX POST /x/beacon?id=1 from 203.0.113.9,10.0.0.1
+HTTPX Login alice from 10.0.0.5
 DNS A c2.evil.com. from 10.0.0.5
 SMB Auth CORP\alice from 10.0.0.5
 SSH PasswordAuth root from 10.0.0.5
 ```
+
+The `HTTPX Login` events are only emitted when the HTTPX handler is configured
+with `notify_logins: "true"` (see the [HTTPX handler](../handlers/httpx)).
 
 Check each [handler](../handlers) for the exact `FilterString` its events
 produce.

@@ -20,6 +20,8 @@ handlers:
 #    ui_path: /admin # mount the embedded admin web UI here (empty = disabled)
 #    ui_allow_cidrs: "127.0.0.1/32,10.0.0.0/8" # restrict UI access to these source CIDRs (peer IP)
 #    admin_listener: 127.0.0.1:9091 # serve the admin UI on this isolated bind instead of the public listener
+#    public_url: https://oob.example.com # externally-reachable base URL; the UI's sink "Copy HTTP link" uses it (empty = UI origin)
+#    notify_logins: "true" # emit an event on each successful admin login (fires notifiers matching "^HTTPX Login")
     listener: :80
   ## Docs: https://defektive.github.io/xodbox/docs/pkg/handlers/smb/
 #  - handler: SMB

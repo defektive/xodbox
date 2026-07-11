@@ -25,11 +25,18 @@ const uiBasePlaceholder = "{{XODBOX_BASE}}"
 // depth. Must match `base` in webui/vite.config.ts.
 const uiAssetBasePlaceholder = "/__XODBOX_BASE__/"
 
+// uiSinkBasePlaceholder is substituted in index.html with the configured
+// public_url so the SPA can build copy-able links to a sink's slug. When empty
+// the SPA falls back to its own origin (correct when the UI is served on the
+// honeypot listener).
+const uiSinkBasePlaceholder = "{{XODBOX_SINK_BASE}}"
+
 // newUIHandler serves the embedded admin SPA. mountPath is the normalized
 // path prefix the UI is mounted at (e.g. "/admin/"); requests reaching this
-// handler have already had that prefix stripped. Unknown non-asset paths fall
+// handler have already had that prefix stripped. publicURL is the honeypot's
+// externally-reachable base URL (may be empty). Unknown non-asset paths fall
 // back to index.html for client-side routing.
-func newUIHandler(mountPath string) (http.Handler, error) {
+func newUIHandler(mountPath, publicURL string) (http.Handler, error) {
 	sub, err := fs.Sub(embeddedUIFS, "webui")
 	if err != nil {
 		return nil, err
@@ -40,6 +47,7 @@ func newUIHandler(mountPath string) (http.Handler, error) {
 	}
 	injected := strings.ReplaceAll(string(raw), uiBasePlaceholder, mountPath)
 	injected = strings.ReplaceAll(injected, uiAssetBasePlaceholder, mountPath)
+	injected = strings.ReplaceAll(injected, uiSinkBasePlaceholder, publicURL)
 	indexHTML := []byte(injected)
 	fileServer := http.FileServer(http.FS(sub))
 
@@ -71,11 +79,11 @@ func newUIHandler(mountPath string) (http.Handler, error) {
 // "/api/" and the embedded SPA for everything else. It is the unit mounted
 // (behind the CIDR gate) on the httpx listener or the isolated admin listener.
 func (h *Handler) adminHandler(basePath string) (http.Handler, error) {
-	ui, err := newUIHandler(basePath)
+	ui, err := newUIHandler(basePath, h.PublicURL)
 	if err != nil {
 		return nil, err
 	}
-	apiMux := newAdminAuth(basePath).mux()
+	apiMux := newAdminAuth(basePath, h.NotifyLogins, h.dispatchChannel).mux()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			apiMux.ServeHTTP(w, r)

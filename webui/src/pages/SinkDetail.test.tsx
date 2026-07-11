@@ -98,6 +98,36 @@ describe("SinkDetail", () => {
     expect(getMock).toHaveBeenCalledWith("sinks/abc123");
   });
 
+  it("copies an HTTP link to the slug", async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    getMock.mockResolvedValue({
+      slug: "abc123",
+      description: "",
+      created_at: new Date().toISOString(),
+      event_count: 0,
+      total: 0,
+      limit: 50,
+      offset: 0,
+      events: [],
+    });
+
+    renderSink();
+
+    fireEvent.click(await screen.findByRole("button", { name: "Copy HTTP link" }));
+
+    await waitFor(() =>
+      expect(writeText).toHaveBeenCalledWith(
+        `${window.location.origin}/abc123`,
+      ),
+    );
+    // Button flips to the copied state.
+    expect(
+      await screen.findByRole("button", { name: "Copied!" }),
+    ).toBeInTheDocument();
+  });
+
   it("edits the sink description", async () => {
     getMock.mockResolvedValue({
       slug: "abc123",

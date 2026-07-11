@@ -29,7 +29,11 @@
          attribute rather than an inline script so the strict CSP
          (script-src 'self', no 'unsafe-inline') needs no exception. Left as-is
          in dev, where base.ts falls back to "/". -->
-    <div id="root" data-xodbox-base="{{XODBOX_BASE}}"></div>
+    <div
+      id="root"
+      data-xodbox-base="{{XODBOX_BASE}}"
+      data-xodbox-sink-base="{{XODBOX_SINK_BASE}}"
+    ></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
