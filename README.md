@@ -27,6 +27,15 @@ Multiple listening protocols:
 - [x] SSH (in dev)
 - [x] TCP (in dev)
 
+Plus:
+
+- An embedded **admin web console** (React SPA + JSON API) to browse the live
+  event feed, edit payloads, group interactions into **sinks**, and manage users
+  and API keys. Enable it with `ui_path` or an isolated `admin_listener` — see
+  the [HTTPX handler docs](pkg/handlers/httpx).
+- Pluggable **notifiers** (`app_log`, `slack`, `discord`, `webhook`) that fire on
+  matching interactions, so a callback shows up in chat the moment it lands.
+
 * * *
 
 ## Installation
@@ -72,11 +81,16 @@ Configuration information for each Notifier is documented alongside it's code in
 
 ## Server Usage
 
+Start the listeners with the `serve` subcommand:
+
 ```sh
-./xodbox
+./xodbox serve
 ```
 
-All the magic happens through configuration files in the [handlers](pkg/handlers) and [notifiers](pkg/notifiers).
+Running `./xodbox` with no subcommand prints the available commands (`serve`,
+`config`, `payload`, `sink`, `user`, …). All the magic happens through the
+configuration file — see the [handlers](pkg/handlers) and
+[notifiers](pkg/notifiers) docs for what you can configure.
 
 ## Client Usage
 
@@ -109,23 +123,44 @@ mkdir -p static payloads/httpx
 ```
 
 
-#### Docker GHCR
+#### Docker (prebuilt image from GHCR)
 
-```bash
-sudo docker run --rm -v `pwd`:/workspace --user 1000  ghcr.io/defektive/xodbox:latest
+Prebuilt, [cosign](https://github.com/sigstore/cosign)-signed images are
+published to GitHub Container Registry on every release. The image's entrypoint
+is `xodbox` and its working directory is `/workspace`, so mount a directory
+there to hold your config, database, and payloads, then pass a subcommand
+(`serve`, `config`, `user`, …).
+
+```sh
+# 1. Generate a config into the current directory
+docker run --rm -v "$PWD:/workspace" ghcr.io/defektive/xodbox:latest config -e > xodbox.yaml
+
+# 2. Run the server (publish whatever ports your config listens on)
+docker run --rm \
+  -v "$PWD:/workspace" \
+  --user "$(id -u):$(id -g)" \
+  -p 80:80 \
+  ghcr.io/defektive/xodbox:latest serve
 ```
 
-#### Docker alpine with downloaded release
+The image runs as a non-root user. Passing `--user "$(id -u):$(id -g)"` makes it
+read and write the mounted directory as *you*, so the config and SQLite database
+stay owned by your host user. Pin a release tag (e.g.
+`ghcr.io/defektive/xodbox:v1.2.3`) instead of `:latest` for reproducible deploys.
 
-Currently, we do not have any prebuilt Docker containers. However, you can just run a release with an Alpine container.
+#### Docker (Alpine with a downloaded release)
+
+Prefer not to pull the prebuilt image? The release binary is statically linked,
+so you can run an extracted release inside a stock Alpine container. Run this
+from the directory containing the extracted `xodbox` binary:
 
 ```shell
 docker run \
   --rm \
-  --expose 80 \
-  -v `pwd`:/app \
+  -p 80:80 \
+  -v "$PWD:/app" \
   --workdir /app \
-  -d alpine \
+  alpine \
   ./xodbox serve
 ```
 
