@@ -59,6 +59,10 @@ type Handler struct {
 	// origin, which is correct when the UI is mounted on the honeypot listener.
 	PublicURL string
 
+	// oidc, when non-nil, enables OIDC/SSO login for the admin console. It is
+	// built from the oidc_* config keys and nil when SSO is not configured.
+	oidc *oidcAuth
+
 	StaticDir       string
 	dispatchChannel chan types.InteractionEvent
 	app             types.App
@@ -122,6 +126,14 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	notifyLogins := handlerConfig["notify_logins"] == "true"
 	publicURL := strings.TrimRight(handlerConfig["public_url"], "/")
 
+	// Optional OIDC/SSO login for the admin console. nil when unconfigured;
+	// discovery is deferred to the first login so start-up never blocks on the
+	// IdP.
+	oidcAuth := newOIDCAuth(handlerConfig)
+	if oidcAuth != nil {
+		lg().Info("admin UI OIDC login enabled", "config", oidcAuth.oidcSummary())
+	}
+
 	if handlerConfig["api_token"] != "" {
 		lg().Warn("api_token is deprecated; create admin users and API keys with 'xodbox user add' and the admin UI")
 	}
@@ -155,6 +167,7 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 		AdminListener:      adminListener,
 		NotifyLogins:       notifyLogins,
 		PublicURL:          publicURL,
+		oidc:               oidcAuth,
 	}
 
 	if payloadDir != "" {

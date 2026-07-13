@@ -8,6 +8,7 @@ require (
 	github.com/adrg/frontmatter v0.2.0
 	github.com/analog-substance/util v1.1.7
 	github.com/caddyserver/certmagic v0.25.4
+	github.com/coreos/go-oidc/v3 v3.20.0
 	github.com/creack/pty v1.1.24
 	github.com/emersion/go-smtp v0.24.0
 	github.com/factomproject/basen v0.0.0-20150613233007-fe3947df716e
@@ -16,6 +17,7 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/glebarez/sqlite v1.11.0
 	github.com/gliderlabs/ssh v0.3.8
+	github.com/go-jose/go-jose/v4 v4.1.4
 	github.com/libdns/namecheap v1.0.0
 	github.com/libdns/route53 v1.6.2
 	github.com/miekg/dns v1.1.72
@@ -23,6 +25,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/crypto v0.53.0
 	golang.org/x/image v0.43.0
+	golang.org/x/oauth2 v0.36.0
 	gopkg.in/yaml.v3 v3.0.1
 	gorm.io/gorm v1.31.2
 )
@@ -72,7 +75,6 @@ require (
 	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
 	github.com/gin-contrib/sse v1.1.1 // indirect
 	github.com/glebarez/go-sqlite v1.22.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-playground/locales v0.14.1 // indirect
 	github.com/go-playground/universal-translator v0.18.1 // indirect
 	github.com/go-playground/validator/v10 v10.30.3 // indirect

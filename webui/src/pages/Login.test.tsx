@@ -1,7 +1,10 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { loginMock } = vi.hoisted(() => ({ loginMock: vi.fn() }));
+const { loginMock, getMock } = vi.hoisted(() => ({
+  loginMock: vi.fn(),
+  getMock: vi.fn(),
+}));
 
 vi.mock("@/lib/auth", () => ({
   useAuth: () => ({
@@ -12,9 +15,20 @@ vi.mock("@/lib/auth", () => ({
   }),
 }));
 
+vi.mock("@/lib/api", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/api")>("@/lib/api");
+  return { ...actual, api: { ...actual.api, get: getMock } };
+});
+
 import Login from "@/pages/Login";
 
 describe("Login", () => {
+  beforeEach(() => {
+    loginMock.mockReset();
+    // Default: SSO disabled.
+    getMock.mockReset().mockResolvedValue({ oidc: { enabled: false } });
+  });
+
   it("submits the entered credentials", async () => {
     loginMock.mockResolvedValueOnce(undefined);
     render(<Login />);
@@ -37,5 +51,24 @@ describe("Login", () => {
     await waitFor(() =>
       expect(screen.getByRole("alert")).toBeInTheDocument(),
     );
+  });
+
+  it("renders an SSO button when OIDC is enabled", async () => {
+    getMock.mockResolvedValue({ oidc: { enabled: true, label: "Sign in with Okta" } });
+    render(<Login />);
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Sign in with Okta" }),
+      ).toBeInTheDocument(),
+    );
+  });
+
+  it("hides the SSO button when OIDC is disabled", async () => {
+    render(<Login />);
+    // Let the providers fetch resolve.
+    await screen.findByRole("button", { name: "Sign in" });
+    expect(
+      screen.queryByRole("button", { name: /SSO/i }),
+    ).not.toBeInTheDocument();
   });
 });
