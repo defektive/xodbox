@@ -23,13 +23,22 @@ var (
 )
 
 // User is an admin-console account. PasswordHash is a bcrypt hash and is never
-// serialized.
+// serialized. Subject is set for accounts provisioned via OIDC (the stable
+// "iss#sub" identity from the ID token); it is empty for local accounts.
 type User struct {
 	gorm.Model
 	Username     string `json:"username" gorm:"uniqueIndex"`
 	PasswordHash string `json:"-"`
 	Role         string `json:"role"`
+	// Subject links this account to an external OIDC identity. Empty for local
+	// (password) accounts. Indexed (not unique — many local accounts share the
+	// empty value); uniqueness of non-empty subjects is enforced in code.
+	Subject string `json:"-" gorm:"index"`
 }
+
+// IsOIDC reports whether the account was provisioned via OIDC (has no password
+// and is bound to an external identity).
+func (u *User) IsOIDC() bool { return u.Subject != "" }
 
 // IsAdmin reports whether the user has the admin role.
 func (u *User) IsAdmin() bool { return u.Role == RoleAdmin }

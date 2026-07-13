@@ -43,9 +43,12 @@ type adminAuth struct {
 	// when the handler hasn't started, e.g. in unit tests).
 	notifyLogins bool
 	events       chan types.InteractionEvent
+	// oidc is non-nil when SSO is configured; it enables the OIDC login routes
+	// and the SSO button on the login page.
+	oidc *oidcAuth
 }
 
-func newAdminAuth(basePath string, notifyLogins bool, events chan types.InteractionEvent) *adminAuth {
+func newAdminAuth(basePath string, notifyLogins bool, events chan types.InteractionEvent, oidcAuth *oidcAuth) *adminAuth {
 	if basePath == "" {
 		basePath = "/"
 	}
@@ -54,6 +57,7 @@ func newAdminAuth(basePath string, notifyLogins bool, events chan types.Interact
 		limiter:      newLoginLimiter(10, time.Minute),
 		notifyLogins: notifyLogins,
 		events:       events,
+		oidc:         oidcAuth,
 	}
 }
 
@@ -66,6 +70,15 @@ func (a *adminAuth) mux() *http.ServeMux {
 	mux.HandleFunc("POST /api/login", a.handleLogin)
 	mux.HandleFunc("POST /api/logout", a.requireAuth(a.handleLogout))
 	mux.HandleFunc("GET /api/me", a.requireAuth(a.handleMe))
+
+	// External login providers. handleProviders is always available (reports
+	// whether SSO is on); the OIDC routes mount only when configured. All three
+	// are unauthenticated — they bootstrap or perform login.
+	mux.HandleFunc("GET /api/auth/providers", a.handleProviders)
+	if a.oidc != nil {
+		mux.HandleFunc("GET /api/auth/oidc/login", a.handleOIDCLogin)
+		mux.HandleFunc("GET /api/auth/oidc/callback", a.handleOIDCCallback)
+	}
 
 	// Read views (Phase 3).
 	mux.HandleFunc("GET /api/interactions", a.requireAuth(a.handleInteractions))

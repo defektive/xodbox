@@ -22,6 +22,16 @@ handlers:
 #    admin_listener: 127.0.0.1:9091 # serve the admin UI on this isolated bind instead of the public listener
 #    public_url: https://oob.example.com # externally-reachable base URL; the UI's sink "Copy HTTP link" uses it (empty = UI origin)
 #    notify_logins: "true" # emit an event on each successful admin login (fires notifiers matching "^HTTPX Login")
+#    # OIDC/SSO login for the admin UI (optional; runs alongside username/password login).
+#    oidc_issuer: https://accounts.example.com # OIDC provider issuer URL (discovery is fetched from here)
+#    oidc_client_id: xodbox
+#    oidc_client_secret: super-secret # optional for public/PKCE clients
+#    oidc_redirect_url: https://oob.example.com/admin/api/auth/oidc/callback # optional; derived from the request when unset. Must match a redirect URI registered with the IdP.
+#    oidc_scopes: "openid,profile,email" # optional; openid is always included
+#    oidc_default_role: user # role for provisioned users (user or admin); default user
+#    oidc_groups_claim: groups # ID-token claim inspected for group membership; default "groups"
+#    oidc_admin_group: xodbox-admins # users whose groups claim contains this value get the admin role
+#    oidc_button_label: "Sign in with SSO" # label for the SSO button on the login page
     listener: :80
   ## Docs: https://defektive.github.io/xodbox/docs/pkg/handlers/smb/
 #  - handler: SMB

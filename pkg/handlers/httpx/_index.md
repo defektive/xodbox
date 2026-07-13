@@ -81,6 +81,26 @@ single-quoted); `Content-Length` is dropped so curl recomputes it.
 | `public_url`     | no     | —       | Externally-reachable base URL of the honeypot (e.g. `https://oob.example.com`). The admin UI's **Copy HTTP link** control on a sink builds `<public_url>/<slug>` from it. Empty falls back to the UI's own origin — correct when the UI is served on the honeypot listener, wrong on an isolated `admin_listener`. |
 | `notify_logins`  | no     | `false` | When `"true"`, a successful admin-UI login emits an `InteractionEvent` (recorded in the Events log and delivered to notifiers whose filter matches `^HTTPX Login`). See **Login notifications** below. |
 
+### OIDC / SSO
+
+Optional single sign-on for the admin console via any OpenID Connect provider
+(Google, Okta, Keycloak, Azure AD, Authentik, …). SSO runs **alongside** the
+built-in username/password login — an "SSO" button appears on the login page
+when `oidc_issuer` and `oidc_client_id` are set. See **OIDC single sign-on**
+below.
+
+| Key                  | Required | Default | Notes                                                                                  |
+|----------------------|----------|---------|----------------------------------------------------------------------------------------|
+| `oidc_issuer`        | no       | —       | Provider issuer URL. Setting this **and** `oidc_client_id` enables SSO. Discovery (`<issuer>/.well-known/openid-configuration`) is fetched lazily on the first login, so start-up never blocks on the IdP. |
+| `oidc_client_id`     | no       | —       | OAuth2/OIDC client ID registered with the provider.                                    |
+| `oidc_client_secret` | no       | —       | Client secret. Omit for public clients — the flow always uses Authorization Code + PKCE. |
+| `oidc_redirect_url`  | no       | derived | Callback URL registered with the IdP, e.g. `https://oob.example.com/admin/api/auth/oidc/callback`. When empty it is derived from the request's scheme/host and admin mount path (honoring `X-Forwarded-Proto`). Set it explicitly when the console sits behind a proxy or on a non-obvious host. |
+| `oidc_scopes`        | no       | `openid,profile,email` | Comma/space-separated scopes requested. `openid` is always included. |
+| `oidc_default_role`  | no       | `user`  | Role assigned to provisioned users: `user` or `admin`.                                 |
+| `oidc_groups_claim`  | no       | `groups`| ID-token claim inspected for group membership (may be a JSON array or a space/comma string). |
+| `oidc_admin_group`   | no       | —       | When set, users whose `oidc_groups_claim` contains this value are granted the `admin` role; everyone else gets `oidc_default_role`. Empty means no group is elevated. |
+| `oidc_button_label`  | no       | `Sign in with SSO` | Text shown on the login page's SSO button.                                |
+
 ### TLS / ACME
 
 | Key                      | Required | Default | Notes                                                                                  |
@@ -198,6 +218,49 @@ peer IP) **and** authentication. Admin routes never emit honeypot
   creation. Bearer requests are CSRF-exempt.
 - **Passwords:** bcrypt, 12-character minimum.
 - **Roles:** `admin` (may manage users) and `user`.
+- **OIDC/SSO:** optional; see below. SSO users authenticate against an external
+  identity provider and never have a local password.
+
+### OIDC single sign-on
+
+When `oidc_issuer` and `oidc_client_id` are configured, the login page shows an
+**SSO** button next to the password form (SSO and passwords coexist, so a
+misconfigured IdP can't lock you out — a local admin can always sign in). The
+flow is standard **Authorization Code + PKCE**:
+
+1. The browser hits `/api/auth/oidc/login`, which stashes a `state`, `nonce`,
+   and PKCE verifier in short-lived cookies and redirects to the provider.
+2. The provider redirects back to `/api/auth/oidc/callback`, which validates
+   `state`, exchanges the code (with the PKCE verifier), verifies the ID token
+   signature and `nonce`, and then provisions the user and issues the **same**
+   server-side session cookie the password flow uses. Everything downstream
+   (CSRF, `requireAuth`, API keys) is unchanged.
+
+**User provisioning is just-in-time.** On first login a local account is created
+from the token's claims (no password, so it can never be used for password
+login); the account is keyed by the token's `iss#sub`, never by email, so a
+colliding email can't take over an existing account. On every login the user's
+role is re-synced from the current claims, so IdP group changes take effect
+immediately.
+
+**Role mapping.** With `oidc_admin_group` set, a user whose `oidc_groups_claim`
+contains that value gets the `admin` role; everyone else gets
+`oidc_default_role` (default `user`). Manage further elevation from the **Users**
+page as usual.
+
+Example (Keycloak-style issuer):
+
+```yaml
+- handler: HTTPX
+  listener: :80
+  admin_listener: 127.0.0.1:9091
+  public_url: https://oob.example.com
+  oidc_issuer: https://sso.example.com/realms/corp
+  oidc_client_id: xodbox
+  oidc_client_secret: "…"
+  oidc_redirect_url: https://oob.example.com/admin/api/auth/oidc/callback
+  oidc_admin_group: xodbox-admins
+```
 
 ### Bootstrapping users (CLI)
 
