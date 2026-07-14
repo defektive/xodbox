@@ -17,6 +17,13 @@ type Notifier struct {
 	filter *regexp.Regexp
 }
 
+// NewNotifierFromConfig creates a standalone webhook notifier from a YAML
+// config map. Recognized keys: "url" (required), "filter" (optional,
+// defaults to ".*").
+func NewNotifierFromConfig(cfg map[string]string) types.Notifier {
+	return NewNotifier(cfg["url"], cfg["filter"])
+}
+
 func NewNotifier(url string, filter string) *Notifier {
 
 	if filter == "" {

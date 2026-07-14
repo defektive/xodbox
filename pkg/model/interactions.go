@@ -2,6 +2,7 @@ package model
 
 import (
 	"errors"
+	"time"
 
 	"github.com/defektive/xodbox/pkg/util"
 	"gorm.io/gorm"
@@ -149,6 +150,18 @@ func PurgeInteractions(f InteractionPurgeFilter) (int64, error) {
 		ids[i] = r.ID
 	}
 	tx := DB().Where("id IN ?", ids).Delete(&Interaction{})
+	return tx.RowsAffected, tx.Error
+}
+
+// PurgeInteractionsOlderThan deletes interactions whose CreatedAt is older
+// than the given number of days. Returns the number of rows deleted.
+// Returns an error if days < 1 to prevent accidentally nuking everything.
+func PurgeInteractionsOlderThan(days int) (int64, error) {
+	if days < 1 {
+		return 0, errors.New("purge: days must be >= 1")
+	}
+	cutoff := time.Now().AddDate(0, 0, -days)
+	tx := DB().Where("created_at < ?", cutoff).Delete(&Interaction{})
 	return tx.RowsAffected, tx.Error
 }
 

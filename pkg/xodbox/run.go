@@ -44,6 +44,10 @@ func NewApp(config *Config) *App {
 		stop:                 make(chan struct{}),
 	}
 
+	if len(config.Workers) > 0 {
+		newApp.workerEngine = newWorkerEngine(config.Workers)
+	}
+
 	for _, notifier := range config.Notifiers {
 		lg().Debug("register notifier", "notifier", notifier.Name())
 		newApp.RegisterNotificationHandler(notifier)
@@ -77,12 +81,19 @@ type App struct {
 
 	// stop is closed once by Shutdown to unblock waitForEvents.
 	stop chan struct{}
+
+	// workerEngine runs periodic background jobs. Nil when no workers are configured.
+	workerEngine *workerEngine
 }
 
 func (x *App) Run() {
 	// The persister writes to the DB off the event loop so a slow/locked SQLite
 	// write never delays notifier delivery.
 	go x.runPersister()
+
+	if x.workerEngine != nil {
+		x.workerEngine.start()
+	}
 
 	for _, h := range x.appConfig.Handlers {
 		lg().Debug("Running handler", "handler", h)
@@ -118,6 +129,10 @@ func (x *App) Shutdown() {
 		if err := h.Stop(ctx); err != nil {
 			lg().Warn("handler stop returned error", "handler", h.Name(), "err", err)
 		}
+	}
+
+	if x.workerEngine != nil {
+		x.workerEngine.stop()
 	}
 
 	// Close stop at most once so concurrent Shutdown callers don't

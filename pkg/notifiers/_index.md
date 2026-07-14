@@ -6,6 +6,8 @@ weight: 10
 
 Notifiers are used to send notifications to external services or log interactions to the app log.
 
+Available notifiers: `app_log`, `slack`, `discord`, `webhook`.
+
 ### Filters
 
 Each notifier accepts a `filter` configuration option, compiled into a Go

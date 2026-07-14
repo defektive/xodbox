@@ -64,4 +64,14 @@ notifiers:
 #    author: PirateVirus
 #    author_image: https://s3-us-west-2.amazonaws.com/slack-f...72.png
 #    filter: "^HTTPX (GET|POST|HEAD|DELETE|PUT|PATCH|TRACE) /x/" # regex vs "HANDLER ACTION DETAIL from IP" (e.g. "^SMB Auth", "^DNS (A|AAAA) .*\\.evil\\.com")
+  ## Docs: https://defektive.github.io/xodbox/docs/pkg/notifiers/webhook/
+#  - notifier: webhook
+#    url: https://n8n.myteam.internal/webhook/xodbox # any HTTP endpoint
+#    filter: "^SMB Auth" # regex vs "HANDLER ACTION DETAIL from IP"; omit to receive everything
   - notifier: app_log
+## Docs: https://defektive.github.io/xodbox/docs/pkg/workers/
+#workers:
+#  ## Docs: https://defektive.github.io/xodbox/docs/pkg/workers/purge/
+#  - worker: purge
+#    schedule: "@daily" # cron expression or @every interval (e.g. "@every 6h")
+#    max_age_days: "30" # delete interactions older than this many days
