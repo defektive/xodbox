@@ -249,6 +249,7 @@ func (h *Handler) serverMux() *http.ServeMux {
 			e := NewEvent(r)
 			e.botExemptPrivate = h.BotExemptPrivate
 			parseUploads(e, h.MaxUploadSize)
+			parseRawBody(e, h.MaxUploadSize)
 			e.Dispatch(h.dispatchChannel)
 
 			for _, payload := range SortedPayloads() {

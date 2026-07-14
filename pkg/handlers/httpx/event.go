@@ -213,6 +213,106 @@ type TemplateRequestContext struct {
 	PostParams map[string][]string
 }
 
+// parseRawBody captures a non-multipart, non-empty request body as an
+// UploadedFile so the body can be downloaded via the Files API. It skips
+// multipart/* (already handled by parseUploads) and
+// application/x-www-form-urlencoded (regular HTML form data, not a file).
+func parseRawBody(e *Event, maxUploadSize int64) {
+	if len(e.body) == 0 {
+		return
+	}
+	ct := e.req.Header.Get("Content-Type")
+	mediaType, _, _ := mime.ParseMediaType(ct)
+	if strings.HasPrefix(mediaType, "multipart/") ||
+		mediaType == "application/x-www-form-urlencoded" {
+		return
+	}
+	if mediaType == "" {
+		mediaType = "application/octet-stream"
+	}
+
+	data := e.body
+	if maxUploadSize > 0 && int64(len(data)) > maxUploadSize {
+		data = data[:maxUploadSize]
+	}
+
+	sum := sha256.Sum256(data)
+	hash := hex.EncodeToString(sum[:])
+
+	f := model.UploadedFile{
+		FileName:    rawBodyFilename(e.req, mediaType),
+		ContentType: mediaType,
+		Size:        int64(len(data)),
+		ContentHash: hash,
+	}
+	if existing, err := model.FindFileByHash(hash); err != nil || existing == nil {
+		f.Data = data
+	}
+	e.interaction.Files = append(e.interaction.Files, f)
+}
+
+// rawBodyFilename derives a download filename for a raw (non-multipart) body.
+// Priority: Content-Disposition header → last URL path segment → "body.<ext>".
+func rawBodyFilename(req *http.Request, mediaType string) string {
+	if cd := req.Header.Get("Content-Disposition"); cd != "" {
+		_, params, _ := mime.ParseMediaType(cd)
+		if name := params["filename"]; name != "" {
+			// Strip any leading path component (handles Windows \\ separators too).
+			if i := strings.LastIndexAny(name, `/\`); i >= 0 {
+				name = name[i+1:]
+			}
+			if name != "" {
+				return name
+			}
+		}
+	}
+	if seg := urlPathBase(req.URL.Path); seg != "" {
+		return seg
+	}
+	return "body" + extFromMediaType(mediaType)
+}
+
+// urlPathBase returns the last non-empty, non-root segment of a URL path.
+func urlPathBase(p string) string {
+	p = strings.TrimRight(p, "/")
+	if i := strings.LastIndex(p, "/"); i >= 0 {
+		p = p[i+1:]
+	}
+	return p
+}
+
+// extFromMediaType maps a MIME media type to a common file extension.
+func extFromMediaType(mt string) string {
+	switch mt {
+	case "application/json":
+		return ".json"
+	case "application/xml", "text/xml":
+		return ".xml"
+	case "application/pdf":
+		return ".pdf"
+	case "text/plain":
+		return ".txt"
+	case "text/html":
+		return ".html"
+	case "image/png":
+		return ".png"
+	case "image/jpeg":
+		return ".jpg"
+	case "image/gif":
+		return ".gif"
+	case "image/webp":
+		return ".webp"
+	case "application/zip":
+		return ".zip"
+	case "application/gzip":
+		return ".gz"
+	case "application/x-tar":
+		return ".tar"
+	default:
+		return ".bin"
+	}
+}
+
 // parseUploads inspects an event's Content-Type for multipart/form-data and
 // extracts file parts into e.interaction.Files. maxUploadSize limits each part
 // read; 0 means no limit. Non-file form fields (no filename) are skipped.
