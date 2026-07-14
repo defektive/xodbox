@@ -23,11 +23,24 @@ const persistQueueSize = 1024
 
 func NewApp(config *Config) *App {
 
+	// Build the global ignore/drop list from defaults. A bad CIDR or regex is
+	// fatal: silently dropping (or keeping) everything is worse than failing
+	// loudly at startup.
+	ignore, err := newIgnoreRule(config.TemplateData)
+	if err != nil {
+		lg().Error("invalid ignore rule in config defaults", "err", err)
+		os.Exit(1)
+	}
+	if ignore.active() {
+		lg().Info("global ignore list active; matching events will be dropped (not persisted or notified)")
+	}
+
 	newApp := &App{
 		appConfig:            config,
 		eventChan:            make(chan types.InteractionEvent),
 		persistChan:          make(chan types.InteractionEvent, persistQueueSize),
 		notificationHandlers: []types.Notifier{},
+		ignore:               ignore,
 		stop:                 make(chan struct{}),
 	}
 
@@ -57,6 +70,10 @@ type App struct {
 	eventChan            chan types.InteractionEvent
 	persistChan          chan types.InteractionEvent
 	notificationHandlers []types.Notifier
+
+	// ignore drops events from configured noisy sources before they are
+	// persisted or dispatched. Never nil (newIgnoreRule always returns a rule).
+	ignore *ignoreRule
 
 	// stop is closed once by Shutdown to unblock waitForEvents.
 	stop chan struct{}
@@ -163,6 +180,14 @@ func (x *App) waitForEvents() {
 			lg().Debug("event loop shutting down")
 			return
 		case newEvent := <-x.eventChan:
+			// Drop events from configured noisy sources entirely: no DB row, no
+			// notification, no log spam. This is the escape hatch for a known
+			// callout (e.g. a leftover beacon hammering the server every second)
+			// that would otherwise flood both the Events log and the database.
+			if x.ignore.Matches(newEvent) {
+				lg().Debug("ignoring event (matched ignore list)", "details", newEvent.Details())
+				continue
+			}
 			// Hand the event to the persister (non-blocking so a write backlog
 			// can't stall the loop), then dispatch to notifiers — unless the
 			// event opts out of notification (e.g. a suspected bot), which stays

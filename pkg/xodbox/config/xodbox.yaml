@@ -1,4 +1,15 @@
 ---
+## Global defaults. Uncommenting this block overrides ALL defaults, so keep the
+## notify_string/server_name lines if you set it.
+#defaults:
+#  notify_string: l
+#  server_name: BreakfastBot
+#  ## Drop events from noisy sources entirely (no DB row, no notification, no log
+#  ## line). Use these to silence a known callout — e.g. a leftover beacon from an
+#  ## old test that keeps calling back every second. An event matching EITHER rule
+#  ## is dropped. Prune already-recorded rows with: xodbox interactions purge
+#  ignore_cidrs: "203.0.113.7,10.0.0.0/8" # comma-separated source IPs/CIDRs to drop
+#  ignore_pattern: "^HTTPX GET /old-test-callback" # regex vs "HANDLER ACTION DETAIL from IP"
 ## Docs: https://defektive.github.io/xodbox/docs/pkg/handlers/
 handlers:
   ## Docs: https://defektive.github.io/xodbox/docs/pkg/handlers/dns/

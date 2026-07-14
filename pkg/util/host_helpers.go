@@ -21,6 +21,52 @@ func IsPrivateOrLoopback(host string) bool {
 	return ip.IsLoopback() || ip.IsPrivate() || ip.IsLinkLocalUnicast()
 }
 
+// ParseCIDRs parses a comma-separated list of CIDRs and bare IPs into
+// networks. A bare IP (e.g. "1.2.3.4" or "2001:db8::1") is treated as a
+// single-host network (/32 or /128). Empty entries and surrounding
+// whitespace are ignored; an empty spec yields a nil slice and no error.
+// The first unparseable entry returns an error so config mistakes surface
+// loudly rather than silently matching nothing.
+func ParseCIDRs(spec string) ([]*net.IPNet, error) {
+	var nets []*net.IPNet
+	for _, raw := range strings.Split(spec, ",") {
+		entry := strings.TrimSpace(raw)
+		if entry == "" {
+			continue
+		}
+		if !strings.Contains(entry, "/") {
+			if ip := net.ParseIP(entry); ip != nil {
+				bits := 32
+				if ip.To4() == nil {
+					bits = 128
+				}
+				entry = fmt.Sprintf("%s/%d", entry, bits)
+			}
+		}
+		_, network, err := net.ParseCIDR(entry)
+		if err != nil {
+			return nil, fmt.Errorf("invalid CIDR/IP %q: %w", strings.TrimSpace(raw), err)
+		}
+		nets = append(nets, network)
+	}
+	return nets, nil
+}
+
+// IPInAny reports whether host (a bare IP, no port) falls within any of the
+// given networks. A non-IP host or an empty network list returns false.
+func IPInAny(host string, nets []*net.IPNet) bool {
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return false
+	}
+	for _, n := range nets {
+		if n != nil && n.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
 func GetRemoteAddrFromRequest(req *http.Request) string {
 
 	ra := req.RemoteAddr

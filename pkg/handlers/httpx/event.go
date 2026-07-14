@@ -117,7 +117,12 @@ func (e *Event) NotifySuppressed() bool {
 	addr := e.BaseEvent.RemoteAddr
 	exempt := e.botExemptPrivate && util.IsPrivateOrLoopback(addr)
 	if !exempt && model.IsBot(addr) {
-		lg().Warn("suppressing notifiers for suspected bot (high request volume); still recorded. Set bot_exempt_private to exempt local/private sources", "remote_addr", addr)
+		// Debug (not Warn) and throttled per source: a bot calling many times a
+		// second would otherwise emit one log line per request. The traffic is
+		// still recorded; only the notification is suppressed.
+		if botSuppressLog.allow(addr) {
+			lg().Debug("suppressing notifiers for suspected bot (high request volume); still recorded. Set bot_exempt_private to exempt local/private sources", "remote_addr", addr)
+		}
 		return true
 	}
 	return false
