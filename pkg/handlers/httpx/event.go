@@ -1,8 +1,14 @@
 package httpx
 
 import (
+	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
+	"math"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/http/httputil"
 	"strings"
@@ -30,8 +36,7 @@ func NewEvent(req *http.Request) *Event {
 	body, _ := io.ReadAll(req.Body)
 	defer req.Body.Close()
 
-	dump, _ := httputil.DumpRequest(req, false)
-	dump = append(dump, body...)
+	dump, _ := httputil.DumpRequest(req, false) // headers only (no body)
 	hostname, portNum := util.GetHostAndPortFromRequest(req)
 
 	protocol := "http"
@@ -44,11 +49,11 @@ func NewEvent(req *http.Request) *Event {
 			RemoteAddr:       hostname,
 			RemotePortNumber: portNum,
 			UserAgentString:  req.UserAgent(),
-			RawData:          dump,
+			RawData:          append(dump, body...), // full dump for notifiers
 		},
 		req:              req,
 		body:             body,
-		requestHeader:    dump,
+		requestHeader:    dump, // headers only; RawRequest() appends body
 		botExemptPrivate: true,
 		interaction: &model.Interaction{
 			RemoteAddr:    hostname,
@@ -58,7 +63,7 @@ func NewEvent(req *http.Request) *Event {
 			RequestType:   req.Method,
 			RequestTarget: req.URL.Path,
 			UserAgent:     req.UserAgent(),
-			Headers:       string(dump), // full request dump for curl reconstruction
+			Headers:       string(dump), // headers only — body is stored in Data
 			Data:          body,
 		},
 	}
@@ -206,4 +211,160 @@ type TemplateRequestContext struct {
 	Headers    map[string][]string
 	GetParams  map[string][]string
 	PostParams map[string][]string
+}
+
+// parseRawBody captures a non-multipart, non-empty request body as an
+// UploadedFile so the body can be downloaded via the Files API. It skips
+// multipart/* (already handled by parseUploads) and
+// application/x-www-form-urlencoded (regular HTML form data, not a file).
+func parseRawBody(e *Event, maxUploadSize int64) {
+	if len(e.body) == 0 {
+		return
+	}
+	ct := e.req.Header.Get("Content-Type")
+	mediaType, _, _ := mime.ParseMediaType(ct)
+	if strings.HasPrefix(mediaType, "multipart/") ||
+		mediaType == "application/x-www-form-urlencoded" {
+		return
+	}
+	if mediaType == "" {
+		mediaType = "application/octet-stream"
+	}
+
+	data := e.body
+	if maxUploadSize > 0 && int64(len(data)) > maxUploadSize {
+		data = data[:maxUploadSize]
+	}
+
+	sum := sha256.Sum256(data)
+	hash := hex.EncodeToString(sum[:])
+
+	f := model.UploadedFile{
+		FileName:    rawBodyFilename(e.req, mediaType),
+		ContentType: mediaType,
+		Size:        int64(len(data)),
+		ContentHash: hash,
+	}
+	if existing, err := model.FindFileByHash(hash); err != nil || existing == nil {
+		f.Data = data
+	}
+	e.interaction.Files = append(e.interaction.Files, f)
+}
+
+// rawBodyFilename derives a download filename for a raw (non-multipart) body.
+// Priority: Content-Disposition header → last URL path segment → "body.<ext>".
+func rawBodyFilename(req *http.Request, mediaType string) string {
+	if cd := req.Header.Get("Content-Disposition"); cd != "" {
+		_, params, _ := mime.ParseMediaType(cd)
+		if name := params["filename"]; name != "" {
+			// Strip any leading path component (handles Windows \\ separators too).
+			if i := strings.LastIndexAny(name, `/\`); i >= 0 {
+				name = name[i+1:]
+			}
+			if name != "" {
+				return name
+			}
+		}
+	}
+	if seg := urlPathBase(req.URL.Path); seg != "" {
+		return seg
+	}
+	return "body" + extFromMediaType(mediaType)
+}
+
+// urlPathBase returns the last non-empty, non-root segment of a URL path.
+func urlPathBase(p string) string {
+	p = strings.TrimRight(p, "/")
+	if i := strings.LastIndex(p, "/"); i >= 0 {
+		p = p[i+1:]
+	}
+	return p
+}
+
+// extFromMediaType maps a MIME media type to a common file extension.
+func extFromMediaType(mt string) string {
+	switch mt {
+	case "application/json":
+		return ".json"
+	case "application/xml", "text/xml":
+		return ".xml"
+	case "application/pdf":
+		return ".pdf"
+	case "text/plain":
+		return ".txt"
+	case "text/html":
+		return ".html"
+	case "image/png":
+		return ".png"
+	case "image/jpeg":
+		return ".jpg"
+	case "image/gif":
+		return ".gif"
+	case "image/webp":
+		return ".webp"
+	case "application/zip":
+		return ".zip"
+	case "application/gzip":
+		return ".gz"
+	case "application/x-tar":
+		return ".tar"
+	default:
+		return ".bin"
+	}
+}
+
+// parseUploads inspects an event's Content-Type for multipart/form-data and
+// extracts file parts into e.interaction.Files. maxUploadSize limits each part
+// read; 0 means no limit. Non-file form fields (no filename) are skipped.
+func parseUploads(e *Event, maxUploadSize int64) {
+	ct := e.req.Header.Get("Content-Type")
+	if !strings.HasPrefix(ct, "multipart/") {
+		return
+	}
+	_, params, err := mime.ParseMediaType(ct)
+	if err != nil {
+		return
+	}
+	boundary := params["boundary"]
+	if boundary == "" {
+		return
+	}
+
+	limit := int64(math.MaxInt64)
+	if maxUploadSize > 0 {
+		limit = maxUploadSize
+	}
+
+	mr := multipart.NewReader(bytes.NewReader(e.body), boundary)
+	for {
+		part, err := mr.NextPart()
+		if err != nil {
+			break
+		}
+		if part.FileName() == "" {
+			_ = part.Close()
+			continue
+		}
+		data, _ := io.ReadAll(io.LimitReader(part, limit))
+		_ = part.Close()
+		ct := part.Header.Get("Content-Type")
+		if ct == "" {
+			ct = "application/octet-stream"
+		}
+		sum := sha256.Sum256(data)
+		hash := hex.EncodeToString(sum[:])
+
+		f := model.UploadedFile{
+			FileName:    part.FileName(),
+			ContentType: ct,
+			Size:        int64(len(data)),
+			ContentHash: hash,
+		}
+		// Deduplicate: if we already have a file with the same content, skip the
+		// BLOB and let the download handler resolve it via the hash.
+		if existing, err := model.FindFileByHash(hash); err != nil || existing == nil {
+			f.Data = data
+		}
+		e.interaction.Files = append(e.interaction.Files, f)
+	}
 }

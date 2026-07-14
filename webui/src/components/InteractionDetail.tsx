@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { useCopy } from "@/lib/useCopy";
-import type { InteractionDetail } from "@/lib/types";
+import { apiBase } from "@/lib/base";
+import type { InteractionDetail, UploadedFileMeta } from "@/lib/types";
 
 function ClipboardIcon() {
   return (
@@ -89,6 +90,48 @@ function Field({ label, value }: { label: string; value: string }) {
   );
 }
 
+function formatBytes(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function FilesSection({
+  interactionId,
+  files,
+}: {
+  interactionId: number;
+  files: UploadedFileMeta[];
+}) {
+  return (
+    <div>
+      <div className="mb-1 text-xs font-medium text-muted-foreground">
+        Uploaded files
+      </div>
+      <ul className="space-y-1.5">
+        {files.map((f) => (
+          <li
+            key={f.id}
+            className="flex flex-wrap items-center gap-3 rounded-md border bg-muted/30 px-3 py-2 text-sm"
+          >
+            <span className="font-mono">{f.file_name}</span>
+            <span className="text-xs text-muted-foreground">
+              {f.content_type} · {formatBytes(f.size)}
+            </span>
+            <a
+              href={`${apiBase}interactions/${interactionId}/files/${f.id}`}
+              download={f.file_name}
+              className="ml-auto text-xs underline hover:text-foreground"
+            >
+              Download
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 // InteractionDetailView renders a single interaction's full detail: metadata
 // plus a replay curl, raw request, and body. Each code block is shown only when
 // it has content — non-httpx handlers (dns/tcp/smb/…) have no replay curl and
@@ -97,6 +140,7 @@ export function InteractionDetailView({ d }: { d: InteractionDetail }) {
   const hasCurl = (d.curl ?? "").trim() !== "";
   const hasHeaders = (d.headers ?? "").trim() !== "";
   const hasBody = (d.body ?? "").trim() !== "";
+  const hasFiles = (d.files ?? []).length > 0;
   return (
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2 text-sm sm:grid-cols-4">
@@ -105,6 +149,10 @@ export function InteractionDetailView({ d }: { d: InteractionDetail }) {
         <Field label="Handler" value={d.handler} />
         <Field label="Time" value={new Date(d.created_at).toLocaleString()} />
       </div>
+
+      {hasFiles && (
+        <FilesSection interactionId={d.id} files={d.files!} />
+      )}
 
       {hasCurl && (
         <div>
@@ -128,12 +176,27 @@ export function InteractionDetailView({ d }: { d: InteractionDetail }) {
         </div>
       )}
 
-      {hasBody && (
+      {d.has_binary_body && !hasBody && (
+        <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+          Binary body — download via the files section above.
+        </div>
+      )}
+
+      {hasBody && !d.has_binary_body && (
         <div>
           <div className="mb-1 text-xs font-medium text-muted-foreground">
             Body
           </div>
           <CodeBlock text={d.body} copyLabel="Copy body" className="max-h-96" />
+        </div>
+      )}
+
+      {hasBody && d.has_binary_body && (
+        <div>
+          <div className="mb-1 text-xs font-medium text-muted-foreground">
+            Body (hex preview)
+          </div>
+          <CodeBlock text={d.body} copyLabel="Copy hex dump" className="max-h-48" />
         </div>
       )}
     </div>

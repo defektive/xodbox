@@ -10,10 +10,28 @@ export interface InteractionSummary {
   user_agent: string;
 }
 
+export interface UploadedFileMeta {
+  id: number;
+  interaction_id: number;
+  file_name: string;
+  content_type: string;
+  size: number;
+  created_at: string;
+}
+
 export interface InteractionDetail extends InteractionSummary {
   headers: string;
   body: string;
+  has_binary_body?: boolean;
   curl: string;
+  files?: UploadedFileMeta[];
+}
+
+export interface SinkFilePage {
+  items: UploadedFileMeta[];
+  total: number;
+  limit: number;
+  offset: number;
 }
 
 export interface InteractionPage {

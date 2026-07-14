@@ -29,7 +29,8 @@ type Interaction struct {
 	UserAgent     string `json:"user_agent" gorm:"index:idx_remote_client"`
 	Headers       string `json:"headers"`
 
-	Data []byte `json:"data"`
+	Data  []byte         `json:"data"`
+	Files []UploadedFile `json:"-" gorm:"foreignKey:InteractionID"`
 }
 
 func SortedInteractions(limit int) []Interaction {

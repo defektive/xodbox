@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -49,6 +50,9 @@ type Handler struct {
 	UIPath        string
 	UIAllowCIDRs  []*net.IPNet
 	AdminListener string
+	// MaxUploadSize is the per-file size cap (in bytes) when parsing
+	// multipart/form-data uploads. 0 means no limit.
+	MaxUploadSize int64
 	// NotifyLogins, when true, emits an InteractionEvent on each successful
 	// admin-UI login so it is recorded and fires notifiers whose Filter matches
 	// the "HTTPX Login <user> from <ip>" string.
@@ -126,6 +130,8 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	notifyLogins := handlerConfig["notify_logins"] == "true"
 	publicURL := strings.TrimRight(handlerConfig["public_url"], "/")
 
+	maxUploadSize, _ := strconv.ParseInt(handlerConfig["max_upload_size"], 10, 64)
+
 	// Optional OIDC/SSO login for the admin console. nil when unconfigured;
 	// discovery is deferred to the first login so start-up never blocks on the
 	// IdP.
@@ -162,6 +168,7 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 		APIPath:            handlerConfig["api_path"],
 		APIToken:           handlerConfig["api_token"],
 		BotExemptPrivate:   botExemptPrivate,
+		MaxUploadSize:      maxUploadSize,
 		UIPath:             uiPath,
 		UIAllowCIDRs:       uiCIDRs,
 		AdminListener:      adminListener,
@@ -241,6 +248,8 @@ func (h *Handler) serverMux() *http.ServeMux {
 			}()
 			e := NewEvent(r)
 			e.botExemptPrivate = h.BotExemptPrivate
+			parseUploads(e, h.MaxUploadSize)
+			parseRawBody(e, h.MaxUploadSize)
 			e.Dispatch(h.dispatchChannel)
 
 			for _, payload := range SortedPayloads() {
@@ -501,6 +510,7 @@ func (h *Handler) noIndex(next http.Handler) http.Handler {
 
 		e := NewEvent(r)
 		e.botExemptPrivate = h.BotExemptPrivate
+		parseUploads(e, h.MaxUploadSize)
 		e.Dispatch(h.dispatchChannel)
 
 		next.ServeHTTP(w, r)

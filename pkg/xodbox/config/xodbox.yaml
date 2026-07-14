@@ -33,6 +33,7 @@ handlers:
 #    admin_listener: 127.0.0.1:9091 # serve the admin UI on this isolated bind instead of the public listener
 #    public_url: https://oob.example.com # externally-reachable base URL; the UI's sink "Copy HTTP link" uses it (empty = UI origin)
 #    notify_logins: "true" # emit an event on each successful admin login (fires notifiers matching "^HTTPX Login")
+#    max_upload_size: "0" # per-file size cap for multipart uploads in bytes; 0 = no limit
 #    # OIDC/SSO login for the admin UI (optional; runs alongside username/password login).
 #    oidc_issuer: https://accounts.example.com # OIDC provider issuer URL (discovery is fetched from here)
 #    oidc_client_id: xodbox

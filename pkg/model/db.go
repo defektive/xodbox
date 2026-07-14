@@ -68,6 +68,7 @@ func LoadDBWithOptions(options DBOptions) {
 			&Project{},
 			&Payload{},
 			&Interaction{},
+			&UploadedFile{},
 			&User{},
 			&Session{},
 			&APIKey{},

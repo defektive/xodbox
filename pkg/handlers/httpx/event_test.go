@@ -161,6 +161,123 @@ func TestPrivateExemptFromBotNotifySuppression(t *testing.T) {
 	}
 }
 
+func TestRawBodyFilename(t *testing.T) {
+	tests := []struct {
+		name      string
+		path      string
+		cd        string // Content-Disposition header value (empty = omit)
+		mediaType string
+		want      string
+	}{
+		// Content-Disposition wins over path
+		{
+			name:      "content-disposition filename",
+			path:      "/upload/ignored.bin",
+			cd:        `attachment; filename="report.pdf"`,
+			mediaType: "application/octet-stream",
+			want:      "report.pdf",
+		},
+		// Content-Disposition with Windows path is sanitised
+		{
+			name:      "content-disposition windows path",
+			path:      "/upload",
+			cd:        `attachment; filename="C:\\Users\\alice\\notes.txt"`,
+			mediaType: "text/plain",
+			want:      "notes.txt",
+		},
+		// URL path segment
+		{
+			name:      "url path segment with extension",
+			path:      "/uploads/photo.jpg",
+			mediaType: "image/jpeg",
+			want:      "photo.jpg",
+		},
+		{
+			name:      "url path segment no extension",
+			path:      "/webhook/callback",
+			mediaType: "application/json",
+			want:      "callback",
+		},
+		// Fallback to body.<ext>
+		{
+			name:      "root path falls back to extension",
+			path:      "/",
+			mediaType: "application/json",
+			want:      "body.json",
+		},
+		{
+			name:      "empty path falls back to extension",
+			path:      "",
+			mediaType: "application/pdf",
+			want:      "body.pdf",
+		},
+		{
+			name:      "unknown media type gets .bin",
+			path:      "/",
+			mediaType: "application/x-custom",
+			want:      "body.bin",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r, _ := http.NewRequest(http.MethodPut, "http://host"+tt.path, nil)
+			if tt.cd != "" {
+				r.Header.Set("Content-Disposition", tt.cd)
+			}
+			got := rawBodyFilename(r, tt.mediaType)
+			if got != tt.want {
+				t.Errorf("rawBodyFilename = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseRawBodyCreatesFile(t *testing.T) {
+	body := []byte(`{"key":"value"}`)
+	r, _ := http.NewRequest(http.MethodPost, "http://host/api/data", bytes.NewReader(body))
+	r.RemoteAddr = "127.0.0.1:1234"
+	r.Header.Set("Content-Type", "application/json")
+	e := NewEvent(r)
+
+	parseRawBody(e, 0)
+
+	if len(e.interaction.Files) != 1 {
+		t.Fatalf("expected 1 file, got %d", len(e.interaction.Files))
+	}
+	f := e.interaction.Files[0]
+	if f.FileName != "data" {
+		t.Errorf("FileName = %q, want %q", f.FileName, "data")
+	}
+	if f.ContentType != "application/json" {
+		t.Errorf("ContentType = %q, want application/json", f.ContentType)
+	}
+	if f.Size != int64(len(body)) {
+		t.Errorf("Size = %d, want %d", f.Size, len(body))
+	}
+}
+
+func TestParseRawBodySkipsMultipart(t *testing.T) {
+	r, _ := http.NewRequest(http.MethodPost, "http://host/upload",
+		bytes.NewReader([]byte("--boundary\r\n")))
+	r.RemoteAddr = "127.0.0.1:1234"
+	r.Header.Set("Content-Type", "multipart/form-data; boundary=boundary")
+	e := NewEvent(r)
+	parseRawBody(e, 0)
+	if len(e.interaction.Files) != 0 {
+		t.Errorf("parseRawBody should skip multipart, got %d files", len(e.interaction.Files))
+	}
+}
+
+func TestParseRawBodySkipsEmpty(t *testing.T) {
+	r, _ := http.NewRequest(http.MethodGet, "http://host/", bytes.NewReader(nil))
+	r.RemoteAddr = "127.0.0.1:1234"
+	e := NewEvent(r)
+	parseRawBody(e, 0)
+	if len(e.interaction.Files) != 0 {
+		t.Errorf("parseRawBody should skip empty body, got %d files", len(e.interaction.Files))
+	}
+}
+
 func TestEventTemplateContextHeadersAndQuery(t *testing.T) {
 	r := newPOSTRequest(t, "http://example.com/p?a=1&a=2&b=x", "")
 	r.Header.Set("X-Forwarded-For", "9.9.9.9")
