@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, ApiError } from "@/lib/api";
 import { apiBase, sinkLink } from "@/lib/base";
@@ -46,29 +46,48 @@ export default function SinkDetail() {
   const [filesLoading, setFilesLoading] = useState(false);
   const [filesError, setFilesError] = useState<string | null>(null);
   const [filesTotal, setFilesTotal] = useState(0);
+  const [filesLoaded, setFilesLoaded] = useState(false);
+  const [liveFileCount, setLiveFileCount] = useState(0);
+  // Refs are stable across renders so the SSE callback can read them without
+  // stale-closure issues.
+  const seenFileIds    = useRef(new Set<number>());
+  const pendingFiles   = useRef<UploadedFileMeta[]>([]);
+  const filesLoadedRef = useRef(false);
+
   useEffect(() => {
     setDescription(data?.description ?? "");
     setEditing(false);
   }, [data]);
 
+  // Keep the ref in sync so the SSE callback reads the latest value.
+  useEffect(() => { filesLoadedRef.current = filesLoaded; }, [filesLoaded]);
+
   useEffect(() => {
-    if (activeTab !== "files" || !slug) return;
+    if (activeTab !== "files" || !slug || filesLoaded) return;
     setFilesLoading(true);
     setFilesError(null);
     api
       .get<SinkFilePage>(`sinks/${encodeURIComponent(slug)}/files`)
       .then((page) => {
-        setSinkFiles(page.items);
-        setFilesTotal(page.total);
+        page.items.forEach((f) => seenFileIds.current.add(f.id));
+        // Merge any live files that arrived before the API response.
+        const apiIds = new Set(page.items.map((f) => f.id));
+        const extra  = pendingFiles.current.filter((f) => !apiIds.has(f.id));
+        pendingFiles.current = [];
+        setSinkFiles([...extra, ...page.items]);
+        setFilesTotal(page.total + extra.length);
+        setLiveFileCount(0);
+        setFilesLoaded(true);
       })
       .catch((err) => {
         setFilesError(err instanceof Error ? err.message : "failed to load files");
       })
       .finally(() => setFilesLoading(false));
-  }, [activeTab, slug]);
+  }, [activeTab, slug, filesLoaded]);
 
   // The stream carries summaries; fetch the full detail for each new hit so the
-  // timeline can render it inline.
+  // timeline can render it inline. Also extract any uploaded files so the Files
+  // tab updates live without a separate poll.
   useInteractionStream(
     `sink=${encodeURIComponent(slug)}`,
     useCallback(
@@ -76,7 +95,22 @@ export default function SinkDetail() {
         if (!claim(s.id)) return;
         api
           .get<InteractionDetail>(`interactions/${s.id}`)
-          .then(add)
+          .then((detail) => {
+            add(detail);
+            const fresh = (detail.files ?? []).filter((f) => {
+              if (seenFileIds.current.has(f.id)) return false;
+              seenFileIds.current.add(f.id);
+              return true;
+            });
+            if (fresh.length === 0) return;
+            setLiveFileCount((c) => c + fresh.length);
+            if (filesLoadedRef.current) {
+              setSinkFiles((prev) => [...fresh, ...prev]);
+              setFilesTotal((t) => t + fresh.length);
+            } else {
+              pendingFiles.current.push(...fresh);
+            }
+          })
           .catch(() => release(s.id)); // transient; allow a later retry
       },
       [claim, add, release],
@@ -210,12 +244,18 @@ export default function SinkDetail() {
           </button>
           <button
             type="button"
-            className={`text-sm font-medium ${activeTab === "files" ? "border-b-2 border-foreground pb-0.5" : "text-muted-foreground hover:text-foreground"}`}
+            className={`inline-flex items-center gap-1.5 text-sm font-medium ${activeTab === "files" ? "border-b-2 border-foreground pb-0.5" : "text-muted-foreground hover:text-foreground"}`}
             onClick={() => setActiveTab("files")}
           >
             Files
+            {liveFileCount > 0 && activeTab !== "files" && (
+              <span className="rounded-full bg-emerald-500 px-1.5 py-0.5 text-[10px] leading-none text-white">
+                +{liveFileCount}
+              </span>
+            )}
           </button>
           {activeTab === "events" && <LiveIndicator />}
+          {activeTab === "files" && <LiveIndicator />}
         </div>
 
         {activeTab === "events" && (
