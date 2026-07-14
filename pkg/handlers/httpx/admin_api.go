@@ -1,9 +1,11 @@
 package httpx
 
 import (
+	"encoding/hex"
 	"net/http"
 	"strconv"
 	"time"
+	"unicode/utf8"
 
 	"github.com/defektive/xodbox/pkg/model"
 )
@@ -38,12 +40,52 @@ func summarize(i model.Interaction) interactionSummary {
 	}
 }
 
+// fileInfo is the metadata-only view of an uploaded file (no raw Data blob).
+type fileInfo struct {
+	ID            uint      `json:"id"`
+	InteractionID uint      `json:"interaction_id"`
+	FileName      string    `json:"file_name"`
+	ContentType   string    `json:"content_type"`
+	Size          int64     `json:"size"`
+	CreatedAt     time.Time `json:"created_at"`
+}
+
+func toFileInfo(f model.UploadedFile) fileInfo {
+	return fileInfo{
+		ID:            f.ID,
+		InteractionID: f.InteractionID,
+		FileName:      f.FileName,
+		ContentType:   f.ContentType,
+		Size:          f.Size,
+		CreatedAt:     f.CreatedAt,
+	}
+}
+
 // interactionDetail adds the raw request, body, and a replay curl command.
 type interactionDetail struct {
 	interactionSummary
-	Headers string `json:"headers"`
-	Body    string `json:"body"`
-	Curl    string `json:"curl"`
+	Headers       string     `json:"headers"`
+	Body          string     `json:"body"`
+	HasBinaryBody bool       `json:"has_binary_body"`
+	Curl          string     `json:"curl"`
+	Files         []fileInfo `json:"files"`
+}
+
+// safeBodyString converts raw body bytes to a string safe for JSON / browser
+// display. Valid UTF-8 is returned as-is. Binary data is rendered as a hex
+// dump of the first 512 bytes followed by a notice.
+func safeBodyString(data []byte) (string, bool) {
+	if len(data) == 0 {
+		return "", false
+	}
+	if utf8.Valid(data) {
+		return string(data), false
+	}
+	preview := data
+	if len(preview) > 512 {
+		preview = preview[:512]
+	}
+	return hex.Dump(preview) + "\n[binary body — download via the Files tab]", true
 }
 
 func (a *adminAuth) handleInteractions(w http.ResponseWriter, r *http.Request) {
@@ -81,11 +123,19 @@ func (a *adminAuth) handleInteractions(w http.ResponseWriter, r *http.Request) {
 // toDetail builds the full detail view (raw request, body, replay curl) for an
 // interaction. Curl is empty for non-httpx handlers (nothing to replay).
 func toDetail(i *model.Interaction) interactionDetail {
+	body, isBinary := safeBodyString(i.Data)
+	rawFiles := model.FilesForInteraction(i.ID)
+	files := make([]fileInfo, 0, len(rawFiles))
+	for _, f := range rawFiles {
+		files = append(files, toFileInfo(f))
+	}
 	return interactionDetail{
 		interactionSummary: summarize(*i),
 		Headers:            i.Headers,
-		Body:               string(i.Data),
+		Body:               body,
+		HasBinaryBody:      isBinary,
 		Curl:               interactionCurl(i),
+		Files:              files,
 	}
 }
 

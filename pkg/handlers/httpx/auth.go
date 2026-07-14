@@ -84,6 +84,8 @@ func (a *adminAuth) mux() *http.ServeMux {
 	mux.HandleFunc("GET /api/interactions", a.requireAuth(a.handleInteractions))
 	mux.HandleFunc("GET /api/interactions/{id}", a.requireAuth(a.handleInteraction))
 	mux.HandleFunc("GET /api/interactions/{id}/curl", a.requireAuth(a.handleInteractionCurl))
+	mux.HandleFunc("GET /api/interactions/{id}/files", a.requireAuth(a.handleInteractionFiles))
+	mux.HandleFunc("GET /api/interactions/{id}/files/{fileID}", a.requireAuth(a.handleInteractionFileDownload))
 	mux.HandleFunc("GET /api/bots", a.requireAuth(a.handleBots))
 
 	// Payload CRUD (Phase 4). Payloads are global and control how the honeypot
@@ -104,6 +106,7 @@ func (a *adminAuth) mux() *http.ServeMux {
 	mux.HandleFunc("GET /api/sinks/{slug}", a.requireAuth(a.handleSink))
 	mux.HandleFunc("PUT /api/sinks/{slug}", a.requireAuth(a.handleUpdateSink))
 	mux.HandleFunc("DELETE /api/sinks/{slug}", a.requireAuth(a.handleDeleteSink))
+	mux.HandleFunc("GET /api/sinks/{slug}/files", a.requireAuth(a.handleSinkFiles))
 
 	// User management (admin) + account + API keys (Phase 5).
 	mux.HandleFunc("GET /api/users", a.requireAdmin(a.handleUsers))

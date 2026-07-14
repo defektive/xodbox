@@ -73,7 +73,13 @@ func Inspect(w http.ResponseWriter, e *Event) error {
 	r := e.Request()
 
 	fullRequestBytes := e.RawRequest()
-	requestStr := string(fullRequestBytes)
+	rawStr := string(fullRequestBytes)
+
+	// Cap total size before any rendering to prevent OOM on large/binary uploads.
+	requestStr := rawStr
+	if len(requestStr) > maxRenderBytes {
+		requestStr = requestStr[:maxRenderBytes] + "\n[truncated]"
+	}
 
 	if strings.HasSuffix(r.URL.Path, ".png") {
 		return toPNG(w, r, requestStr)
@@ -141,12 +147,53 @@ func Inspect(w http.ResponseWriter, e *Event) error {
 	return err
 }
 
+// sanitizeForRender makes arbitrary bytes safe to render as a monospace text
+// image. Non-printable bytes are replaced with '.', each line is capped at
+// maxLineLen characters, and the total is capped at maxLines lines. A
+// "[truncated]" notice is appended when anything is cut.
+func sanitizeForRender(s string, maxLines, maxLineLen int) string {
+	// Replace non-printable bytes (keep \t \n \r).
+	out := make([]byte, 0, len(s))
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		if c < 0x20 && c != '\t' && c != '\n' && c != '\r' {
+			out = append(out, '.')
+		} else {
+			out = append(out, c)
+		}
+	}
+	lines := strings.Split(string(out), "\n")
+	truncated := false
+	if len(lines) > maxLines {
+		lines = lines[:maxLines]
+		truncated = true
+	}
+	for i, l := range lines {
+		if len(l) > maxLineLen {
+			lines[i] = l[:maxLineLen]
+			truncated = true
+		}
+	}
+	result := strings.Join(lines, "\n")
+	if truncated {
+		result += "\n[truncated]"
+	}
+	return result
+}
+
+const (
+	maxRenderBytes   = 64 * 1024
+	maxRenderLines   = 100
+	maxRenderLineLen = 200
+)
+
 func createImage(w http.ResponseWriter, r *http.Request, requestStr string) *image.CMYK {
 
 	lineHeight := 15
 	characterWidth := 7
 
-	resData := strings.Split(requestStr, "\n")
+	safe := sanitizeForRender(requestStr, maxRenderLines, maxRenderLineLen)
+	resData := strings.Split(safe, "\n")
 	maxLen := 0
 	for _, v := range resData {
 		ml := len(v)

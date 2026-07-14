@@ -1,8 +1,12 @@
 package httpx
 
 import (
+	"bytes"
 	"fmt"
 	"io"
+	"math"
+	"mime"
+	"mime/multipart"
 	"net/http"
 	"net/http/httputil"
 	"strings"
@@ -206,4 +210,51 @@ type TemplateRequestContext struct {
 	Headers    map[string][]string
 	GetParams  map[string][]string
 	PostParams map[string][]string
+}
+
+// parseUploads inspects an event's Content-Type for multipart/form-data and
+// extracts file parts into e.interaction.Files. maxUploadSize limits each part
+// read; 0 means no limit. Non-file form fields (no filename) are skipped.
+func parseUploads(e *Event, maxUploadSize int64) {
+	ct := e.req.Header.Get("Content-Type")
+	if !strings.HasPrefix(ct, "multipart/") {
+		return
+	}
+	_, params, err := mime.ParseMediaType(ct)
+	if err != nil {
+		return
+	}
+	boundary := params["boundary"]
+	if boundary == "" {
+		return
+	}
+
+	limit := int64(math.MaxInt64)
+	if maxUploadSize > 0 {
+		limit = maxUploadSize
+	}
+
+	mr := multipart.NewReader(bytes.NewReader(e.body), boundary)
+	for {
+		part, err := mr.NextPart()
+		if err != nil {
+			break
+		}
+		if part.FileName() == "" {
+			_ = part.Close()
+			continue
+		}
+		data, _ := io.ReadAll(io.LimitReader(part, limit))
+		_ = part.Close()
+		ct := part.Header.Get("Content-Type")
+		if ct == "" {
+			ct = "application/octet-stream"
+		}
+		e.interaction.Files = append(e.interaction.Files, model.UploadedFile{
+			FileName:    part.FileName(),
+			ContentType: ct,
+			Size:        int64(len(data)),
+			Data:        data,
+		})
+	}
 }

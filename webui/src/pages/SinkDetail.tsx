@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, ApiError } from "@/lib/api";
-import { sinkLink } from "@/lib/base";
+import { apiBase, sinkLink } from "@/lib/base";
 import { useApi } from "@/lib/useApi";
 import { useInteractionStream } from "@/lib/useStream";
 import { useLiveFeed } from "@/lib/useLiveFeed";
@@ -11,6 +11,8 @@ import type {
   InteractionSummary,
   Sink,
   SinkDetail as SinkDetailData,
+  SinkFilePage,
+  UploadedFileMeta,
 } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,10 +41,31 @@ export default function SinkDetail() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const slugCopy = useCopy();
   const linkCopy = useCopy();
+  const [activeTab, setActiveTab] = useState<"events" | "files">("events");
+  const [sinkFiles, setSinkFiles] = useState<UploadedFileMeta[]>([]);
+  const [filesLoading, setFilesLoading] = useState(false);
+  const [filesError, setFilesError] = useState<string | null>(null);
+  const [filesTotal, setFilesTotal] = useState(0);
   useEffect(() => {
     setDescription(data?.description ?? "");
     setEditing(false);
   }, [data]);
+
+  useEffect(() => {
+    if (activeTab !== "files" || !slug) return;
+    setFilesLoading(true);
+    setFilesError(null);
+    api
+      .get<SinkFilePage>(`sinks/${encodeURIComponent(slug)}/files`)
+      .then((page) => {
+        setSinkFiles(page.items);
+        setFilesTotal(page.total);
+      })
+      .catch((err) => {
+        setFilesError(err instanceof Error ? err.message : "failed to load files");
+      })
+      .finally(() => setFilesLoading(false));
+  }, [activeTab, slug]);
 
   // The stream carries summaries; fetch the full detail for each new hit so the
   // timeline can render it inline.
@@ -177,41 +200,132 @@ export default function SinkDetail() {
       </Card>
 
       <div>
-        <div className="mb-3 flex items-center gap-2">
-          <h2 className="text-sm font-medium">Event timeline</h2>
-          <LiveIndicator />
+        <div className="mb-3 flex items-center gap-3">
+          <button
+            type="button"
+            className={`text-sm font-medium ${activeTab === "events" ? "border-b-2 border-foreground pb-0.5" : "text-muted-foreground hover:text-foreground"}`}
+            onClick={() => setActiveTab("events")}
+          >
+            Events
+          </button>
+          <button
+            type="button"
+            className={`text-sm font-medium ${activeTab === "files" ? "border-b-2 border-foreground pb-0.5" : "text-muted-foreground hover:text-foreground"}`}
+            onClick={() => setActiveTab("files")}
+          >
+            Files
+          </button>
+          {activeTab === "events" && <LiveIndicator />}
         </div>
 
-        {events.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            No events for this sink yet.
-          </p>
-        ) : (
-          <ol className="space-y-4 border-l pl-5">
-            {events.map((e) => (
-              <li key={e.id} className="relative">
-                <span className="absolute -left-[27px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500" />
-                <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-                  <span className="font-mono text-sm">
-                    {e.request_type} {e.request_target || "/"}
-                  </span>
-                  <Link
-                    className="text-xs text-muted-foreground hover:underline"
-                    to={`/events/${e.id}`}
-                  >
-                    open ↗
-                  </Link>
+        {activeTab === "events" && (
+          <>
+            {events.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                No events for this sink yet.
+              </p>
+            ) : (
+              <ol className="space-y-4 border-l pl-5">
+                {events.map((e) => (
+                  <li key={e.id} className="relative">
+                    <span className="absolute -left-[27px] top-1.5 h-2.5 w-2.5 rounded-full border-2 border-background bg-emerald-500" />
+                    <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+                      <span className="font-mono text-sm">
+                        {e.request_type} {e.request_target || "/"}
+                      </span>
+                      <Link
+                        className="text-xs text-muted-foreground hover:underline"
+                        to={`/events/${e.id}`}
+                      >
+                        open ↗
+                      </Link>
+                    </div>
+                    <Card className="mt-2">
+                      <CardContent className="pt-4">
+                        <InteractionDetailView d={e} />
+                      </CardContent>
+                    </Card>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </>
+        )}
+
+        {activeTab === "files" && (
+          <>
+            {filesLoading && (
+              <p className="text-sm text-muted-foreground">Loading files…</p>
+            )}
+            {filesError && (
+              <p className="text-sm text-destructive" role="alert">
+                {filesError}
+              </p>
+            )}
+            {!filesLoading && !filesError && sinkFiles.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No file uploads captured for this sink yet.
+              </p>
+            )}
+            {!filesLoading && sinkFiles.length > 0 && (
+              <>
+                <p className="mb-2 text-xs text-muted-foreground">
+                  {filesTotal} file{filesTotal === 1 ? "" : "s"} total
+                </p>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b text-xs text-muted-foreground">
+                        <th className="pb-2 pr-4 text-left font-medium">File</th>
+                        <th className="pb-2 pr-4 text-left font-medium">Type</th>
+                        <th className="pb-2 pr-4 text-left font-medium">Size</th>
+                        <th className="pb-2 pr-4 text-left font-medium">Event</th>
+                        <th className="pb-2 pr-4 text-left font-medium">Captured</th>
+                        <th className="pb-2 text-left font-medium" />
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y">
+                      {sinkFiles.map((f) => (
+                        <tr key={f.id}>
+                          <td className="py-2 pr-4 font-mono">{f.file_name}</td>
+                          <td className="py-2 pr-4 text-muted-foreground">{f.content_type}</td>
+                          <td className="py-2 pr-4 text-muted-foreground">{formatFileSize(f.size)}</td>
+                          <td className="py-2 pr-4">
+                            <Link
+                              to={`/events/${f.interaction_id}`}
+                              className="text-xs text-muted-foreground hover:underline"
+                            >
+                              #{f.interaction_id}
+                            </Link>
+                          </td>
+                          <td className="py-2 pr-4 text-muted-foreground text-xs">
+                            {new Date(f.created_at).toLocaleString()}
+                          </td>
+                          <td className="py-2 text-right">
+                            <a
+                              href={`${apiBase}interactions/${f.interaction_id}/files/${f.id}`}
+                              download={f.file_name}
+                              className="text-xs underline hover:text-foreground"
+                            >
+                              Download
+                            </a>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <Card className="mt-2">
-                  <CardContent className="pt-4">
-                    <InteractionDetailView d={e} />
-                  </CardContent>
-                </Card>
-              </li>
-            ))}
-          </ol>
+              </>
+            )}
+          </>
         )}
       </div>
     </div>
   );
+}
+
+function formatFileSize(n: number): string {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
