@@ -200,7 +200,6 @@ func (a *adminAuth) handleOIDCLogin(w http.ResponseWriter, r *http.Request) {
 // cookie before redirecting into the console.
 func (a *adminAuth) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 	o := a.oidc
-	defer a.clearOIDCTempCookies(w, r)
 
 	if errParam := r.URL.Query().Get("error"); errParam != "" {
 		a.oidcFail(w, r, errParam)
@@ -274,6 +273,7 @@ func (a *adminAuth) handleOIDCCallback(w http.ResponseWriter, r *http.Request) {
 		a.oidcFail(w, r, "could not create session")
 		return
 	}
+	a.clearOIDCTempCookies(w, r)
 	a.setSessionCookie(w, r, sessionToken)
 	a.notifyLogin(u.Username, ip, r.UserAgent())
 	http.Redirect(w, r, a.basePath, http.StatusFound)
@@ -313,7 +313,10 @@ func stringClaim(claims map[string]any, key string) string {
 }
 
 // claimContains reports whether want appears in a groups-style claim, which may
-// be a JSON array of strings or a single space/comma-delimited string.
+// be a JSON array of strings or a comma-delimited string. Spaces are NOT used
+// as delimiters for the string case because group names commonly contain spaces
+// (e.g. "Platform Engineering"); splitting on spaces would fragment them and
+// could grant unintended role elevation.
 func claimContains(claim any, want string) bool {
 	switch v := claim.(type) {
 	case []any:
@@ -329,8 +332,8 @@ func claimContains(claim any, want string) bool {
 			}
 		}
 	case string:
-		for _, s := range strings.FieldsFunc(v, func(r rune) bool { return r == ',' || r == ' ' }) {
-			if s == want {
+		for _, s := range strings.Split(v, ",") {
+			if strings.TrimSpace(s) == want {
 				return true
 			}
 		}
@@ -372,10 +375,13 @@ func (a *adminAuth) clearOIDCTempCookies(w http.ResponseWriter, r *http.Request)
 	}
 }
 
-// oidcFail aborts an SSO attempt by redirecting back to the console with an
-// error marker the login page can surface, rather than dumping a raw JSON error
-// at the user mid-redirect.
+// oidcFail aborts an SSO attempt by clearing the in-flight temp cookies (state,
+// nonce, verifier) and then redirecting back to the console with an error
+// marker the login page can surface. The clear must happen here, before the
+// redirect commits the response headers via WriteHeader — any Set-Cookie added
+// after WriteHeader is silently dropped by net/http.
 func (a *adminAuth) oidcFail(w http.ResponseWriter, r *http.Request, reason string) {
+	a.clearOIDCTempCookies(w, r)
 	http.Redirect(w, r, a.basePath+"?sso_error="+url.QueryEscape(reason), http.StatusFound)
 }
 

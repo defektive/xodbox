@@ -31,5 +31,5 @@ workers:
 - Uses GORM soft-delete (sets `deleted_at`), so the rows are not
   immediately reclaimed by SQLite. Run `VACUUM` manually if you need to
   shrink the file on disk after a large purge.
-- `max_age_days: "0"` is rejected with an error to prevent accidentally
-  deleting everything.
+- `max_age_days: "0"` (or any non-positive value) is silently ignored and the
+  30-day default is used instead.

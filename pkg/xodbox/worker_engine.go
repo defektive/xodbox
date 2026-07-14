@@ -2,6 +2,7 @@ package xodbox
 
 import (
 	"context"
+	"time"
 
 	"github.com/defektive/xodbox/pkg/types"
 	"github.com/robfig/cron/v3"
@@ -54,8 +55,13 @@ func (we *workerEngine) stop() {
 		we.cancel()
 	}
 	// cron.Stop() prevents new ticks and returns a context that is Done once
-	// all currently-executing jobs return.
+	// all currently-executing jobs return. Use the same bound as handler
+	// shutdown so a stuck worker can't keep the process alive indefinitely.
 	stopCtx := we.cron.Stop()
-	<-stopCtx.Done()
+	select {
+	case <-stopCtx.Done():
+	case <-time.After(shutdownTimeout):
+		lg().Warn("worker engine did not stop within deadline; continuing shutdown")
+	}
 	lg().Info("worker engine stopped")
 }

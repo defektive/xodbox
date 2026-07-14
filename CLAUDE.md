@@ -22,7 +22,7 @@ Single Go binary (`xodbox`), Cobra CLI. Key subcommands: `serve` (run the listen
 The flow is **Handlers → InteractionEvent → channel → Notifiers**.
 
 - **Handlers** (`pkg/handlers/*`) are listening protocol implementations: `httpx`
-  (HTTP/HTTPS, Gin-based), `dns`, `ftp`, `smtp`, `ssh`, `tcp`. Each implements
+  (HTTP/HTTPS, Gin-based), `dns`, `ftp`, `smtp`, `ssh`, `tcp`, `smb`. Each implements
   `types.Handler` (`Name`/`Start`/`Stop`). `Start` blocks serving; `Stop(ctx)` must
   release the socket and be safe to call even if `Start` never ran.
 - **InteractionEvent** (`pkg/types/interfaces.go`, base in `pkg/types/base_event.go`)
@@ -30,10 +30,10 @@ The flow is **Handlers → InteractionEvent → channel → Notifiers**.
   channel and dispatched to notifiers.
 - **Notifiers** (`pkg/notifiers/*`): `app_log`, `slack`, `discord`, `webhook`. Each
   implements `types.Notifier` (`Name`/`Send`/`Filter`). A notifier only fires when the
-  event matches its `Filter()` regex (default `^/l`).
+  event matches its `Filter()` regex (default `.*`; set per-notifier in the YAML config).
 - **App** (`pkg/xodbox/run.go`) wires it together: registers notifiers, seeds handlers,
-  starts each handler in a goroutine, and fans events out to notifiers. Graceful
-  shutdown on SIGINT/SIGTERM with a bounded drain timeout.
+  starts each handler in a goroutine, starts the worker engine, and fans events out to
+  notifiers. Graceful shutdown on SIGINT/SIGTERM with a bounded drain timeout.
 - **Config** (`pkg/xodbox/config.go`): `ConfigFile` (YAML) → `Config`. Handlers and
   notifiers are looked up by name in `newHandlerMap` / `newNotifierMap`.
 - `pkg/model` — GORM + SQLite persistence (interactions, payloads, projects).

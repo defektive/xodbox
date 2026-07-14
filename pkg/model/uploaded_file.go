@@ -40,7 +40,10 @@ func FindFileByHash(hash string) (*UploadedFile, error) {
 		return nil, errors.New("empty hash")
 	}
 	var f UploadedFile
-	err := DB().Where("content_hash = ? AND data IS NOT NULL AND data != ''", hash).First(&f).Error
+	// Use length(data) > 0 instead of data != '' because SQLite evaluates
+	// X'' != '' as TRUE (BLOB vs TEXT affinity), letting empty-BLOB rows slip
+	// through and be returned as the canonical copy.
+	err := DB().Where("content_hash = ? AND data IS NOT NULL AND length(data) > 0", hash).First(&f).Error
 	if err != nil {
 		return nil, err
 	}
