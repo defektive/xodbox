@@ -62,6 +62,17 @@ type Notifier interface {
 	Filter() *regexp.Regexp
 }
 
+// Worker is a periodic background job managed by the workflow engine.
+// Schedule is a robfig/cron v3 expression: standard 5-field cron
+// ("0 2 * * *"), shorthand ("@daily"), or interval ("@every 1h").
+// Run is called once per tick; ctx is cancelled on shutdown.
+// An error is logged but does not stop future ticks.
+type Worker interface {
+	Name() string
+	Schedule() string
+	Run(ctx context.Context) error
+}
+
 type NotifierBase struct {
 	Name   string
 	Filter string

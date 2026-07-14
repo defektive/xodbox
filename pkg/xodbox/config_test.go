@@ -49,6 +49,7 @@ func TestConfigFile_ToConfig(t *testing.T) {
 				Notifiers: []types.Notifier{app_log.NewNotifier(map[string]string{
 					"notifier": "app_log",
 				})},
+				Workers: []types.Worker{},
 			},
 		},
 	}

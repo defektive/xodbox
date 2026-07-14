@@ -14,7 +14,9 @@ import (
 	"github.com/defektive/xodbox/pkg/notifiers/app_log"
 	"github.com/defektive/xodbox/pkg/notifiers/discord"
 	"github.com/defektive/xodbox/pkg/notifiers/slack"
+	"github.com/defektive/xodbox/pkg/notifiers/webhook"
 	"github.com/defektive/xodbox/pkg/types"
+	"github.com/defektive/xodbox/pkg/workers/purge"
 	"gopkg.in/yaml.v3"
 )
 
@@ -26,6 +28,7 @@ type Config struct {
 	TemplateData map[string]string `yaml:"template_data"`
 	Handlers     []types.Handler
 	Notifiers    []types.Notifier
+	Workers      []types.Worker
 }
 
 // ConfigFile defines th structure of the YAML config files
@@ -34,6 +37,7 @@ type ConfigFile struct {
 	Defaults  map[string]string   `yaml:"defaults"`
 	Handlers  []map[string]string `yaml:"handlers"`
 	Notifiers []map[string]string `yaml:"notifiers"`
+	Workers   []map[string]string `yaml:"workers"`
 }
 
 // ToConfig creates a Config struct based on the ConfigFile
@@ -47,7 +51,7 @@ func (conf *ConfigFile) ToConfig() *Config {
 		}
 	}
 
-	appConfig := &Config{conf.Defaults, []types.Handler{}, []types.Notifier{}}
+	appConfig := &Config{conf.Defaults, []types.Handler{}, []types.Notifier{}, []types.Worker{}}
 
 	for _, handlerConfig := range conf.Handlers {
 		if newHandlerFn, ok := newHandlerMap[handlerConfig["handler"]]; ok {
@@ -64,6 +68,15 @@ func (conf *ConfigFile) ToConfig() *Config {
 			lg().Error("notifier not found", "notifier", notifierConfig["notifier"])
 		}
 	}
+
+	for _, workerConfig := range conf.Workers {
+		if newWorkerFn, ok := newWorkerMap[workerConfig["worker"]]; ok {
+			appConfig.Workers = append(appConfig.Workers, newWorkerFn(workerConfig))
+		} else {
+			lg().Error("worker not found", "worker", workerConfig["worker"])
+		}
+	}
+
 	return appConfig
 }
 
@@ -101,6 +114,7 @@ func configFromFile(configFile string) (*ConfigFile, error) {
 
 var newHandlerMap = map[string]func(handlerConfig map[string]string) types.Handler{}
 var newNotifierMap = map[string]func(notifierConfig map[string]string) types.Notifier{}
+var newWorkerMap = map[string]func(workerConfig map[string]string) types.Worker{}
 
 func init() {
 	newHandlerMap["DNS"] = dns.NewHandler
@@ -114,4 +128,7 @@ func init() {
 	newNotifierMap["app_log"] = app_log.NewNotifier
 	newNotifierMap["discord"] = discord.NewNotifier
 	newNotifierMap["slack"] = slack.NewNotifier
+	newNotifierMap["webhook"] = webhook.NewNotifierFromConfig
+
+	newWorkerMap["purge"] = purge.NewWorker
 }
