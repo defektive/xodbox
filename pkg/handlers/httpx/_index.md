@@ -80,6 +80,7 @@ single-quoted); `Content-Length` is dropped so curl recomputes it.
 | `admin_listener` | no     | —       | Separate bind address (e.g. `127.0.0.1:8443`) that serves **only** the admin UI/API, isolated from the attacker-facing listener. When set, the UI is not mounted under `ui_path` on the main listener. |
 | `public_url`     | no     | —       | Externally-reachable base URL of the honeypot (e.g. `https://oob.example.com`). The admin UI's **Copy HTTP link** control on a sink builds `<public_url>/<slug>` from it. Empty falls back to the UI's own origin — correct when the UI is served on the honeypot listener, wrong on an isolated `admin_listener`. |
 | `notify_logins`  | no     | `false` | When `"true"`, a successful admin-UI login emits an `InteractionEvent` (recorded in the Events log and delivered to notifiers whose filter matches `^HTTPX Login`). See **Login notifications** below. |
+| `max_upload_size` | no    | `0`     | Per-file size cap for multipart/form-data uploads, in bytes. `0` means no limit. Files exceeding the cap are rejected with `413`. |
 
 ### OIDC / SSO
 

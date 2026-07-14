@@ -19,7 +19,10 @@ flavoured probes).
 
 - Listens on UDP at the configured `listener` address.
 - For each incoming query, dispatches an `InteractionEvent` whose
-  `Details()` reports the first non-empty question name.
+  `Details()` reports `"DNS: <qname> <decimal-qtype>"` (e.g.
+  `"DNS: c2.evil.com. 1"` for an A query). Notifier filters use
+  `FilterString()` instead, which has the canonical form
+  `"DNS <QTYPE-name> <qname> from <ip>"` (e.g. `"DNS A c2.evil.com. from 10.0.0.5"`).
 - Replies with an `A` record pointing every name to `default_ip`,
   regardless of the requested type. Non-A queries still receive the
   forged A reply.

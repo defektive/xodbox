@@ -154,13 +154,29 @@ func PurgeInteractions(f InteractionPurgeFilter) (int64, error) {
 }
 
 // PurgeInteractionsOlderThan deletes interactions whose CreatedAt is older
-// than the given number of days. Returns the number of rows deleted.
+// than the given number of days, including their associated uploaded files.
+// Returns the number of interaction rows deleted.
 // Returns an error if days < 1 to prevent accidentally nuking everything.
 func PurgeInteractionsOlderThan(days int) (int64, error) {
 	if days < 1 {
 		return 0, errors.New("purge: days must be >= 1")
 	}
 	cutoff := time.Now().AddDate(0, 0, -days)
+
+	// Collect IDs so we can cascade-delete the uploaded_files rows first.
+	// Without this, file BLOBs accumulate indefinitely even after their parent
+	// interactions are soft-deleted — GORM does not cascade soft-deletes to
+	// associations by default.
+	var ids []uint
+	if err := DB().Model(&Interaction{}).Where("created_at < ?", cutoff).Pluck("id", &ids).Error; err != nil {
+		return 0, err
+	}
+	if len(ids) > 0 {
+		if err := DB().Where("interaction_id IN ?", ids).Delete(&UploadedFile{}).Error; err != nil {
+			return 0, err
+		}
+	}
+
 	tx := DB().Where("created_at < ?", cutoff).Delete(&Interaction{})
 	return tx.RowsAffected, tx.Error
 }

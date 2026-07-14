@@ -41,6 +41,13 @@ func (t *logThrottle) allow(key string) bool {
 				delete(t.last, k)
 			}
 		}
+		// If all entries are still fresh after pruning (e.g. a flood of unique
+		// IPs all within the current interval), reset the map to keep memory
+		// bounded. Affected keys will be re-logged on next call, but that is
+		// preferable to unbounded growth.
+		if len(t.last) > throttleMaxKeys {
+			t.last = make(map[string]time.Time)
+		}
 	}
 
 	t.last[key] = now
