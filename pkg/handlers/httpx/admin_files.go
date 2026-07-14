@@ -41,6 +41,16 @@ func (a *adminAuth) handleInteractionFileDownload(w http.ResponseWriter, r *http
 		return
 	}
 
+	// Deduped file: Data is nil; resolve the bytes from the canonical copy.
+	if len(f.Data) == 0 && f.ContentHash != "" {
+		canonical, cerr := model.FindFileByHash(f.ContentHash)
+		if cerr != nil || canonical == nil {
+			writeErr(w, http.StatusNotFound, "file data not found")
+			return
+		}
+		f.Data = canonical.Data
+	}
+
 	ct := f.ContentType
 	if ct == "" {
 		ct = "application/octet-stream"

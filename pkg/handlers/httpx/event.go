@@ -2,6 +2,8 @@ package httpx
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"math"
@@ -34,8 +36,7 @@ func NewEvent(req *http.Request) *Event {
 	body, _ := io.ReadAll(req.Body)
 	defer req.Body.Close()
 
-	dump, _ := httputil.DumpRequest(req, false)
-	dump = append(dump, body...)
+	dump, _ := httputil.DumpRequest(req, false) // headers only (no body)
 	hostname, portNum := util.GetHostAndPortFromRequest(req)
 
 	protocol := "http"
@@ -48,11 +49,11 @@ func NewEvent(req *http.Request) *Event {
 			RemoteAddr:       hostname,
 			RemotePortNumber: portNum,
 			UserAgentString:  req.UserAgent(),
-			RawData:          dump,
+			RawData:          append(dump, body...), // full dump for notifiers
 		},
 		req:              req,
 		body:             body,
-		requestHeader:    dump,
+		requestHeader:    dump, // headers only; RawRequest() appends body
 		botExemptPrivate: true,
 		interaction: &model.Interaction{
 			RemoteAddr:    hostname,
@@ -62,7 +63,7 @@ func NewEvent(req *http.Request) *Event {
 			RequestType:   req.Method,
 			RequestTarget: req.URL.Path,
 			UserAgent:     req.UserAgent(),
-			Headers:       string(dump), // full request dump for curl reconstruction
+			Headers:       string(dump), // headers only — body is stored in Data
 			Data:          body,
 		},
 	}
@@ -250,11 +251,20 @@ func parseUploads(e *Event, maxUploadSize int64) {
 		if ct == "" {
 			ct = "application/octet-stream"
 		}
-		e.interaction.Files = append(e.interaction.Files, model.UploadedFile{
+		sum := sha256.Sum256(data)
+		hash := hex.EncodeToString(sum[:])
+
+		f := model.UploadedFile{
 			FileName:    part.FileName(),
 			ContentType: ct,
 			Size:        int64(len(data)),
-			Data:        data,
-		})
+			ContentHash: hash,
+		}
+		// Deduplicate: if we already have a file with the same content, skip the
+		// BLOB and let the download handler resolve it via the hash.
+		if existing, err := model.FindFileByHash(hash); err != nil || existing == nil {
+			f.Data = data
+		}
+		e.interaction.Files = append(e.interaction.Files, f)
 	}
 }

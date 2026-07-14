@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/defektive/xodbox/pkg/model"
 )
@@ -100,8 +101,16 @@ func buildCurl(method, target string, header http.Header, body []byte) string {
 		}
 	}
 
+	const maxCurlBody = 4096
 	if len(body) > 0 {
-		b.WriteString(" --data-raw " + shellSingleQuote(string(body)))
+		if !utf8.Valid(body) {
+			b.WriteString(" # binary body omitted — download via the Files tab")
+		} else if len(body) > maxCurlBody {
+			b.WriteString(" --data-raw " + shellSingleQuote(string(body[:maxCurlBody])))
+			b.WriteString(" # body truncated")
+		} else {
+			b.WriteString(" --data-raw " + shellSingleQuote(string(body)))
+		}
 	}
 	return b.String()
 }

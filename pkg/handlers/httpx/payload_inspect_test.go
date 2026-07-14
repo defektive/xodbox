@@ -35,7 +35,7 @@ func TestInspect(t *testing.T) {
 				e: NewEvent(newHTTPRequest("http://localhost/l/pizza")),
 			},
 			wantErr:  false,
-			wantBody: []byte("Text Request\n\nDELETE /l/pizza HTTP/1.1\r\nHost: localhost\r\n\r\npizzapizza"),
+			wantBody: []byte("Text Request\n\nDELETE /l/pizza HTTP/1.1\r\nHost: localhost\r\n\r\npizza"),
 			wantHeaders: http.Header{
 				"Content-Type": {"text/plain; charset=utf-8"},
 			},

@@ -71,14 +71,19 @@ type interactionDetail struct {
 	Files         []fileInfo `json:"files"`
 }
 
+const maxBodyDisplay = 4096
+
 // safeBodyString converts raw body bytes to a string safe for JSON / browser
-// display. Valid UTF-8 is returned as-is. Binary data is rendered as a hex
-// dump of the first 512 bytes followed by a notice.
+// display. Valid UTF-8 is returned up to maxBodyDisplay bytes. Binary data is
+// rendered as a hex dump of the first 512 bytes followed by a notice.
 func safeBodyString(data []byte) (string, bool) {
 	if len(data) == 0 {
 		return "", false
 	}
 	if utf8.Valid(data) {
+		if len(data) > maxBodyDisplay {
+			return string(data[:maxBodyDisplay]) + "\n[truncated — download full body via the Files tab]", false
+		}
 		return string(data), false
 	}
 	preview := data
