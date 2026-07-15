@@ -105,7 +105,7 @@ describe("Config page", () => {
 
     fetchMock.mockImplementation((_url: string, opts?: RequestInit) => {
       if (opts?.method === "PUT") {
-        return respondWith({ saved: true, restartRequired: true });
+        return respondWith({ saved: true, reloading: true });
       }
       return respondWith(mockConfig);
     });

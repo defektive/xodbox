@@ -94,9 +94,18 @@ export default function Config() {
     }
 
     try {
-      await api.put("config", body);
+      const res = await api.put<{ saved: boolean; reloading: boolean }>(
+        "config",
+        body,
+      );
       setSaved(true);
-      reload();
+      if (res?.reloading) {
+        setTimeout(() => {
+          reload();
+        }, 3000);
+      } else {
+        reload();
+      }
     } catch (err) {
       setSaveError(err instanceof ApiError ? err.message : "save failed");
     } finally {
@@ -119,7 +128,7 @@ export default function Config() {
     <form onSubmit={onSave} className="space-y-6">
       {saved && (
         <div className="rounded-md border border-green-600/30 bg-green-600/10 px-4 py-3 text-sm text-green-700 dark:text-green-400">
-          Config saved. Restart xodbox for changes to take effect.
+          Config saved. Reloading handlers…
         </div>
       )}
       {saveError && (

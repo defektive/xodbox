@@ -9,6 +9,7 @@ type App interface {
 	Run()
 	RegisterNotificationHandler(Notifier)
 	GetTemplateData() map[string]string
+	Reload() error
 }
 
 type InteractionEvent interface {

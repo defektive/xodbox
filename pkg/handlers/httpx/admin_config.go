@@ -3,6 +3,7 @@ package httpx
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/defektive/xodbox/pkg/types"
 )
@@ -92,8 +93,18 @@ func (a *adminAuth) handlePutConfig(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	reloading := a.app != nil
 	writeJSON(w, http.StatusOK, map[string]any{
-		"saved":           true,
-		"restartRequired": true,
+		"saved":     true,
+		"reloading": reloading,
 	})
+
+	if reloading {
+		go func() {
+			time.Sleep(500 * time.Millisecond)
+			if err := a.app.Reload(); err != nil {
+				lg().Error("config reload after save failed", "err", err)
+			}
+		}()
+	}
 }

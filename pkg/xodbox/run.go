@@ -2,9 +2,12 @@ package xodbox
 
 import (
 	"context"
+	"fmt"
 	"maps"
 	"os"
 	"os/signal"
+	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -89,6 +92,10 @@ type App struct {
 
 	// workerEngine runs periodic background jobs. Nil when no workers are configured.
 	workerEngine *workerEngine
+
+	// reloadMu serialises Reload calls so two concurrent triggers (e.g.
+	// SIGHUP + API PUT) don't race on the handler stop/start cycle.
+	reloadMu sync.Mutex
 }
 
 func (x *App) Run() {
@@ -111,14 +118,23 @@ func (x *App) Run() {
 		}(h)
 	}
 
-	// Translate SIGINT/SIGTERM into a graceful shutdown: cancel each
-	// handler with a bounded context, then return from waitForEvents.
+	// Translate OS signals: SIGINT/SIGTERM → graceful shutdown;
+	// SIGHUP → reload config from disk without full process restart.
 	sigCh := make(chan os.Signal, 1)
-	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 	go func() {
-		sig := <-sigCh
-		lg().Info("shutdown signal received", "signal", sig.String())
-		x.Shutdown()
+		for sig := range sigCh {
+			if sig == syscall.SIGHUP {
+				lg().Info("SIGHUP received, reloading config")
+				if err := x.Reload(); err != nil {
+					lg().Error("config reload failed", "err", err)
+				}
+				continue
+			}
+			lg().Info("shutdown signal received", "signal", sig.String())
+			x.Shutdown()
+			return
+		}
 	}()
 
 	x.waitForEvents()
@@ -146,6 +162,78 @@ func (x *App) Shutdown() {
 		_ = recover()
 	}()
 	close(x.stop)
+}
+
+// Reload stops all running handlers/workers, reloads config from disk,
+// and starts the new handlers/workers. The event loop and persister keep
+// running across the reload. Returns an error if the new config is
+// invalid; in that case the old handlers are already stopped — a second
+// Reload with a fixed config will recover.
+func (x *App) Reload() error {
+	x.reloadMu.Lock()
+	defer x.reloadMu.Unlock()
+
+	lg().Info("reloading config", "path", ConfigFilePath)
+
+	newCf, err := ConfigFromFile(ConfigFilePath)
+	if err != nil {
+		return fmt.Errorf("reading config: %w", err)
+	}
+	if errs := ValidateConfigFile(newCf); len(errs) > 0 {
+		return fmt.Errorf("config validation: %s", strings.Join(errs, "; "))
+	}
+	newConfig := ToConfig(newCf)
+
+	newIgnore, err := newIgnoreRule(newConfig.TemplateData)
+	if err != nil {
+		return fmt.Errorf("invalid ignore rule: %w", err)
+	}
+
+	// --- point of no return: stop old, swap, start new ---
+
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+	for _, h := range x.appConfig.Handlers {
+		if err := h.Stop(ctx); err != nil {
+			lg().Warn("handler stop error during reload", "handler", h.Name(), "err", err)
+		}
+	}
+	if x.workerEngine != nil {
+		x.workerEngine.stop()
+		x.workerEngine = nil
+	}
+
+	x.appConfig = newConfig
+	x.notificationHandlers = newConfig.Notifiers
+	x.ignore = newIgnore
+
+	cfgOps := NewConfigOps()
+	for _, h := range newConfig.Handlers {
+		if s, ok := h.(types.Seeder); ok {
+			if err := s.Seed(); err != nil {
+				lg().Error("handler seed failed during reload", "handler", h.Name(), "err", err)
+			}
+		}
+		if ca, ok := h.(types.ConfigAware); ok {
+			ca.SetConfigOps(cfgOps)
+		}
+	}
+
+	if len(newConfig.Workers) > 0 {
+		x.workerEngine = newWorkerEngine(newConfig.Workers)
+		x.workerEngine.start()
+	}
+
+	for _, h := range newConfig.Handlers {
+		go func(h types.Handler) {
+			if err := h.Start(x, x.eventChan); err != nil {
+				lg().Error("handler start failed after reload", "handler", h.Name(), "err", err)
+			}
+		}(h)
+	}
+
+	lg().Info("config reloaded successfully")
+	return nil
 }
 
 func (x *App) RegisterNotificationHandler(n types.Notifier) {

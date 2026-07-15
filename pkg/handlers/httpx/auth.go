@@ -48,9 +48,12 @@ type adminAuth struct {
 	oidc *oidcAuth
 	// configOps, when non-nil, enables the config management API endpoints.
 	configOps types.ConfigOps
+	// app is the running App instance, used to trigger a config reload
+	// after a successful PUT /api/config.
+	app types.App
 }
 
-func newAdminAuth(basePath string, notifyLogins bool, events chan types.InteractionEvent, oidcAuth *oidcAuth, cfgOps types.ConfigOps) *adminAuth {
+func newAdminAuth(basePath string, notifyLogins bool, events chan types.InteractionEvent, oidcAuth *oidcAuth, cfgOps types.ConfigOps, app types.App) *adminAuth {
 	if basePath == "" {
 		basePath = "/"
 	}
@@ -61,6 +64,7 @@ func newAdminAuth(basePath string, notifyLogins bool, events chan types.Interact
 		events:       events,
 		oidc:         oidcAuth,
 		configOps:    cfgOps,
+		app:          app,
 	}
 }
 

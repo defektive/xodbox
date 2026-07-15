@@ -199,6 +199,9 @@ func TestPutConfigValid(t *testing.T) {
 	if body["saved"] != true {
 		t.Errorf("saved = %v, want true", body["saved"])
 	}
+	if body["reloading"] != false {
+		t.Errorf("reloading = %v, want false (no app in test)", body["reloading"])
+	}
 
 	cf, err := ops.Read()
 	if err != nil {

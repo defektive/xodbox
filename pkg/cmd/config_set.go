@@ -43,7 +43,7 @@ Examples:
 		}
 
 		fmt.Printf("Set %s = %s\n", args[0], args[1])
-		fmt.Println("Restart xodbox for changes to take effect.")
+		fmt.Println("Send SIGHUP to the running xodbox process to reload, or restart it.")
 		return nil
 	},
 }

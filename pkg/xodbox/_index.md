@@ -28,8 +28,8 @@ xodbox config init
 
 Admin users can view and edit the config from the **Config** page in the
 admin web UI. The structured editor shows each section with add/remove
-controls; a raw YAML tab is also available for power users. After saving,
-restart xodbox for changes to take effect.
+controls; a raw YAML tab is also available for power users. Saving from
+the UI automatically reloads all handlers — no manual restart needed.
 
 ### CLI
 
@@ -50,8 +50,18 @@ rejected.
 entry references a registered type name. Unknown names and missing type
 keys are reported as errors.
 
-## Changes require restart
+## Reloading config
 
-Config is loaded once at startup. Handlers bind network ports, so
-hot-reload is impractical. After editing the config (via UI, CLI, or
-direct file edit), restart the xodbox process for changes to take effect.
+Saving from the web UI automatically triggers a graceful reload: all
+running handlers and workers are stopped, the new config is loaded, and
+new handlers/workers are started. There is a brief interruption (~1-2s)
+while listeners rebind.
+
+From the CLI or after a manual file edit, send `SIGHUP` to the running
+xodbox process to reload without a full restart:
+
+```sh
+kill -HUP $(pidof xodbox)
+```
+
+Alternatively, restart the process entirely.

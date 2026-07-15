@@ -90,6 +90,13 @@ xodbox config set handlers.0.listener :8080
 xodbox config set notifiers.0.filter "^HTTP"
 ```
 
+After using `set`, send `SIGHUP` to the running xodbox process to
+reload without a full restart:
+
+```
+kill -HUP $(pidof xodbox)
+```
+
 ## SEE ALSO
 
 * [xodbox](_index.md)	 - A network interaction listening post
