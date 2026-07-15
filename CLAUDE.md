@@ -85,6 +85,14 @@ Markdown across the repo (`_index.md`, README frontmatter under `.hugo/`) feeds 
 Hugo / GitHub Pages site (https://defektive.github.io/xodbox/). The YAML frontmatter
 matters — keep it intact when editing docs, and document new handlers/notifiers there.
 
+**Every functional change must include a docs update.** If a change adds, removes, or
+alters user-facing behaviour (new config keys, new CLI flags, new endpoints, changed
+defaults, new features, breaking changes), update the relevant `_index.md` in the
+package directory and/or the appropriate guide in `docs/guides/`. Do not consider a
+change done until its documentation is current. Standalone how-to guides live under
+`docs/guides/` (e.g. `docs/guides/oidc-sso.md`); handler/notifier reference docs live
+in `pkg/<package>/_index.md`.
+
 ## Notes
 
 - `cmd/xodbox-validator/` is its own **separate Go module** (its own `go.mod`); it is not
