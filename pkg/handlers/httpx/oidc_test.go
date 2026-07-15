@@ -140,7 +140,7 @@ func TestRedirectURLDerivation(t *testing.T) {
 
 func TestHandleProviders(t *testing.T) {
 	// Disabled.
-	a := newAdminAuth("/", false, nil, nil)
+	a := newAdminAuth("/", false, nil, nil, nil, nil)
 	rec := httptest.NewRecorder()
 	a.handleProviders(rec, httptest.NewRequest(http.MethodGet, "/api/auth/providers", nil))
 	var off providersInfo
@@ -151,7 +151,7 @@ func TestHandleProviders(t *testing.T) {
 
 	// Enabled.
 	o := newOIDCAuth(map[string]string{"oidc_issuer": "https://idp", "oidc_client_id": "c", "oidc_button_label": "SSO"})
-	a2 := newAdminAuth("/", false, nil, o)
+	a2 := newAdminAuth("/", false, nil, o, nil, nil)
 	rec2 := httptest.NewRecorder()
 	a2.handleProviders(rec2, httptest.NewRequest(http.MethodGet, "/api/auth/providers", nil))
 	var on providersInfo
@@ -165,7 +165,7 @@ func TestHandleProviders(t *testing.T) {
 // network call to the IdP) when the state cookie is missing or does not match.
 func TestOIDCCallbackRejectsBadState(t *testing.T) {
 	o := newOIDCAuth(map[string]string{"oidc_issuer": "https://idp", "oidc_client_id": "c"})
-	a := newAdminAuth("/", false, nil, o)
+	a := newAdminAuth("/", false, nil, o, nil, nil)
 
 	rec := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodGet, "/api/auth/oidc/callback?state=attacker&code=x", nil)
@@ -183,7 +183,7 @@ func TestOIDCCallbackRejectsBadState(t *testing.T) {
 // TestOIDCRoutesMountOnlyWhenEnabled checks the login/callback routes are absent
 // when OIDC is unconfigured, and present when it is.
 func TestOIDCRoutesMountOnlyWhenEnabled(t *testing.T) {
-	off := newAdminAuth("/", false, nil, nil).mux()
+	off := newAdminAuth("/", false, nil, nil, nil, nil).mux()
 	rec := httptest.NewRecorder()
 	off.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/api/auth/oidc/callback", nil))
 	if rec.Code != http.StatusNotFound {
@@ -191,7 +191,7 @@ func TestOIDCRoutesMountOnlyWhenEnabled(t *testing.T) {
 	}
 
 	o := newOIDCAuth(map[string]string{"oidc_issuer": "https://idp", "oidc_client_id": "c"})
-	on := newAdminAuth("/", false, nil, o).mux()
+	on := newAdminAuth("/", false, nil, o, nil, nil).mux()
 	rec2 := httptest.NewRecorder()
 	// Missing state → 302 redirect (route exists), not 404.
 	on.ServeHTTP(rec2, httptest.NewRequest(http.MethodGet, "/api/auth/oidc/callback", nil))

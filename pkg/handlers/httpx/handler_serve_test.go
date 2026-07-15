@@ -17,6 +17,7 @@ type stubApp struct {
 
 func (s *stubApp) Run()                                       {}
 func (s *stubApp) RegisterNotificationHandler(types.Notifier) {}
+func (s *stubApp) Reload() error                              { return nil }
 func (s *stubApp) GetTemplateData() map[string]string {
 	out := make(map[string]string, len(s.data))
 	for k, v := range s.data {

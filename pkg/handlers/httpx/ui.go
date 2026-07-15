@@ -83,7 +83,7 @@ func (h *Handler) adminHandler(basePath string) (http.Handler, error) {
 	if err != nil {
 		return nil, err
 	}
-	apiMux := newAdminAuth(basePath, h.NotifyLogins, h.dispatchChannel, h.oidc).mux()
+	apiMux := newAdminAuth(basePath, h.NotifyLogins, h.dispatchChannel, h.oidc, h.ConfigOps, h.app).mux()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/api/") {
 			apiMux.ServeHTTP(w, r)
