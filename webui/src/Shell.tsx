@@ -12,6 +12,7 @@ import PayloadEditor from "@/pages/PayloadEditor";
 import Sinks from "@/pages/Sinks";
 import SinkDetail from "@/pages/SinkDetail";
 import Users from "@/pages/Users";
+import Config from "@/pages/Config";
 import ApiKeys from "@/pages/ApiKeys";
 import Account from "@/pages/Account";
 
@@ -41,7 +42,12 @@ export default function Shell({
     { to: "/sinks", label: "Sinks" },
     { to: "/bots", label: "Bots" },
     { to: "/payloads", label: "Payloads" },
-    ...(isAdmin ? [{ to: "/users", label: "Users" }] : []),
+    ...(isAdmin
+      ? [
+          { to: "/users", label: "Users" },
+          { to: "/config", label: "Config" },
+        ]
+      : []),
     { to: "/keys", label: "API Keys" },
     { to: "/account", label: "Account" },
   ];
@@ -145,6 +151,7 @@ export default function Shell({
           <Route path="/sinks" element={<Sinks />} />
           <Route path="/sinks/:slug" element={<SinkDetail />} />
           <Route path="/users" element={<Users currentUserId={user.id} />} />
+          <Route path="/config" element={<Config />} />
           <Route path="/keys" element={<ApiKeys />} />
           <Route path="/account" element={<Account />} />
           <Route path="*" element={<Placeholder title="Not found" />} />

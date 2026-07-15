@@ -46,9 +46,11 @@ type adminAuth struct {
 	// oidc is non-nil when SSO is configured; it enables the OIDC login routes
 	// and the SSO button on the login page.
 	oidc *oidcAuth
+	// configOps, when non-nil, enables the config management API endpoints.
+	configOps types.ConfigOps
 }
 
-func newAdminAuth(basePath string, notifyLogins bool, events chan types.InteractionEvent, oidcAuth *oidcAuth) *adminAuth {
+func newAdminAuth(basePath string, notifyLogins bool, events chan types.InteractionEvent, oidcAuth *oidcAuth, cfgOps types.ConfigOps) *adminAuth {
 	if basePath == "" {
 		basePath = "/"
 	}
@@ -58,6 +60,7 @@ func newAdminAuth(basePath string, notifyLogins bool, events chan types.Interact
 		notifyLogins: notifyLogins,
 		events:       events,
 		oidc:         oidcAuth,
+		configOps:    cfgOps,
 	}
 }
 
@@ -117,6 +120,11 @@ func (a *adminAuth) mux() *http.ServeMux {
 	mux.HandleFunc("GET /api/apikeys", a.requireAuth(a.handleAPIKeys))
 	mux.HandleFunc("POST /api/apikeys", a.requireAuth(a.handleCreateAPIKey))
 	mux.HandleFunc("DELETE /api/apikeys/{id}", a.requireAuth(a.handleDeleteAPIKey))
+
+	// Config management (admin-only; changes are saved to disk and require restart).
+	mux.HandleFunc("GET /api/config", a.requireAdmin(a.handleGetConfig))
+	mux.HandleFunc("PUT /api/config", a.requireAdmin(a.handlePutConfig))
+	mux.HandleFunc("GET /api/config/schema", a.requireAdmin(a.handleConfigSchema))
 	return mux
 }
 

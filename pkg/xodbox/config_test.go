@@ -60,7 +60,7 @@ func TestConfigFile_ToConfig(t *testing.T) {
 				Handlers:  tt.fields.Handlers,
 				Notifiers: tt.fields.Notifiers,
 			}
-			if got := conf.ToConfig(); !reflect.DeepEqual(got, tt.want) {
+			if got := ToConfig(conf); !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("ToConfig() = %v, want %v", got, tt.want)
 			}
 		})

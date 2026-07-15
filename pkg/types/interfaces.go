@@ -73,6 +73,34 @@ type Worker interface {
 	Run(ctx context.Context) error
 }
 
+// ConfigFile is the deserialized YAML config. It lives in types so packages
+// on both sides of the handler↔app boundary can reference it without cycles.
+type ConfigFile struct {
+	Defaults  map[string]string   `yaml:"defaults"  json:"defaults"`
+	Handlers  []map[string]string `yaml:"handlers"  json:"handlers"`
+	Notifiers []map[string]string `yaml:"notifiers" json:"notifiers"`
+	Workers   []map[string]string `yaml:"workers"   json:"workers"`
+}
+
+// ConfigAware is implemented by handlers that expose a config management API.
+// The app injects a ConfigOps after construction.
+type ConfigAware interface {
+	SetConfigOps(ConfigOps)
+}
+
+// ConfigOps provides config file operations to handlers that expose a
+// management API (the HTTPX admin console). Implemented by the xodbox package
+// and injected into the handler at construction time.
+type ConfigOps interface {
+	FilePath() string
+	Read() (*ConfigFile, error)
+	Write(cf *ConfigFile) error
+	Validate(cf *ConfigFile) []string
+	HandlerNames() []string
+	NotifierNames() []string
+	WorkerNames() []string
+}
+
 type NotifierBase struct {
 	Name   string
 	Filter string

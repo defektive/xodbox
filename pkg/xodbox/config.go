@@ -1,8 +1,11 @@
 package xodbox
 
 import (
+	"fmt"
 	"os"
 	"path"
+	"path/filepath"
+	"sort"
 
 	"github.com/defektive/xodbox/pkg/handlers/dns"
 	"github.com/defektive/xodbox/pkg/handlers/ftp"
@@ -23,6 +26,13 @@ import (
 const ConfigFileName = "xodbox.yaml"
 const DefaultNotifyFilter = "^/l"
 
+// ConfigFilePath is the path to the active config file, set by LoadConfig.
+var ConfigFilePath string
+
+// ConfigFile is an alias for types.ConfigFile kept for backward compatibility
+// within this package and its tests.
+type ConfigFile = types.ConfigFile
+
 // Config used by App for bootstrapping
 type Config struct {
 	TemplateData map[string]string `yaml:"template_data"`
@@ -31,17 +41,8 @@ type Config struct {
 	Workers      []types.Worker
 }
 
-// ConfigFile defines th structure of the YAML config files
-// This allows us to generalize the config
-type ConfigFile struct {
-	Defaults  map[string]string   `yaml:"defaults"`
-	Handlers  []map[string]string `yaml:"handlers"`
-	Notifiers []map[string]string `yaml:"notifiers"`
-	Workers   []map[string]string `yaml:"workers"`
-}
-
 // ToConfig creates a Config struct based on the ConfigFile
-func (conf *ConfigFile) ToConfig() *Config {
+func ToConfig(conf *ConfigFile) *Config {
 
 	if conf.Defaults == nil {
 		conf.Defaults = map[string]string{
@@ -82,17 +83,18 @@ func (conf *ConfigFile) ToConfig() *Config {
 
 // LoadConfig creates a Config from the yaml contents in configFile
 func LoadConfig(configFile string) *Config {
-	conf, err := configFromFile(configFile)
+	ConfigFilePath = configFile
+	conf, err := ConfigFromFile(configFile)
 	if err != nil {
 		lg().Error("error reading config", "error", err)
 		os.Exit(1)
 	}
 
-	return conf.ToConfig()
+	return ToConfig(conf)
 }
 
-// configFromFile returns ConfigFile loaded from a file.
-func configFromFile(configFile string) (*ConfigFile, error) {
+// ConfigFromFile returns ConfigFile loaded from a file.
+func ConfigFromFile(configFile string) (*ConfigFile, error) {
 	// #nosec G304 -- configFile comes from the --config flag.
 	b, err := os.ReadFile(configFile)
 	if err != nil {
@@ -132,3 +134,94 @@ func init() {
 
 	newWorkerMap["purge"] = purge.NewWorker
 }
+
+func sortedKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func ValidHandlerNames() []string  { return sortedKeys(newHandlerMap) }
+func ValidNotifierNames() []string { return sortedKeys(newNotifierMap) }
+func ValidWorkerNames() []string   { return sortedKeys(newWorkerMap) }
+
+// ValidateConfigFile checks that every handler, notifier, and worker entry
+// references a registered name. It returns a slice of human-readable errors
+// (empty when valid).
+func ValidateConfigFile(cf *ConfigFile) []string {
+	var errs []string
+	for i, h := range cf.Handlers {
+		name := h["handler"]
+		if name == "" {
+			errs = append(errs, fmt.Sprintf("handlers[%d]: missing \"handler\" key", i))
+			continue
+		}
+		if _, ok := newHandlerMap[name]; !ok {
+			errs = append(errs, fmt.Sprintf("handlers[%d]: unknown handler %q", i, name))
+		}
+	}
+	for i, n := range cf.Notifiers {
+		name := n["notifier"]
+		if name == "" {
+			errs = append(errs, fmt.Sprintf("notifiers[%d]: missing \"notifier\" key", i))
+			continue
+		}
+		if _, ok := newNotifierMap[name]; !ok {
+			errs = append(errs, fmt.Sprintf("notifiers[%d]: unknown notifier %q", i, name))
+		}
+	}
+	for i, w := range cf.Workers {
+		name := w["worker"]
+		if name == "" {
+			errs = append(errs, fmt.Sprintf("workers[%d]: missing \"worker\" key", i))
+			continue
+		}
+		if _, ok := newWorkerMap[name]; !ok {
+			errs = append(errs, fmt.Sprintf("workers[%d]: unknown worker %q", i, name))
+		}
+	}
+	return errs
+}
+
+// WriteConfigFile marshals cf to YAML and writes it atomically to path.
+func WriteConfigFile(p string, cf *ConfigFile) error {
+	b, err := yaml.Marshal(cf)
+	if err != nil {
+		return err
+	}
+
+	dir := filepath.Dir(p)
+	tmp, err := os.CreateTemp(dir, ".xodbox-config-*.yaml")
+	if err != nil {
+		return err
+	}
+	tmpName := tmp.Name()
+
+	if _, err := tmp.Write(b); err != nil {
+		tmp.Close()
+		_ = os.Remove(tmpName)
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		_ = os.Remove(tmpName)
+		return err
+	}
+	return os.Rename(tmpName, p)
+}
+
+// configOps implements types.ConfigOps using the package-level state.
+type configOps struct{}
+
+func (configOps) FilePath() string                       { return ConfigFilePath }
+func (configOps) Read() (*types.ConfigFile, error)       { return ConfigFromFile(ConfigFilePath) }
+func (configOps) Write(cf *types.ConfigFile) error       { return WriteConfigFile(ConfigFilePath, cf) }
+func (configOps) Validate(cf *types.ConfigFile) []string { return ValidateConfigFile(cf) }
+func (configOps) HandlerNames() []string                 { return ValidHandlerNames() }
+func (configOps) NotifierNames() []string                { return ValidNotifierNames() }
+func (configOps) WorkerNames() []string                  { return ValidWorkerNames() }
+
+// NewConfigOps returns a types.ConfigOps backed by the package-level config state.
+func NewConfigOps() types.ConfigOps { return configOps{} }

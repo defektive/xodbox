@@ -57,6 +57,11 @@ make test     # go test ./... (use `make race` for the race detector)
 make tidy     # go mod tidy must leave go.mod/go.sum unchanged
 ```
 
+When making changes to the frontend code in `webui/`, rebuild the embedded
+assets before committing: `make ui`. The CI `webui.yml` workflow checks
+that the embedded assets in `pkg/handlers/httpx/webui/` are up-to-date
+and fails if they are stale. Run `make ui-test` for frontend unit tests.
+
 Other targets: `make build` (→ `./bin/xodbox`), `make run` (build + serve), `make cover`,
 `make release-dry` (goreleaser snapshot).
 

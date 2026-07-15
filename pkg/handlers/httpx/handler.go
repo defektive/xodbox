@@ -66,6 +66,9 @@ type Handler struct {
 	// oidc, when non-nil, enables OIDC/SSO login for the admin console. It is
 	// built from the oidc_* config keys and nil when SSO is not configured.
 	oidc *oidcAuth
+	// ConfigOps, when non-nil, enables config management API endpoints in the
+	// admin console. Injected after construction to avoid import cycles.
+	ConfigOps types.ConfigOps
 
 	StaticDir       string
 	dispatchChannel chan types.InteractionEvent
@@ -192,6 +195,10 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 
 func (h *Handler) Name() string {
 	return h.name
+}
+
+func (h *Handler) SetConfigOps(ops types.ConfigOps) {
+	h.ConfigOps = ops
 }
 
 // Seed populates the bundled HTTPX payload templates into the database.
