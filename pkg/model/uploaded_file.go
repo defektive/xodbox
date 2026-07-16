@@ -62,6 +62,16 @@ func UploadedFileByID(id uint) (*UploadedFile, error) {
 	return &f, nil
 }
 
+// DeleteFile removes a single uploaded file by ID.
+// Returns gorm.ErrRecordNotFound when the ID does not exist.
+func DeleteFile(id uint) error {
+	var f UploadedFile
+	if err := DB().First(&f, id).Error; err != nil {
+		return err
+	}
+	return DB().Delete(&f).Error
+}
+
 // SinkFiles returns uploaded files attributed to interactions matching the
 // given sink slug, newest first (by file creation time). The returned files
 // do not include raw Data; use UploadedFileByID for that.

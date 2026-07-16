@@ -22,7 +22,7 @@ import { LiveIndicator } from "@/components/LiveIndicator";
 
 export default function SinkDetail() {
   const { slug = "" } = useParams();
-  const { data, error, loading } = useApi<SinkDetailData>(
+  const { data, error, loading, reload } = useApi<SinkDetailData>(
     `sinks/${encodeURIComponent(slug)}`,
   );
 
@@ -116,6 +116,31 @@ export default function SinkDetail() {
       [claim, add, release],
     ),
   );
+
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  async function onDeleteEvent(id: number) {
+    if (!window.confirm("Delete this event and its files?")) return;
+    try {
+      await api.del(`interactions/${id}`);
+      reload();
+      setFilesLoaded(false);
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message : "delete failed");
+    }
+  }
+
+  async function onDeleteFile(interactionId: number, fileId: number) {
+    if (!window.confirm("Delete this file?")) return;
+    try {
+      await api.del(`interactions/${interactionId}/files/${fileId}`);
+      setSinkFiles((prev) => prev.filter((f) => f.id !== fileId));
+      setFilesTotal((t) => t - 1);
+      reload();
+    } catch (err) {
+      setDeleteError(err instanceof ApiError ? err.message : "delete failed");
+    }
+  }
 
   async function saveDescription() {
     setSaving(true);
@@ -233,6 +258,12 @@ export default function SinkDetail() {
         </CardContent>
       </Card>
 
+      {deleteError && (
+        <p className="text-sm text-destructive" role="alert">
+          {deleteError}
+        </p>
+      )}
+
       <div>
         <div className="mb-3 flex items-center gap-3">
           <button
@@ -279,10 +310,21 @@ export default function SinkDetail() {
                       >
                         open ↗
                       </Link>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="ml-auto text-xs"
+                        onClick={() => onDeleteEvent(e.id)}
+                      >
+                        Delete
+                      </Button>
                     </div>
                     <Card className="mt-2">
                       <CardContent className="pt-4">
-                        <InteractionDetailView d={e} />
+                        <InteractionDetailView
+                          d={e}
+                          onDeleteFile={(fileId) => onDeleteFile(e.id, fileId)}
+                        />
                       </CardContent>
                     </Card>
                   </li>
@@ -341,7 +383,7 @@ export default function SinkDetail() {
                           <td className="py-2 pr-4 text-muted-foreground text-xs">
                             {new Date(f.created_at).toLocaleString()}
                           </td>
-                          <td className="py-2 text-right">
+                          <td className="py-2 text-right space-x-2">
                             <a
                               href={`${apiBase}interactions/${f.interaction_id}/files/${f.id}`}
                               download={f.file_name}
@@ -349,6 +391,13 @@ export default function SinkDetail() {
                             >
                               Download
                             </a>
+                            <button
+                              type="button"
+                              onClick={() => onDeleteFile(f.interaction_id, f.id)}
+                              className="text-xs text-destructive hover:underline"
+                            >
+                              Delete
+                            </button>
                           </td>
                         </tr>
                       ))}

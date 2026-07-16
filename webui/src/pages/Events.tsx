@@ -1,5 +1,6 @@
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
+import { api, ApiError } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import { useInteractionStream } from "@/lib/useStream";
 import { useLiveFeed } from "@/lib/useLiveFeed";
@@ -24,6 +25,7 @@ const FILTERS = [
 
 export default function Events() {
   const [params, setParams] = useSearchParams();
+  const [formError, setFormError] = useState<string | null>(null);
 
   const query = new URLSearchParams();
   for (const { key } of FILTERS) {
@@ -31,7 +33,7 @@ export default function Events() {
     if (v) query.set(key, v);
   }
   const qs = query.toString();
-  const { data, error, loading } = useApi<InteractionPage>(
+  const { data, error, loading, reload } = useApi<InteractionPage>(
     "interactions" + (qs ? "?" + qs : ""),
   );
 
@@ -49,6 +51,16 @@ export default function Events() {
       [claim, add],
     ),
   );
+
+  async function onDeleteEvent(id: number) {
+    if (!window.confirm("Delete this event and its files?")) return;
+    try {
+      await api.del(`interactions/${id}`);
+      reload();
+    } catch (err) {
+      setFormError(err instanceof ApiError ? err.message : "delete failed");
+    }
+  }
 
   function setFilter(key: string, value: string) {
     const next = new URLSearchParams(params);
@@ -85,9 +97,9 @@ export default function Events() {
         </span>
       </div>
 
-      {error && (
+      {(error || formError) && (
         <p className="text-sm text-destructive" role="alert">
-          {error}
+          {formError ?? error}
         </p>
       )}
 
@@ -99,19 +111,20 @@ export default function Events() {
             <TableHead>Target</TableHead>
             <TableHead>Source</TableHead>
             <TableHead>Handler</TableHead>
+            <TableHead></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {loading && (
             <TableRow>
-              <TableCell colSpan={5} className="text-muted-foreground">
+              <TableCell colSpan={6} className="text-muted-foreground">
                 Loading…
               </TableCell>
             </TableRow>
           )}
           {!loading && items.length === 0 && (
             <TableRow>
-              <TableCell colSpan={5} className="text-muted-foreground">
+              <TableCell colSpan={6} className="text-muted-foreground">
                 No events.
               </TableCell>
             </TableRow>
@@ -129,6 +142,15 @@ export default function Events() {
               </TableCell>
               <TableCell className="font-mono">{i.remote_addr}</TableCell>
               <TableCell>{i.handler}</TableCell>
+              <TableCell className="text-right">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => onDeleteEvent(i.id)}
+                >
+                  Delete
+                </Button>
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

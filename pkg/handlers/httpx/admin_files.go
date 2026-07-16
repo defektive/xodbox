@@ -62,6 +62,31 @@ func (a *adminAuth) handleInteractionFileDownload(w http.ResponseWriter, r *http
 	_, _ = w.Write(f.Data)
 }
 
+// handleDeleteFile deletes a single uploaded file. The file must belong to the
+// interaction named in the URL to prevent IDOR.
+func (a *adminAuth) handleDeleteFile(w http.ResponseWriter, r *http.Request) {
+	interactionID, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	fileID, ok := pathUintNamed(w, r, "fileID")
+	if !ok {
+		return
+	}
+
+	f, err := model.UploadedFileByID(fileID)
+	if err != nil || f.InteractionID != interactionID {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
+
+	if err := model.DeleteFile(fileID); err != nil {
+		writeErr(w, http.StatusInternalServerError, "delete failed")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 // handleSinkFiles lists all uploaded files across interactions attributed to
 // the given sink slug, newest first. Paginated via ?limit= and ?offset=.
 func (a *adminAuth) handleSinkFiles(w http.ResponseWriter, r *http.Request) {

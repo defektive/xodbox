@@ -160,6 +160,18 @@ func (a *adminAuth) handleInteractionCurl(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, map[string]string{"curl": interactionCurl(i)})
 }
 
+func (a *adminAuth) handleDeleteInteraction(w http.ResponseWriter, r *http.Request) {
+	id, ok := pathID(w, r)
+	if !ok {
+		return
+	}
+	if err := model.DeleteInteraction(id); err != nil {
+		writeErr(w, http.StatusNotFound, "not found")
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (a *adminAuth) handleBots(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, model.Bots())
 }

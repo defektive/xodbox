@@ -99,9 +99,11 @@ function formatBytes(n: number): string {
 function FilesSection({
   interactionId,
   files,
+  onDeleteFile,
 }: {
   interactionId: number;
   files: UploadedFileMeta[];
+  onDeleteFile?: (fileId: number) => void;
 }) {
   return (
     <div>
@@ -118,13 +120,24 @@ function FilesSection({
             <span className="text-xs text-muted-foreground">
               {f.content_type} · {formatBytes(f.size)}
             </span>
-            <a
-              href={`${apiBase}interactions/${interactionId}/files/${f.id}`}
-              download={f.file_name}
-              className="ml-auto text-xs underline hover:text-foreground"
-            >
-              Download
-            </a>
+            <span className="ml-auto flex items-center gap-2">
+              <a
+                href={`${apiBase}interactions/${interactionId}/files/${f.id}`}
+                download={f.file_name}
+                className="text-xs underline hover:text-foreground"
+              >
+                Download
+              </a>
+              {onDeleteFile && (
+                <button
+                  type="button"
+                  onClick={() => onDeleteFile(f.id)}
+                  className="text-xs text-destructive hover:underline"
+                >
+                  Delete
+                </button>
+              )}
+            </span>
           </li>
         ))}
       </ul>
@@ -136,7 +149,7 @@ function FilesSection({
 // plus a replay curl, raw request, and body. Each code block is shown only when
 // it has content — non-httpx handlers (dns/tcp/smb/…) have no replay curl and
 // no raw HTTP request dump, so those blocks are omitted rather than left empty.
-export function InteractionDetailView({ d }: { d: InteractionDetail }) {
+export function InteractionDetailView({ d, onDeleteFile }: { d: InteractionDetail; onDeleteFile?: (fileId: number) => void }) {
   const hasCurl = (d.curl ?? "").trim() !== "";
   const hasHeaders = (d.headers ?? "").trim() !== "";
   const hasBody = (d.body ?? "").trim() !== "";
@@ -151,7 +164,7 @@ export function InteractionDetailView({ d }: { d: InteractionDetail }) {
       </div>
 
       {hasFiles && (
-        <FilesSection interactionId={d.id} files={d.files!} />
+        <FilesSection interactionId={d.id} files={d.files!} onDeleteFile={onDeleteFile} />
       )}
 
       {hasCurl && (

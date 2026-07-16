@@ -181,6 +181,19 @@ func PurgeInteractionsOlderThan(days int) (int64, error) {
 	return tx.RowsAffected, tx.Error
 }
 
+// DeleteInteraction removes a single interaction and its associated uploaded
+// files. Returns gorm.ErrRecordNotFound when the ID does not exist.
+func DeleteInteraction(id uint) error {
+	var i Interaction
+	if err := DB().First(&i, id).Error; err != nil {
+		return err
+	}
+	if err := DB().Where("interaction_id = ?", id).Delete(&UploadedFile{}).Error; err != nil {
+		return err
+	}
+	return DB().Delete(&i).Error
+}
+
 // joinNonEmpty joins entries with commas so ParseCIDRs can split them back
 // out; entries may themselves already be comma-separated.
 func joinNonEmpty(parts []string) string {

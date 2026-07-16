@@ -91,8 +91,10 @@ func (a *adminAuth) mux() *http.ServeMux {
 	mux.HandleFunc("GET /api/interactions", a.requireAuth(a.handleInteractions))
 	mux.HandleFunc("GET /api/interactions/{id}", a.requireAuth(a.handleInteraction))
 	mux.HandleFunc("GET /api/interactions/{id}/curl", a.requireAuth(a.handleInteractionCurl))
+	mux.HandleFunc("DELETE /api/interactions/{id}", a.requireAuth(a.handleDeleteInteraction))
 	mux.HandleFunc("GET /api/interactions/{id}/files", a.requireAuth(a.handleInteractionFiles))
 	mux.HandleFunc("GET /api/interactions/{id}/files/{fileID}", a.requireAuth(a.handleInteractionFileDownload))
+	mux.HandleFunc("DELETE /api/interactions/{id}/files/{fileID}", a.requireAuth(a.handleDeleteFile))
 	mux.HandleFunc("GET /api/bots", a.requireAuth(a.handleBots))
 
 	// Payload CRUD (Phase 4). Payloads are global and control how the honeypot
