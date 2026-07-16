@@ -11,7 +11,7 @@ import (
 var configValidateCmd = &cobra.Command{
 	Use:   "validate",
 	Short: "Validate the config file",
-	Long:  `Load the config file and check that all handler, notifier, and worker names are valid.`,
+	Long:  `Load the config file and check that all handler, notifier, and worker names are valid. Exit code 1 on validation failure.`,
 	Run: func(_ *cobra.Command, _ []string) {
 		cf, err := xodbox.ConfigFromFile(configFile)
 		if err != nil {

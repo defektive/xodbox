@@ -12,8 +12,8 @@ import (
 // payloadDumpCmd represents the base command when called without any subcommands
 var payloadDumpCmd = &cobra.Command{
 	Use:   "dump",
-	Short: "dump payloads.",
-	Long:  `dump payloads.`,
+	Short: "Dump payloads.",
+	Long:  `Dump all payloads from the database as YAML.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 

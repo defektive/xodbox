@@ -13,10 +13,11 @@ import (
 var configSetCmd = &cobra.Command{
 	Use:   "set <path> <value>",
 	Short: "Set a config value by dot-notation path",
-	Long: `Set a specific value in the config file and save it.
+	Long: `Set a specific value in the config file and save it. The config is
+validated before writing; invalid configs are rejected.
 
-Examples:
-  xodbox config set defaults.server_name MyServer
+Send SIGHUP to the running xodbox process to reload without a full restart.`,
+	Example: `  xodbox config set defaults.server_name MyServer
   xodbox config set handlers.0.listener :8080
   xodbox config set notifiers.0.filter "^HTTP"`,
 	Args: cobra.ExactArgs(2),

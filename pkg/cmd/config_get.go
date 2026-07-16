@@ -13,10 +13,8 @@ import (
 var configGetCmd = &cobra.Command{
 	Use:   "get <path>",
 	Short: "Get a config value by dot-notation path",
-	Long: `Query a specific value from the config file.
-
-Examples:
-  xodbox config get defaults.server_name
+	Long:  `Query a specific value from the config file using a dot-notation path.`,
+	Example: `  xodbox config get defaults.server_name
   xodbox config get handlers.0.listener
   xodbox config get notifiers.0.notifier`,
 	Args: cobra.ExactArgs(1),

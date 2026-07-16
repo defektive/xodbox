@@ -62,6 +62,20 @@ assets before committing: `make ui`. The CI `webui.yml` workflow checks
 that the embedded assets in `pkg/handlers/httpx/webui/` are up-to-date
 and fails if they are stale. Run `make ui-test` for frontend unit tests.
 
+When making changes to CLI commands (adding/removing commands, changing flags,
+updating Short/Long/Example fields), regenerate the CLI reference docs before
+committing:
+
+```sh
+make build                      # rebuild the binary first
+./bin/xodbox docs -o docs/cli   # regenerate from cobra definitions
+```
+
+The generated markdown in `docs/cli/` feeds the Hugo docs site. Keep the cobra
+`Short`, `Long`, and `Example` fields as the single source of truth for CLI
+documentation — do not hand-edit files in `docs/cli/` since they will be
+overwritten on the next generation.
+
 Other targets: `make build` (→ `./bin/xodbox`), `make run` (build + serve), `make cover`,
 `make release-dry` (goreleaser snapshot).
 

@@ -8,7 +8,7 @@ import (
 var payloadCmd = &cobra.Command{
 	Use:   "payload",
 	Short: "Manage payloads.",
-	Long:  `manage payloads.`,
+	Long:  `Manage payloads served by xodbox. Use subcommands to inspect or export payload data.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 
