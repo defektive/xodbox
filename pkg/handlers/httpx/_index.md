@@ -136,6 +136,8 @@ JSON admin API. It lets an operator log in and:
 - browse the **Events** log with filters (target, remote, handler) — the app
   persists interactions from **every** handler (httpx, dns, ftp, smtp, ssh, tcp,
   smb), so the log spans all protocols, not just HTTP,
+- **delete** individual events (and their uploaded files) from the list or
+  detail view, and delete individual uploaded files without removing the event,
 - inspect an **event's detail** with a one-click **copy-as-curl**,
 - get a **webhook-style view** of every hit to a specific `target` path,
 - watch the **Events** log and **sink** feeds update in **real time** — new
