@@ -12,8 +12,11 @@ import (
 // configCmd represents the base command when called without any subcommands
 var configCmd = &cobra.Command{
 	Use:   "config",
-	Short: "generate/print config",
-	Long:  `generate/print config`,
+	Short: "Manage the xodbox config file.",
+	Long: `View, validate, and edit the xodbox config file.
+
+Running 'xodbox config' with no subcommand prints the currently loaded
+config. Use a subcommand for specific operations.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 

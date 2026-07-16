@@ -9,7 +9,10 @@ import (
 var serveCmd = &cobra.Command{
 	Use:   "serve",
 	Short: "Start xodbox server.",
-	Long:  `Start xodbox server.`,
+	Long: `Start the xodbox server with all configured handlers and notifiers.
+
+Loads the config file, opens the database, seeds initial state, and starts
+each handler in its own goroutine. Shuts down gracefully on SIGINT/SIGTERM.`,
 	// Uncomment the following line if your bare application
 	// has an action associated with it:
 
