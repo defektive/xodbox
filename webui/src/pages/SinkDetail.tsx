@@ -41,6 +41,8 @@ export default function SinkDetail() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const slugCopy = useCopy();
   const linkCopy = useCopy();
+  const [notifyState, setNotifyState] = useState(false);
+  const [notifySaving, setNotifySaving] = useState(false);
   const [activeTab, setActiveTab] = useState<"events" | "files">("events");
   const [sinkFiles, setSinkFiles] = useState<UploadedFileMeta[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
@@ -56,6 +58,7 @@ export default function SinkDetail() {
 
   useEffect(() => {
     setDescription(data?.description ?? "");
+    setNotifyState(data?.notify ?? false);
     setEditing(false);
   }, [data]);
 
@@ -139,6 +142,20 @@ export default function SinkDetail() {
       reload();
     } catch (err) {
       setDeleteError(err instanceof ApiError ? err.message : "delete failed");
+    }
+  }
+
+  async function toggleNotify() {
+    setNotifySaving(true);
+    try {
+      const updated = await api.put<Sink>(`sinks/${encodeURIComponent(slug)}`, {
+        notify: !notifyState,
+      });
+      setNotifyState(updated.notify);
+    } catch {
+      // revert on error
+    } finally {
+      setNotifySaving(false);
     }
   }
 
@@ -249,6 +266,14 @@ export default function SinkDetail() {
               title={sinkLink(data.slug)}
             >
               {linkCopy.copied ? "Copied!" : "Copy HTTP link"}
+            </Button>
+            <Button
+              size="sm"
+              variant={notifyState ? "default" : "outline"}
+              onClick={toggleNotify}
+              disabled={notifySaving}
+            >
+              {notifyState ? "Notifications on" : "Notifications off"}
             </Button>
           </div>
           <p className="text-muted-foreground">

@@ -15,6 +15,7 @@ import (
 type sinkView struct {
 	Slug        string    `json:"slug"`
 	Description string    `json:"description"`
+	Notify      bool      `json:"notify"`
 	CreatedAt   time.Time `json:"created_at"`
 	EventCount  int64     `json:"event_count"`
 }
@@ -29,6 +30,7 @@ func sinkViewCounted(s model.Sink, count int64) sinkView {
 	return sinkView{
 		Slug:        s.Slug,
 		Description: s.Description,
+		Notify:      s.Notify,
 		CreatedAt:   s.CreatedAt,
 		EventCount:  count,
 	}
@@ -46,6 +48,7 @@ func (a *adminAuth) handleSinks(w http.ResponseWriter, r *http.Request) {
 type createSinkRequest struct {
 	Slug        string `json:"slug"`
 	Description string `json:"description"`
+	Notify      bool   `json:"notify"`
 }
 
 func (a *adminAuth) handleCreateSink(w http.ResponseWriter, r *http.Request) {
@@ -54,7 +57,7 @@ func (a *adminAuth) handleCreateSink(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "bad request")
 		return
 	}
-	s, err := model.CreateSink(strings.TrimSpace(req.Slug), req.Description)
+	s, err := model.CreateSink(strings.TrimSpace(req.Slug), req.Description, req.Notify)
 	if err != nil {
 		switch {
 		case errors.Is(err, model.ErrInvalidSlug), errors.Is(err, model.ErrSlugExists):
@@ -117,7 +120,8 @@ func (a *adminAuth) handleSink(w http.ResponseWriter, r *http.Request) {
 }
 
 type updateSinkRequest struct {
-	Description string `json:"description"`
+	Description *string `json:"description,omitempty"`
+	Notify      *bool   `json:"notify,omitempty"`
 }
 
 func (a *adminAuth) handleUpdateSink(w http.ResponseWriter, r *http.Request) {
@@ -126,13 +130,30 @@ func (a *adminAuth) handleUpdateSink(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusBadRequest, "bad request")
 		return
 	}
-	s, err := model.UpdateSinkDescription(r.PathValue("slug"), req.Description)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			writeErr(w, http.StatusNotFound, "sink not found")
+	slug := r.PathValue("slug")
+	if req.Description != nil {
+		if _, err := model.UpdateSinkDescription(slug, *req.Description); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				writeErr(w, http.StatusNotFound, "sink not found")
+				return
+			}
+			writeErr(w, http.StatusInternalServerError, "could not update sink")
 			return
 		}
-		writeErr(w, http.StatusInternalServerError, "could not update sink")
+	}
+	if req.Notify != nil {
+		if _, err := model.UpdateSinkNotify(slug, *req.Notify); err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				writeErr(w, http.StatusNotFound, "sink not found")
+				return
+			}
+			writeErr(w, http.StatusInternalServerError, "could not update sink")
+			return
+		}
+	}
+	s, err := model.SinkBySlug(slug)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, "lookup failed")
 		return
 	}
 	writeJSON(w, http.StatusOK, toSinkView(*s))

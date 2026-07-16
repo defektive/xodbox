@@ -28,6 +28,16 @@ type InteractionEvent interface {
 	Dispatch(cc chan InteractionEvent)
 }
 
+// SinkHitProvider is an optional interface implemented by events that
+// represent a sink hit — an inbound interaction matching a notify-enabled
+// sink. Notifiers type-assert to it for enriched formatting (sink slug,
+// description, and a link to the sink).
+type SinkHitProvider interface {
+	SinkSlug() string
+	SinkDescription() string
+	SinkLink() string
+}
+
 // CurlProvider is an optional interface implemented by events that can
 // render a curl command reproducing the captured request (currently HTTP).
 // Notifiers type-assert to it to append a copy-pasteable replay command —

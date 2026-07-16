@@ -8,6 +8,7 @@ import (
 )
 
 var sinkDescription string
+var sinkNotify bool
 
 var sinkCmd = &cobra.Command{
 	Use:   "sink",
@@ -25,7 +26,7 @@ var sinkAddCmd = &cobra.Command{
 		if len(args) == 1 {
 			slug = args[0]
 		}
-		s, err := model.CreateSink(slug, sinkDescription)
+		s, err := model.CreateSink(slug, sinkDescription, sinkNotify)
 		if err != nil {
 			return err
 		}
@@ -73,6 +74,7 @@ var sinkRmCmd = &cobra.Command{
 
 func init() {
 	sinkAddCmd.Flags().StringVar(&sinkDescription, "description", "", "what this sink is for (shown in the UI and CLI list)")
+	sinkAddCmd.Flags().BoolVar(&sinkNotify, "notify", false, "send notifications when this sink is hit")
 	sinkCmd.AddCommand(sinkAddCmd, sinkListCmd, sinkRmCmd)
 	XodboxCmd.AddCommand(sinkCmd)
 }

@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"regexp"
+	"strings"
 
 	"github.com/defektive/xodbox/pkg/types"
 )
@@ -79,12 +80,19 @@ func SendPost(url string, payload []byte) error {
 }
 
 type jsonEvent struct {
-	RemoteAddr string
-	RemotePort int
-	UserAgent  string
-	Data       interface{}
-	Details    string
-	Curl       string `json:",omitempty"`
+	RemoteAddr string      `json:"RemoteAddr"`
+	RemotePort int         `json:"RemotePort"`
+	UserAgent  string      `json:"UserAgent"`
+	Data       interface{} `json:"Data"`
+	Details    string      `json:"Details"`
+	Curl       string      `json:"Curl,omitempty"`
+	Sink       *jsonSink   `json:"Sink,omitempty"`
+}
+
+type jsonSink struct {
+	Slug        string `json:"Slug"`
+	Description string `json:"Description,omitempty"`
+	Link        string `json:"Link,omitempty"`
 }
 
 func (wh *Notifier) Payload(e types.InteractionEvent) ([]byte, error) {
@@ -96,6 +104,7 @@ func (wh *Notifier) Payload(e types.InteractionEvent) ([]byte, error) {
 		Data:       e.Data(),
 		Details:    e.Details(),
 		Curl:       CurlCommand(e),
+		Sink:       sinkInfo(e),
 	}
 
 	return json.Marshal(res)
@@ -116,11 +125,35 @@ func CurlCommand(e types.InteractionEvent) string {
 
 // ChatText renders the standard chat-notifier body: the event details, its
 // raw data in a code block, and — when available — a curl command to replay
-// the request in a second code block.
+// the request in a second code block. Sink-hit events get an enriched header.
 func ChatText(e types.InteractionEvent) string {
-	text := fmt.Sprintf("%s\n```%s\n```", e.Details(), e.Data())
-	if curl := CurlCommand(e); curl != "" {
-		text += fmt.Sprintf("\nReplay:\n```%s\n```", curl)
+	var sb strings.Builder
+	if sh, ok := e.(types.SinkHitProvider); ok {
+		sb.WriteString(fmt.Sprintf("*Sink hit: %s*", sh.SinkSlug()))
+		if desc := sh.SinkDescription(); desc != "" {
+			sb.WriteString(fmt.Sprintf("\n> %s", desc))
+		}
+		if link := sh.SinkLink(); link != "" {
+			sb.WriteString(fmt.Sprintf("\nLink: %s", link))
+		}
+		sb.WriteString("\n\n")
 	}
-	return text
+	sb.WriteString(fmt.Sprintf("%s\n```%s\n```", e.Details(), e.Data()))
+	if curl := CurlCommand(e); curl != "" {
+		sb.WriteString(fmt.Sprintf("\nReplay:\n```%s\n```", curl))
+	}
+	return sb.String()
+}
+
+// sinkInfo extracts sink metadata from a SinkHitProvider event, or nil.
+func sinkInfo(e types.InteractionEvent) *jsonSink {
+	sh, ok := e.(types.SinkHitProvider)
+	if !ok {
+		return nil
+	}
+	return &jsonSink{
+		Slug:        sh.SinkSlug(),
+		Description: sh.SinkDescription(),
+		Link:        sh.SinkLink(),
+	}
 }

@@ -20,6 +20,7 @@ type Sink struct {
 	gorm.Model
 	Slug        string `json:"slug" gorm:"uniqueIndex"`
 	Description string `json:"description"`
+	Notify      bool   `json:"notify"`
 }
 
 var (
@@ -49,7 +50,7 @@ func GenerateSlug() (string, error) {
 func ValidSlug(s string) bool { return slugPattern.MatchString(s) }
 
 // CreateSink stores a new sink. If slug is empty a random one is generated.
-func CreateSink(slug, description string) (*Sink, error) {
+func CreateSink(slug, description string, notify bool) (*Sink, error) {
 	if slug == "" {
 		g, err := GenerateSlug()
 		if err != nil {
@@ -60,7 +61,7 @@ func CreateSink(slug, description string) (*Sink, error) {
 	if !ValidSlug(slug) {
 		return nil, ErrInvalidSlug
 	}
-	s := &Sink{Slug: slug, Description: description}
+	s := &Sink{Slug: slug, Description: description, Notify: notify}
 	if err := DB().Create(s).Error; err != nil {
 		if errors.Is(err, gorm.ErrDuplicatedKey) || strings.Contains(err.Error(), "UNIQUE") {
 			return nil, ErrSlugExists
@@ -137,4 +138,36 @@ func SinkEventCount(slug string) int64 {
 	var n int64
 	sinkMatch(DB().Model(&Interaction{}), slug).Count(&n)
 	return n
+}
+
+// UpdateSinkNotify sets a sink's notify flag and returns the updated record.
+func UpdateSinkNotify(slug string, notify bool) (*Sink, error) {
+	s, err := SinkBySlug(slug)
+	if err != nil {
+		return nil, err
+	}
+	if err := DB().Model(s).Update("notify", notify).Error; err != nil {
+		return nil, err
+	}
+	return s, nil
+}
+
+// NotifySinks returns sinks with Notify=true whose slug matches the given
+// interaction (appears in request_target or headers). Returns nil when no
+// notify-enabled sink matches.
+func NotifySinks(i *Interaction) []Sink {
+	var out []Sink
+	q := DB().Where("notify = ?", true)
+	q.Find(&out)
+
+	matched := out[:0]
+	target := strings.ToLower(i.RequestTarget)
+	headers := strings.ToLower(i.Headers)
+	for _, s := range out {
+		slug := strings.ToLower(s.Slug)
+		if strings.Contains(target, slug) || strings.Contains(headers, slug) {
+			matched = append(matched, s)
+		}
+	}
+	return matched
 }

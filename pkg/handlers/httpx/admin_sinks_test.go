@@ -87,7 +87,8 @@ func TestSinkUpdateDescription(t *testing.T) {
 	create.Body.Close()
 
 	// Update the description.
-	up := doAuthed(t, http.MethodPut, base+"/"+slug, key, updateSinkRequest{Description: "after"})
+	after := "after"
+	up := doAuthed(t, http.MethodPut, base+"/"+slug, key, updateSinkRequest{Description: &after})
 	if up.StatusCode != http.StatusOK {
 		t.Fatalf("update = %d, want 200", up.StatusCode)
 	}
@@ -108,7 +109,8 @@ func TestSinkUpdateDescription(t *testing.T) {
 	}
 
 	// Unknown slug -> 404.
-	miss := doAuthed(t, http.MethodPut, base+"/does-not-exist", key, updateSinkRequest{Description: "x"})
+	missDesc := "x"
+	miss := doAuthed(t, http.MethodPut, base+"/does-not-exist", key, updateSinkRequest{Description: &missDesc})
 	if miss.StatusCode != http.StatusNotFound {
 		t.Errorf("update unknown = %d, want 404", miss.StatusCode)
 	}
