@@ -208,12 +208,32 @@ func ChatText(e types.InteractionEvent) string {
 	data := e.Data()
 	if isBinary(data) {
 		data = fmt.Sprintf("(%d bytes of binary data)", len(data))
+	} else {
+		data = tryPrettyJSON(data)
 	}
 	sb.WriteString(fmt.Sprintf("%s\n```%s\n```", e.Details(), data))
 	if curl := CurlCommand(e); curl != "" {
 		sb.WriteString(fmt.Sprintf("\nReplay:\n```%s\n```", curl))
 	}
 	return sb.String()
+}
+
+// tryPrettyJSON attempts to pretty-print s as JSON. If s is not valid JSON
+// (or contains non-JSON content like HTTP headers prepended), it is returned
+// unchanged.
+func tryPrettyJSON(s string) string {
+	trimmed := strings.TrimSpace(s)
+	if len(trimmed) == 0 {
+		return s
+	}
+	if trimmed[0] != '{' && trimmed[0] != '[' {
+		return s
+	}
+	var buf bytes.Buffer
+	if err := json.Indent(&buf, []byte(trimmed), "", "  "); err != nil {
+		return s
+	}
+	return buf.String()
 }
 
 // sinkInfo extracts sink metadata from a SinkHitProvider event, or nil.

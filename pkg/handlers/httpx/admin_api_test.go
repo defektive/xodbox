@@ -113,6 +113,31 @@ func TestInteractionsRequireAuth(t *testing.T) {
 	resp.Body.Close()
 }
 
+func TestSafeBodyStringPrettyPrintsJSON(t *testing.T) {
+	tests := []struct {
+		name string
+		in   string
+		want string
+	}{
+		{"object", `{"a":1,"b":"c"}`, "{\n  \"a\": 1,\n  \"b\": \"c\"\n}"},
+		{"array", `[1,2,3]`, "[\n  1,\n  2,\n  3\n]"},
+		{"not json", `hello world`, `hello world`},
+		{"empty", ``, ``},
+		{"html", `<html>`, `<html>`},
+	}
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			got, isBin := safeBodyString([]byte(tc.in))
+			if isBin {
+				t.Fatal("unexpected binary flag")
+			}
+			if got != tc.want {
+				t.Errorf("got %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
 func TestInteractionNotFound(t *testing.T) {
 	srv, _, u := adminTestServer(t)
 	full, _, _ := model.NewAPIKey(u.ID, "k", nil)

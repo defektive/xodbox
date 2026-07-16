@@ -35,6 +35,23 @@ func TestChatTextOmitsCurlForPlainEvents(t *testing.T) {
 	}
 }
 
+func TestChatTextPrettyPrintsJSON(t *testing.T) {
+	e := &types.BaseEvent{RawData: []byte(`{"a":1,"b":"c"}`)}
+	txt := ChatText(e)
+	if !strings.Contains(txt, "\"a\": 1") {
+		t.Errorf("expected pretty-printed JSON:\n%s", txt)
+	}
+}
+
+func TestChatTextLeavesNonJSONAlone(t *testing.T) {
+	raw := "GET /foo HTTP/1.1\r\nHost: bar\r\n\r\n"
+	e := &types.BaseEvent{RawData: []byte(raw)}
+	txt := ChatText(e)
+	if strings.Contains(txt, "  ") && !strings.Contains(txt, raw) {
+		t.Errorf("non-JSON data should not be modified:\n%s", txt)
+	}
+}
+
 func TestJSONPayloadCurlOmitemptyForPlainEvents(t *testing.T) {
 	n := NewNotifier("http://example", "")
 	b, err := n.Payload(&types.BaseEvent{RawData: []byte("x")})
