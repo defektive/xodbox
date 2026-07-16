@@ -166,9 +166,33 @@ func TruncateChat(s string, max int) string {
 	return cut + "\n…"
 }
 
+// isBinary reports whether data looks like binary content (contains null
+// bytes or a high ratio of non-printable characters). Binary data renders
+// as garbage in chat code blocks, so callers replace it with a placeholder.
+func isBinary(s string) bool {
+	if strings.ContainsRune(s, '\x00') {
+		return true
+	}
+	if len(s) == 0 {
+		return false
+	}
+	nonPrint := 0
+	check := s
+	if len(check) > 512 {
+		check = check[:512]
+	}
+	for _, b := range []byte(check) {
+		if b < 0x20 && b != '\n' && b != '\r' && b != '\t' {
+			nonPrint++
+		}
+	}
+	return nonPrint*4 > len(check)
+}
+
 // ChatText renders the standard chat-notifier body: the event details, its
 // raw data in a code block, and — when available — a curl command to replay
 // the request in a second code block. Sink-hit events get an enriched header.
+// Binary data is replaced with a placeholder to avoid garbled chat messages.
 func ChatText(e types.InteractionEvent) string {
 	var sb strings.Builder
 	if sh, ok := e.(types.SinkHitProvider); ok {
@@ -181,7 +205,11 @@ func ChatText(e types.InteractionEvent) string {
 		}
 		sb.WriteString("\n\n")
 	}
-	sb.WriteString(fmt.Sprintf("%s\n```%s\n```", e.Details(), e.Data()))
+	data := e.Data()
+	if isBinary(data) {
+		data = fmt.Sprintf("(%d bytes of binary data)", len(data))
+	}
+	sb.WriteString(fmt.Sprintf("%s\n```%s\n```", e.Details(), data))
 	if curl := CurlCommand(e); curl != "" {
 		sb.WriteString(fmt.Sprintf("\nReplay:\n```%s\n```", curl))
 	}
