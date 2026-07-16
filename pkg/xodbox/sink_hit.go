@@ -31,9 +31,7 @@ func newSinkHitEvent(inner types.InteractionEvent, sink model.Sink, publicURL st
 	}
 }
 
-func (s *sinkHitEvent) Details() string {
-	return fmt.Sprintf("Sink hit: %s — %s", s.slug, s.inner.Details())
-}
+func (s *sinkHitEvent) Details() string { return s.inner.Details() }
 
 func (s *sinkHitEvent) RemoteIP() string                       { return s.inner.RemoteIP() }
 func (s *sinkHitEvent) RemotePort() int                        { return s.inner.RemotePort() }
