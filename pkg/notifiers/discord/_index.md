@@ -16,3 +16,6 @@ weight: 1
 | author       | Username to appear in slack. (optional)    d    |
 | author_image | Emoji code to use for user's avatar. (optional) |
 | filter       | Golang regexp.                                  |
+
+Messages longer than Discord's 2 000-character `content` limit are
+automatically truncated with a trailing `…`.

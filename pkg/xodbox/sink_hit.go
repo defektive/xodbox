@@ -31,9 +31,7 @@ func newSinkHitEvent(inner types.InteractionEvent, sink model.Sink, publicURL st
 	}
 }
 
-func (s *sinkHitEvent) Details() string {
-	return fmt.Sprintf("Sink hit: %s — %s", s.slug, s.inner.Details())
-}
+func (s *sinkHitEvent) Details() string { return s.inner.Details() }
 
 func (s *sinkHitEvent) RemoteIP() string                       { return s.inner.RemoteIP() }
 func (s *sinkHitEvent) RemotePort() int                        { return s.inner.RemotePort() }
@@ -44,6 +42,10 @@ func (s *sinkHitEvent) Dispatch(_ chan types.InteractionEvent) {}
 func (s *sinkHitEvent) FilterString() string {
 	return fmt.Sprintf("SINK %s %s", s.slug, s.inner.FilterString())
 }
+
+// BypassFilter implements types.FilterBypasser — sink-hit events skip the
+// notifier's regex filter because the user explicitly opted in via notify.
+func (s *sinkHitEvent) BypassFilter() bool { return true }
 
 // SinkHitProvider implementation.
 func (s *sinkHitEvent) SinkSlug() string        { return s.slug }

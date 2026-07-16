@@ -37,18 +37,21 @@ func (wh *Notifier) Name() string {
 	return "discord"
 }
 
+// discordMaxContent is the hard limit Discord imposes on the content field.
+const discordMaxContent = 2000
+
 func (wh *Notifier) Payload(e types.InteractionEvent) ([]byte, error) {
 	postBody := POSTData{
 		Username:  wh.User,
 		AvatarURL: wh.Icon,
-		Content:   webhook.ChatText(e),
+		Content:   webhook.TruncateChat(webhook.ChatText(e), discordMaxContent),
 	}
 
 	return json.Marshal(postBody)
 }
 
 func (wh *Notifier) Send(event types.InteractionEvent) error {
-	if webhook.FilterMatches(wh.Filter(), event.FilterString()) {
+	if webhook.ShouldSend(wh.Filter(), event) {
 		jsonBody, err := wh.Payload(event)
 		if err != nil {
 			lg().Error("error marshaling JSON", "err", err)

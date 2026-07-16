@@ -41,19 +41,23 @@ func (wh *Notifier) Name() string {
 	return "slack"
 }
 
+// slackMaxText caps the text field so Slack renders a single message.
+// Incoming webhooks split around 4 000 chars; we stay under that.
+const slackMaxText = 3900
+
 func (wh *Notifier) Payload(e types.InteractionEvent) ([]byte, error) {
 	postBody := POSTData{
 		Channel:   wh.Channel,
 		Username:  wh.User,
 		IconEmoji: wh.Icon,
-		Text:      webhook.ChatText(e),
+		Text:      webhook.TruncateChat(webhook.ChatText(e), slackMaxText),
 	}
 
 	return json.Marshal(postBody)
 }
 
 func (wh *Notifier) Send(event types.InteractionEvent) error {
-	if webhook.FilterMatches(wh.Filter(), event.FilterString()) {
+	if webhook.ShouldSend(wh.Filter(), event) {
 		jsonBody, err := wh.Payload(event)
 		if err != nil {
 			lg().Error("error marshaling JSON", "err", err)

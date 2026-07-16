@@ -47,7 +47,7 @@ func (wh *Notifier) Filter() *regexp.Regexp {
 }
 
 func (wh *Notifier) Send(event types.InteractionEvent) error {
-	if !FilterMatches(wh.filter, event.FilterString()) {
+	if !ShouldSend(wh.filter, event) {
 		return nil
 	}
 	jsonBody, err := wh.Payload(event)
@@ -79,6 +79,12 @@ func SendPost(url string, payload []byte) error {
 	return nil
 }
 
+// webhookMaxField caps individual string fields in the JSON webhook payload.
+// Most generic webhook receivers impose some body-size limit; 32 KB per field
+// keeps total payload well under common ceilings while preserving enough
+// context to be useful.
+const webhookMaxField = 32 * 1024
+
 type jsonEvent struct {
 	RemoteAddr string      `json:"RemoteAddr"`
 	RemotePort int         `json:"RemotePort"`
@@ -87,6 +93,7 @@ type jsonEvent struct {
 	Details    string      `json:"Details"`
 	Curl       string      `json:"Curl,omitempty"`
 	Sink       *jsonSink   `json:"Sink,omitempty"`
+	Truncated  bool        `json:"Truncated,omitempty"`
 }
 
 type jsonSink struct {
@@ -96,18 +103,40 @@ type jsonSink struct {
 }
 
 func (wh *Notifier) Payload(e types.InteractionEvent) ([]byte, error) {
+	data := e.Data()
+	curl := CurlCommand(e)
+	truncated := false
+	if len(data) > webhookMaxField {
+		data = data[:webhookMaxField] + "…"
+		truncated = true
+	}
+	if len(curl) > webhookMaxField {
+		curl = curl[:webhookMaxField] + "…"
+		truncated = true
+	}
 
 	res := jsonEvent{
 		RemoteAddr: e.RemoteIP(),
 		RemotePort: e.RemotePort(),
 		UserAgent:  e.UserAgent(),
-		Data:       e.Data(),
+		Data:       data,
 		Details:    e.Details(),
-		Curl:       CurlCommand(e),
+		Curl:       curl,
 		Sink:       sinkInfo(e),
+		Truncated:  truncated,
 	}
 
 	return json.Marshal(res)
+}
+
+// ShouldSend reports whether a notifier should deliver the event. It returns
+// true when the event bypasses filters (e.g. sink-hit events) or when the
+// filter regex matches the event's FilterString.
+func ShouldSend(filter *regexp.Regexp, e types.InteractionEvent) bool {
+	if fb, ok := e.(types.FilterBypasser); ok && fb.BypassFilter() {
+		return true
+	}
+	return filter.MatchString(e.FilterString())
 }
 
 func FilterMatches(filter *regexp.Regexp, data string) bool {
@@ -123,9 +152,47 @@ func CurlCommand(e types.InteractionEvent) string {
 	return ""
 }
 
+// TruncateChat truncates a chat message to max characters, closing any open
+// markdown code block so the rendering isn't broken.
+func TruncateChat(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	const suffix = "\n…\n```"
+	cut := s[:max-len(suffix)]
+	if strings.Count(cut, "```")%2 == 1 {
+		return cut + suffix
+	}
+	return cut + "\n…"
+}
+
+// isBinary reports whether data looks like binary content (contains null
+// bytes or a high ratio of non-printable characters). Binary data renders
+// as garbage in chat code blocks, so callers replace it with a placeholder.
+func isBinary(s string) bool {
+	if strings.ContainsRune(s, '\x00') {
+		return true
+	}
+	if len(s) == 0 {
+		return false
+	}
+	nonPrint := 0
+	check := s
+	if len(check) > 512 {
+		check = check[:512]
+	}
+	for _, b := range []byte(check) {
+		if b < 0x20 && b != '\n' && b != '\r' && b != '\t' {
+			nonPrint++
+		}
+	}
+	return nonPrint*4 > len(check)
+}
+
 // ChatText renders the standard chat-notifier body: the event details, its
 // raw data in a code block, and — when available — a curl command to replay
 // the request in a second code block. Sink-hit events get an enriched header.
+// Binary data is replaced with a placeholder to avoid garbled chat messages.
 func ChatText(e types.InteractionEvent) string {
 	var sb strings.Builder
 	if sh, ok := e.(types.SinkHitProvider); ok {
@@ -138,7 +205,11 @@ func ChatText(e types.InteractionEvent) string {
 		}
 		sb.WriteString("\n\n")
 	}
-	sb.WriteString(fmt.Sprintf("%s\n```%s\n```", e.Details(), e.Data()))
+	data := e.Data()
+	if isBinary(data) {
+		data = fmt.Sprintf("(%d bytes of binary data)", len(data))
+	}
+	sb.WriteString(fmt.Sprintf("%s\n```%s\n```", e.Details(), data))
 	if curl := CurlCommand(e); curl != "" {
 		sb.WriteString(fmt.Sprintf("\nReplay:\n```%s\n```", curl))
 	}

@@ -3,6 +3,7 @@ package app_log
 import (
 	"regexp"
 
+	"github.com/defektive/xodbox/pkg/notifiers/webhook"
 	"github.com/defektive/xodbox/pkg/types"
 )
 
@@ -40,7 +41,7 @@ func (wh *Notifier) Payload(e types.InteractionEvent) (string, []any) {
 }
 
 func (wh *Notifier) Send(e types.InteractionEvent) error {
-	if !wh.filter.MatchString(e.FilterString()) {
+	if !webhook.ShouldSend(wh.filter, e) {
 		return nil
 	}
 	msg, args := wh.Payload(e)

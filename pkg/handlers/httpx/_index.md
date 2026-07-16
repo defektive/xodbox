@@ -198,12 +198,13 @@ sink's detail page, or the checkbox in the sink list), over the API
 (`PUT /api/sinks/{slug}` with `{"notify": true}`), or at creation time
 (`--notify` flag on the CLI, `"notify": true` in the POST body).
 
-The filter string for a sink-hit event has the shape
-`SINK <slug> <original-filter-string>` (e.g.
-`SINK my-slug HTTPX GET /my-slug from 10.0.0.5`), so notifier filters can
-select on `^SINK` to receive only sink-hit notifications or `^SINK my-slug`
-for a specific sink. To include the interaction link in Slack/Discord/webhook
-notifications, add `public_url` to the `defaults` section of `xodbox.yaml`:
+Sink-hit events **bypass the notifier's regex filter** — enabling notify on a
+sink is an explicit opt-in, so the event is delivered to every configured
+notifier regardless of its `filter` setting. The filter string still has the
+shape `SINK <slug> <original-filter-string>` for logging/debugging purposes.
+
+To include the interaction link in Slack/Discord/webhook notifications, add
+`public_url` to the `defaults` section of `xodbox.yaml`:
 
 ```yaml
 defaults:
