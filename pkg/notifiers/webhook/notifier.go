@@ -47,7 +47,7 @@ func (wh *Notifier) Filter() *regexp.Regexp {
 }
 
 func (wh *Notifier) Send(event types.InteractionEvent) error {
-	if !FilterMatches(wh.filter, event.FilterString()) {
+	if !ShouldSend(wh.filter, event) {
 		return nil
 	}
 	jsonBody, err := wh.Payload(event)
@@ -108,6 +108,16 @@ func (wh *Notifier) Payload(e types.InteractionEvent) ([]byte, error) {
 	}
 
 	return json.Marshal(res)
+}
+
+// ShouldSend reports whether a notifier should deliver the event. It returns
+// true when the event bypasses filters (e.g. sink-hit events) or when the
+// filter regex matches the event's FilterString.
+func ShouldSend(filter *regexp.Regexp, e types.InteractionEvent) bool {
+	if fb, ok := e.(types.FilterBypasser); ok && fb.BypassFilter() {
+		return true
+	}
+	return filter.MatchString(e.FilterString())
 }
 
 func FilterMatches(filter *regexp.Regexp, data string) bool {

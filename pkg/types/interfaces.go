@@ -38,6 +38,15 @@ type SinkHitProvider interface {
 	SinkLink() string
 }
 
+// FilterBypasser is an optional interface implemented by events that should
+// skip the notifier's regex filter. Sink-hit events implement this because
+// the user explicitly opted in by enabling notifications on the sink —
+// the notifier filter is for routing the general event stream, not for
+// gating explicit opt-in delivery.
+type FilterBypasser interface {
+	BypassFilter() bool
+}
+
 // CurlProvider is an optional interface implemented by events that can
 // render a curl command reproducing the captured request (currently HTTP).
 // Notifiers type-assert to it to append a copy-pasteable replay command —

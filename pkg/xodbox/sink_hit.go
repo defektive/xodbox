@@ -45,6 +45,10 @@ func (s *sinkHitEvent) FilterString() string {
 	return fmt.Sprintf("SINK %s %s", s.slug, s.inner.FilterString())
 }
 
+// BypassFilter implements types.FilterBypasser — sink-hit events skip the
+// notifier's regex filter because the user explicitly opted in via notify.
+func (s *sinkHitEvent) BypassFilter() bool { return true }
+
 // SinkHitProvider implementation.
 func (s *sinkHitEvent) SinkSlug() string        { return s.slug }
 func (s *sinkHitEvent) SinkDescription() string { return s.desc }
