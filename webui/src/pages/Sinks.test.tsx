@@ -61,6 +61,7 @@ describe("Sinks", () => {
     expect(postMock).toHaveBeenCalledWith("sinks", {
       slug: "",
       description: "my sink",
+      notify: false,
     });
   });
 });

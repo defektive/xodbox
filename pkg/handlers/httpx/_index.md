@@ -165,7 +165,7 @@ untouched.
 
 Sinks are managed in the UI (create with an optional slug + description, then
 open one to see its events, newest first) and over the API — `GET/POST
-/api/sinks`, `GET /api/sinks/{slug}` (sink + event feed), `DELETE
+/api/sinks`, `GET/PUT /api/sinks/{slug}` (sink + event feed / update), `DELETE
 /api/sinks/{slug}`.
 
 From the CLI (handy for scripting payload generation — only the slug is written
@@ -174,6 +174,7 @@ to stdout, so it is clean to capture):
 ```sh
 SLUG=$(xodbox sink add --description "prod SSRF beacon")   # random slug
 xodbox sink add my-label --description "a named one"        # explicit slug
+xodbox sink add --description "with alerts" --notify        # enable hit notifications
 xodbox sink list
 xodbox sink rm my-label
 ```
@@ -183,6 +184,31 @@ embedding in a payload) and **Copy HTTP link** (the full `<public_url>/<slug>`
 URL a target would hit to land in the sink). Set `public_url` so the link points
 at the honeypot's real address; without it the link uses the console's own
 origin, which is only correct when the UI is mounted on the honeypot listener.
+
+#### Sink hit notifications
+
+A sink with **notify** enabled dispatches a notification through all configured
+notifiers whenever a new interaction matches its slug. The notification includes
+the sink slug, description, a link (`<public_url>/<slug>` when `public_url` is
+set in `defaults`), and the full event metadata (handler, remote IP, request
+target, raw data, curl replay when available).
+
+Toggle notifications in the admin UI (the **Notifications on/off** button on a
+sink's detail page, or the checkbox in the sink list), over the API
+(`PUT /api/sinks/{slug}` with `{"notify": true}`), or at creation time
+(`--notify` flag on the CLI, `"notify": true` in the POST body).
+
+The filter string for a sink-hit event has the shape
+`SINK <slug> <original-filter-string>` (e.g.
+`SINK my-slug HTTPX GET /my-slug from 10.0.0.5`), so notifier filters can
+select on `^SINK` to receive only sink-hit notifications or `^SINK my-slug`
+for a specific sink. To include the interaction link in Slack/Discord/webhook
+notifications, add `public_url` to the `defaults` section of `xodbox.yaml`:
+
+```yaml
+defaults:
+  public_url: https://oob.example.com
+```
 
 ### Login notifications
 

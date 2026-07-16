@@ -6,7 +6,7 @@ import (
 )
 
 func TestDeleteSinkAllowsSlugReuse(t *testing.T) {
-	s, err := CreateSink("", "first")
+	s, err := CreateSink("", "first", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -16,7 +16,7 @@ func TestDeleteSinkAllowsSlugReuse(t *testing.T) {
 	}
 	// Hard-delete must free the slug for reuse (a soft-delete would leave the
 	// unique index occupied and reject this with ErrSlugExists).
-	if _, err := CreateSink(slug, "second"); err != nil {
+	if _, err := CreateSink(slug, "second", false); err != nil {
 		t.Errorf("recreating a deleted slug should succeed, got %v", err)
 	}
 }
@@ -25,7 +25,7 @@ func TestSinkEventsEscapesLikeWildcards(t *testing.T) {
 	// A slug containing '_' (a LIKE single-char wildcard) must match literally,
 	// not as a wildcard — consistent with the SSE stream's strings.Contains.
 	slug := "sink_" + uniqueUsername() // e.g. "sink_u7"; ≥6 chars, contains '_'
-	if _, err := CreateSink(slug, ""); err != nil {
+	if _, err := CreateSink(slug, "", false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -40,7 +40,7 @@ func TestSinkEventsEscapesLikeWildcards(t *testing.T) {
 }
 
 func TestCreateSinkGeneratesSlug(t *testing.T) {
-	s, err := CreateSink("", "generated one")
+	s, err := CreateSink("", "generated one", false)
 	if err != nil {
 		t.Fatalf("CreateSink: %v", err)
 	}
@@ -55,22 +55,22 @@ func TestCreateSinkGeneratesSlug(t *testing.T) {
 func TestCreateSinkRejectsInvalidAndDuplicateSlugs(t *testing.T) {
 	// "short" is a valid charset but under the 6-char minimum.
 	for _, bad := range []string{"ab", "short", "has space", "no/slash", "bang!"} {
-		if _, err := CreateSink(bad, ""); err != ErrInvalidSlug {
+		if _, err := CreateSink(bad, "", false); err != ErrInvalidSlug {
 			t.Errorf("CreateSink(%q) err = %v, want ErrInvalidSlug", bad, err)
 		}
 	}
 
-	first, err := CreateSink("", "")
+	first, err := CreateSink("", "", false)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := CreateSink(first.Slug, ""); err != ErrSlugExists {
+	if _, err := CreateSink(first.Slug, "", false); err != ErrSlugExists {
 		t.Errorf("duplicate slug err = %v, want ErrSlugExists", err)
 	}
 }
 
 func TestUpdateSinkDescription(t *testing.T) {
-	s, err := CreateSink("", "old description")
+	s, err := CreateSink("", "old description", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestUpdateSinkDescription(t *testing.T) {
 }
 
 func TestSinkEventsMatchTargetAndHeaders(t *testing.T) {
-	s, err := CreateSink("", "matcher")
+	s, err := CreateSink("", "matcher", false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -126,7 +126,7 @@ func TestSinkEventsMatchTargetAndHeaders(t *testing.T) {
 }
 
 func TestDeleteSinkKeepsInteractions(t *testing.T) {
-	s, err := CreateSink("", "")
+	s, err := CreateSink("", "", false)
 	if err != nil {
 		t.Fatal(err)
 	}

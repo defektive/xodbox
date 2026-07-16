@@ -247,37 +247,63 @@ func (x *App) GetTemplateData() map[string]string {
 // runPersister is the single writer goroutine: it drains persistChan and stores
 // each event, off the event loop, so a slow/locked SQLite write never delays
 // notifier dispatch. One writer keeps the pure-Go SQLite driver (which dislikes
-// concurrent writers) happy.
+// concurrent writers) happy. After persisting, it checks for notify-enabled
+// sinks matching the interaction and dispatches sink-hit notifications.
 func (x *App) runPersister() {
 	for {
 		select {
 		case <-x.stop:
 			return
 		case e := <-x.persistChan:
-			persistInteraction(e)
+			i := persistInteraction(e)
+			if i != nil {
+				x.dispatchSinkHits(e, i)
+			}
 		}
 	}
 }
 
 // persistInteraction stores an event as an Interaction when the event supports
 // it (implements types.Persistable), so every handler's activity — not just
-// httpx — shows up in the DB and the web UI. A nil record means the event opted
-// out of persistence.
-func persistInteraction(e types.InteractionEvent) {
+// httpx — shows up in the DB and the web UI. Returns the stored record (nil
+// when the event opted out of persistence or the write failed).
+func persistInteraction(e types.InteractionEvent) *model.Interaction {
 	p, ok := e.(types.Persistable)
 	if !ok {
-		return
+		return nil
 	}
 	i := p.Interaction()
 	if i == nil {
-		return
+		return nil
 	}
 	if tx := model.DB().Create(i); tx.Error != nil {
 		lg().Error("failed to persist interaction", "err", tx.Error, "handler", i.Handler)
-		return
+		return nil
 	}
 	// Fan out to any live subscribers (the admin UI's realtime stream).
 	model.PublishInteraction(i)
+	return i
+}
+
+// dispatchSinkHits checks whether the persisted interaction matches any
+// notify-enabled sinks and, for each match, sends a sink-hit notification
+// through all registered notifiers.
+func (x *App) dispatchSinkHits(e types.InteractionEvent, i *model.Interaction) {
+	sinks := model.NotifySinks(i)
+	if len(sinks) == 0 {
+		return
+	}
+	publicURL := x.appConfig.TemplateData["public_url"]
+	for _, s := range sinks {
+		hit := newSinkHitEvent(e, s, publicURL)
+		for _, n := range x.notificationHandlers {
+			go func(n types.Notifier) {
+				if err := n.Send(hit); err != nil {
+					lg().Error("sink hit notifier send failed", "notifier", n.Name(), "sink", s.Slug, "err", err)
+				}
+			}(n)
+		}
+	}
 }
 
 func (x *App) waitForEvents() {

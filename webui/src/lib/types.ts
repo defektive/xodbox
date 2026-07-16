@@ -65,6 +65,7 @@ export interface ApiKey {
 export interface Sink {
   slug: string;
   description: string;
+  notify: boolean;
   created_at: string;
   event_count: number;
 }
