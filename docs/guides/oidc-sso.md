@@ -31,7 +31,14 @@ Note the **Issuer URL** and **Client ID** — those are the two required
 values. A **Client Secret** is optional when the provider supports public
 clients with PKCE.
 
-## Minimal configuration
+## Quick setup via the web UI
+
+The admin console's **Config** page offers a one-click **Enable OIDC / SSO**
+button on any HTTPX handler entry. Clicking it adds all the SSO fields with
+sensible defaults — just fill in your **Issuer URL** and **Client ID** from
+your identity provider and save.
+
+## Minimal configuration (YAML)
 
 Add the OIDC keys to your HTTPX handler entry in `xodbox.yaml`:
 

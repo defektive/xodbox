@@ -143,7 +143,11 @@ JSON admin API. It lets an operator log in and:
   filterable by `handler`/`remote`/`target`/`sink`), no refresh needed,
 - manage **sinks** — named, described slugs with a per-slug event feed,
 - review detected **bots**,
-- manage **users** and **API keys**, and rotate their own password.
+- manage **users** and **API keys**, and rotate their own password,
+- edit the server **config** with a structured editor that shows labelled
+  fields, descriptions, and grouped sections for each handler/notifier type
+  — including a one-click **Enable OIDC / SSO** button that pre-populates
+  all the SSO fields.
 
 ### Sinks
 
