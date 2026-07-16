@@ -2,6 +2,7 @@ package discord
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/defektive/xodbox/pkg/notifiers/webhook"
 	"github.com/defektive/xodbox/pkg/types"
@@ -40,10 +41,19 @@ func (wh *Notifier) Name() string {
 // discordMaxContent is the hard limit Discord imposes on the content field.
 const discordMaxContent = 2000
 
+func truncateContent(s string, max int) string {
+	const suffix = "\n…\n```"
+	cut := s[:max-len(suffix)]
+	if strings.Count(cut, "```")%2 == 1 {
+		return cut + suffix
+	}
+	return cut + "\n…"
+}
+
 func (wh *Notifier) Payload(e types.InteractionEvent) ([]byte, error) {
 	content := webhook.ChatText(e)
 	if len(content) > discordMaxContent {
-		content = content[:discordMaxContent-4] + "\n…"
+		content = truncateContent(content, discordMaxContent)
 	}
 	postBody := POSTData{
 		Username:  wh.User,
