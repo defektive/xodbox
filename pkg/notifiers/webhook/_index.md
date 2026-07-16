@@ -25,6 +25,8 @@ events to n8n, send everything to a SIEM, etc.
 ```
 
 `Curl` is only populated for HTTP events; it is omitted for other handlers.
+`Data` and `Curl` fields are capped at 32 KB each; `Truncated` is `true`
+when either field was clipped.
 
 ## Configuration
 

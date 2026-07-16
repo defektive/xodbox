@@ -41,12 +41,15 @@ func (wh *Notifier) Name() string {
 	return "slack"
 }
 
+// slackMaxText is the hard limit Slack imposes on the text field.
+const slackMaxText = 40000
+
 func (wh *Notifier) Payload(e types.InteractionEvent) ([]byte, error) {
 	postBody := POSTData{
 		Channel:   wh.Channel,
 		Username:  wh.User,
 		IconEmoji: wh.Icon,
-		Text:      webhook.ChatText(e),
+		Text:      webhook.TruncateChat(webhook.ChatText(e), slackMaxText),
 	}
 
 	return json.Marshal(postBody)

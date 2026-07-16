@@ -18,3 +18,6 @@ weight: 1
 | channel      | Channel to post to, can be a user's ID. (optional) |
 | filter       | Golang regexp.                                     |
 
+Messages longer than Slack's 40 000-character `text` limit are
+automatically truncated with a trailing `…`.
+
