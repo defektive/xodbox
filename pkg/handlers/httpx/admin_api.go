@@ -1,7 +1,9 @@
 package httpx
 
 import (
+	"bytes"
 	"encoding/hex"
+	"encoding/json"
 	"net/http"
 	"strconv"
 	"time"
@@ -81,16 +83,34 @@ func safeBodyString(data []byte) (string, bool) {
 		return "", false
 	}
 	if utf8.Valid(data) {
+		s := string(data)
 		if len(data) > maxBodyDisplay {
-			return string(data[:maxBodyDisplay]) + "\n[truncated — download full body via the Files tab]", false
+			s = string(data[:maxBodyDisplay]) + "\n[truncated — download full body via the Files tab]"
 		}
-		return string(data), false
+		return tryPrettyJSON(s), false
 	}
 	preview := data
 	if len(preview) > 512 {
 		preview = preview[:512]
 	}
 	return hex.Dump(preview) + "\n[binary body — download via the Files tab]", true
+}
+
+// tryPrettyJSON attempts to pretty-print s as JSON. If s is not valid JSON,
+// it is returned unchanged.
+func tryPrettyJSON(s string) string {
+	trimmed := bytes.TrimSpace([]byte(s))
+	if len(trimmed) == 0 {
+		return s
+	}
+	if trimmed[0] != '{' && trimmed[0] != '[' {
+		return s
+	}
+	var buf bytes.Buffer
+	if err := json.Indent(&buf, trimmed, "", "  "); err != nil {
+		return s
+	}
+	return buf.String()
 }
 
 func (a *adminAuth) handleInteractions(w http.ResponseWriter, r *http.Request) {

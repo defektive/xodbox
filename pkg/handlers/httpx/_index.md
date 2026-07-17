@@ -138,7 +138,8 @@ JSON admin API. It lets an operator log in and:
   smb), so the log spans all protocols, not just HTTP,
 - **delete** individual events (and their uploaded files) from the list or
   detail view, and delete individual uploaded files without removing the event,
-- inspect an **event's detail** with a one-click **copy-as-curl**,
+- inspect an **event's detail** with a one-click **copy-as-curl** — JSON
+  bodies are automatically pretty-printed for readability,
 - get a **webhook-style view** of every hit to a specific `target` path,
 - watch the **Events** log and **sink** feeds update in **real time** — new
   interactions stream in live via Server-Sent Events (`GET /api/stream`,
