@@ -10,7 +10,7 @@ require (
 	github.com/caddyserver/certmagic v0.25.4
 	github.com/coreos/go-oidc/v3 v3.20.0
 	github.com/creack/pty v1.1.24
-	github.com/emersion/go-smtp v0.24.0
+	github.com/emersion/go-smtp v0.25.0
 	github.com/factomproject/basen v0.0.0-20150613233007-fe3947df716e
 	github.com/fclairamb/ftpserverlib v0.32.1
 	github.com/fsnotify/fsnotify v1.10.1
