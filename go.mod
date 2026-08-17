@@ -12,7 +12,7 @@ require (
 	github.com/creack/pty v1.1.24
 	github.com/emersion/go-smtp v0.24.0
 	github.com/factomproject/basen v0.0.0-20150613233007-fe3947df716e
-	github.com/fclairamb/ftpserverlib v0.32.1
+	github.com/fclairamb/ftpserverlib v0.32.3
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/gin-gonic/gin v1.12.0
 	github.com/glebarez/sqlite v1.11.0

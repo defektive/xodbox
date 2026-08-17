@@ -113,8 +113,8 @@ github.com/emersion/go-smtp v0.24.0 h1:g6AfoF140mvW0vLNPD/LuCBLEAdlxOjIXqbIkJIS6
 github.com/emersion/go-smtp v0.24.0/go.mod h1:ZtRRkbTyp2XTHCA+BmyTFTrj8xY4I+b4McvHxCU2gsQ=
 github.com/factomproject/basen v0.0.0-20150613233007-fe3947df716e h1:zAqF2IBv2VKDnCGG+KWIt5dOxIXrRqdQgXkIoCriftI=
 github.com/factomproject/basen v0.0.0-20150613233007-fe3947df716e/go.mod h1:IPoL85lmH5Npgv35bQ0aSbUK3dXjM8nubB/h45t5SpU=
-github.com/fclairamb/ftpserverlib v0.32.1 h1:JoBxoiu2sifjVbIAfkCQn7Oi3mFbX/PHRO+4PGOROj4=
-github.com/fclairamb/ftpserverlib v0.32.1/go.mod h1:RJZgAyW8uSb/BtDwD2Wf2wUGUxLaQdmB6VXU7XGp8Oc=
+github.com/fclairamb/ftpserverlib v0.32.3 h1:JUe5V+2VLYz23H4cZV0OujVqBqfwCjUcNdlf7hR/7FE=
+github.com/fclairamb/ftpserverlib v0.32.3/go.mod h1:2R5f+iqvWQzhYJusc9OJXDut3ONKMiWPjSPqaWGzX6Y=
 github.com/frankban/quicktest v1.14.6 h1:7Xjx+VpznH+oBnejlPUj8oUpdxnVs4f8XU8WnHkI4W8=
 github.com/frankban/quicktest v1.14.6/go.mod h1:4ptaffx2x8+WTWXmUCuVU6aPUX1/Mz7zb5vbUoiM6w0=
 github.com/fsnotify/fsnotify v1.10.1 h1:b0/UzAf9yR5rhf3RPm9gf3ehBPpf0oZKIjtpKrx59Ho=
