@@ -108,7 +108,11 @@ func MatchingInteractions(f InteractionPurgeFilter) ([]Interaction, error) {
 		return nil, err
 	}
 
-	q := DB().Model(&Interaction{})
+	// Select only what the filter and the caller need: pulling `data` here
+	// would load every matched request body (potentially megabytes each) into
+	// memory just to collect a list of IDs.
+	q := DB().Model(&Interaction{}).
+		Select("id, created_at, handler, remote_addr, request_target")
 	if f.Handler != "" {
 		q = q.Where("handler = ?", f.Handler)
 	}
@@ -134,8 +138,10 @@ func MatchingInteractions(f InteractionPurgeFilter) ([]Interaction, error) {
 	return matched, nil
 }
 
-// PurgeInteractions deletes the interactions the filter selects and returns the
-// number removed. See MatchingInteractions for filter semantics and errors.
+// PurgeInteractions permanently deletes the interactions the filter selects,
+// along with their uploaded files, and returns the number removed. See
+// MatchingInteractions for filter semantics and errors, and
+// deleteInteractionsByID for why the delete is hard rather than soft.
 func PurgeInteractions(f InteractionPurgeFilter) (int64, error) {
 	matched, err := MatchingInteractions(f)
 	if err != nil {
@@ -149,12 +155,13 @@ func PurgeInteractions(f InteractionPurgeFilter) (int64, error) {
 	for i, r := range matched {
 		ids[i] = r.ID
 	}
-	tx := DB().Where("id IN ?", ids).Delete(&Interaction{})
-	return tx.RowsAffected, tx.Error
+	return deleteInteractionsByID(ids)
 }
 
-// PurgeInteractionsOlderThan deletes interactions whose CreatedAt is older
-// than the given number of days, including their associated uploaded files.
+// PurgeInteractionsOlderThan permanently deletes interactions whose CreatedAt
+// is older than the given number of days, including their associated uploaded
+// files. The rows are hard-deleted so SQLite can reclaim the space — see
+// deleteInteractionsByID, and Vacuum for returning it to the filesystem.
 // Returns the number of interaction rows deleted.
 // Returns an error if days < 1 to prevent accidentally nuking everything.
 func PurgeInteractionsOlderThan(days int) (int64, error) {
@@ -163,35 +170,23 @@ func PurgeInteractionsOlderThan(days int) (int64, error) {
 	}
 	cutoff := time.Now().AddDate(0, 0, -days)
 
-	// Collect IDs so we can cascade-delete the uploaded_files rows first.
-	// Without this, file BLOBs accumulate indefinitely even after their parent
-	// interactions are soft-deleted — GORM does not cascade soft-deletes to
-	// associations by default.
 	var ids []uint
 	if err := DB().Model(&Interaction{}).Where("created_at < ?", cutoff).Pluck("id", &ids).Error; err != nil {
 		return 0, err
 	}
-	if len(ids) > 0 {
-		if err := DB().Where("interaction_id IN ?", ids).Delete(&UploadedFile{}).Error; err != nil {
-			return 0, err
-		}
-	}
-
-	tx := DB().Where("created_at < ?", cutoff).Delete(&Interaction{})
-	return tx.RowsAffected, tx.Error
+	return deleteInteractionsByID(ids)
 }
 
-// DeleteInteraction removes a single interaction and its associated uploaded
-// files. Returns gorm.ErrRecordNotFound when the ID does not exist.
+// DeleteInteraction permanently removes a single interaction and its associated
+// uploaded files. Returns gorm.ErrRecordNotFound when the ID does not exist.
 func DeleteInteraction(id uint) error {
 	var i Interaction
-	if err := DB().First(&i, id).Error; err != nil {
+	// id only — no need to read the request body back just to delete it.
+	if err := DB().Model(&Interaction{}).Select("id").First(&i, id).Error; err != nil {
 		return err
 	}
-	if err := DB().Where("interaction_id = ?", id).Delete(&UploadedFile{}).Error; err != nil {
-		return err
-	}
-	return DB().Delete(&i).Error
+	_, err := deleteInteractionsByID([]uint{i.ID})
+	return err
 }
 
 // joinNonEmpty joins entries with commas so ParseCIDRs can split them back

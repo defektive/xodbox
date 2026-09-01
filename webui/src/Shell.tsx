@@ -13,6 +13,7 @@ import Sinks from "@/pages/Sinks";
 import SinkDetail from "@/pages/SinkDetail";
 import Users from "@/pages/Users";
 import Config from "@/pages/Config";
+import Jobs from "@/pages/Jobs";
 import ApiKeys from "@/pages/ApiKeys";
 import Account from "@/pages/Account";
 
@@ -45,6 +46,7 @@ export default function Shell({
     ...(isAdmin
       ? [
           { to: "/users", label: "Users" },
+          { to: "/jobs", label: "Jobs" },
           { to: "/config", label: "Config" },
         ]
       : []),
@@ -151,6 +153,7 @@ export default function Shell({
           <Route path="/sinks" element={<Sinks />} />
           <Route path="/sinks/:slug" element={<SinkDetail />} />
           <Route path="/users" element={<Users currentUserId={user.id} />} />
+          <Route path="/jobs" element={<Jobs />} />
           <Route path="/config" element={<Config />} />
           <Route path="/keys" element={<ApiKeys />} />
           <Route path="/account" element={<Account />} />

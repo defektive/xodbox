@@ -29,6 +29,10 @@ var interactionsPurgeCmd = &cobra.Command{
 		"least one filter is required so the whole table isn't wiped by mistake. " +
 		"Pair this with the ignore_cidrs / ignore_pattern config defaults to stop " +
 		"the same noisy callout from being recorded going forward.\n\n" +
+		"Matching interactions and their captured files are removed permanently; " +
+		"there is no undo. Use --dry-run first to see what would go. The database " +
+		"file is not shrunk on disk -- run the purge worker, which vacuums after " +
+		"deleting, or VACUUM manually.\n\n" +
 		"Examples:\n" +
 		"  xodbox interactions purge --remote 203.0.113.7\n" +
 		"  xodbox interactions purge --remote 10.0.0.0/8 --dry-run\n" +

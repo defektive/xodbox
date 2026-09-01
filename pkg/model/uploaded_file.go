@@ -62,14 +62,20 @@ func UploadedFileByID(id uint) (*UploadedFile, error) {
 	return &f, nil
 }
 
-// DeleteFile removes a single uploaded file by ID.
+// DeleteFile permanently removes a single uploaded file by ID. The delete is
+// hard (see deleteInteractionsByID) so the BLOB is actually released; if this
+// file holds the canonical copy of a deduplicated upload, the bytes are first
+// promoted to a surviving duplicate.
 // Returns gorm.ErrRecordNotFound when the ID does not exist.
 func DeleteFile(id uint) error {
 	var f UploadedFile
-	if err := DB().First(&f, id).Error; err != nil {
+	// id only — don't read the blob back just to delete it.
+	if err := DB().Model(&UploadedFile{}).Select("id").First(&f, id).Error; err != nil {
 		return err
 	}
-	return DB().Delete(&f).Error
+	return DB().Transaction(func(tx *gorm.DB) error {
+		return deleteFilesByID(tx, []uint{f.ID})
+	})
 }
 
 // SinkFiles returns uploaded files attributed to interactions matching the

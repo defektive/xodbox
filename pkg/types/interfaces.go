@@ -2,7 +2,9 @@ package types
 
 import (
 	"context"
+	"errors"
 	"regexp"
+	"time"
 )
 
 type App interface {
@@ -10,6 +12,14 @@ type App interface {
 	RegisterNotificationHandler(Notifier)
 	GetTemplateData() map[string]string
 	Reload() error
+	// WorkerStatus reports every configured Worker and the outcome of its most
+	// recent run. Empty when no workers are configured.
+	WorkerStatus() []WorkerStatus
+	// TriggerWorker starts an out-of-schedule run of the named worker. It
+	// returns as soon as the run is accepted, not when it finishes — a purge
+	// with a vacuum can take minutes — so poll WorkerStatus for the result.
+	// Returns ErrUnknownWorker or ErrWorkerBusy when the run is refused.
+	TriggerWorker(name string) error
 }
 
 type InteractionEvent interface {
@@ -92,6 +102,31 @@ type Worker interface {
 	Schedule() string
 	Run(ctx context.Context) error
 }
+
+// WorkerStatus is a point-in-time view of one Worker for the management API
+// and CLI: what it is, when it last ran, and how that went.
+type WorkerStatus struct {
+	Name     string `json:"name"`
+	Schedule string `json:"schedule"`
+	// Running reports whether a run (scheduled or manual) is in flight.
+	Running bool `json:"running"`
+	// LastRun is when the most recent run started; nil if it has never run.
+	LastRun *time.Time `json:"last_run,omitempty"`
+	// LastDurationMS is how long the most recent completed run took.
+	LastDurationMS int64 `json:"last_duration_ms,omitempty"`
+	// LastError is the most recent run's error, empty when it succeeded.
+	LastError string `json:"last_error,omitempty"`
+	// NextRun is the next scheduled fire time; nil when unscheduled.
+	NextRun *time.Time `json:"next_run,omitempty"`
+}
+
+// ErrUnknownWorker is returned when a run is requested for a name that is not
+// configured.
+var ErrUnknownWorker = errors.New("unknown worker")
+
+// ErrWorkerBusy is returned when a run is requested while one is already in
+// flight for that worker. Workers are not safe to overlap with themselves.
+var ErrWorkerBusy = errors.New("worker is already running")
 
 // ConfigFile is the deserialized YAML config. It lives in types so packages
 // on both sides of the handler↔app boundary can reference it without cycles.

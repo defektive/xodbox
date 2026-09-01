@@ -75,3 +75,4 @@ notifiers:
 #  - worker: purge
 #    schedule: "@daily" # cron expression or @every interval (e.g. "@every 6h")
 #    max_age_days: "30" # delete interactions older than this many days
+#    vacuum: "true" # VACUUM after a purge to shrink xodbox.db on disk
