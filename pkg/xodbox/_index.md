@@ -65,3 +65,9 @@ kill -HUP $(pidof xodbox)
 ```
 
 Alternatively, restart the process entirely.
+
+A handler that fails to bind is fatal at startup — a listening post that
+cannot listen has nothing to offer — but not across a reload. If the new
+config asks for a port that is already taken, the failure is logged and
+the process stays up on its remaining listeners, so you can correct the
+config and reload again rather than losing the server to a bad edit.
