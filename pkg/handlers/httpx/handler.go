@@ -287,7 +287,14 @@ func (h *Handler) serveHTTP() error {
 	h.httpServer = httpSrv
 	h.mu.Unlock()
 
-	return httpSrv.ListenAndServe()
+	// A deliberate Stop is not a startup failure: ListenAndServe always
+	// reports http.ErrServerClosed once Shutdown has run, and Start's
+	// caller treats a non-nil return as the server having failed to come
+	// up. serveHTTPS makes the same distinction.
+	if err := httpSrv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+		return err
+	}
+	return nil
 }
 
 func (h *Handler) serveHTTPS() error {

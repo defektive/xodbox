@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -99,7 +100,17 @@ type App struct {
 	// reloadMu serialises Reload calls so two concurrent triggers (e.g.
 	// SIGHUP + API PUT) don't race on the handler stop/start cycle.
 	reloadMu sync.Mutex
+
+	// handlerGen identifies the current set of running handlers. Reload and
+	// Shutdown bump it before stopping anything, so a handler goroutine that
+	// returns can tell whether it fell over on its own (still the current
+	// generation — fatal) or simply stopped because we asked it to.
+	handlerGen atomic.Uint64
 }
+
+// exitFn is os.Exit, indirected so tests can observe a fatal handler
+// failure instead of taking the test binary down with it.
+var exitFn = os.Exit
 
 func (x *App) Run() {
 	// The persister writes to the DB off the event loop so a slow/locked SQLite
@@ -110,16 +121,7 @@ func (x *App) Run() {
 		we.start()
 	}
 
-	for _, h := range x.appConfig.Handlers {
-		lg().Debug("Running handler", "handler", h)
-		go func(h types.Handler) {
-			err := h.Start(x, x.eventChan)
-			if err != nil {
-				lg().Error("error starting handler", "err", err, "handler", h)
-				os.Exit(1)
-			}
-		}(h)
-	}
+	x.startHandlers(x.appConfig.Handlers, true)
 
 	// Translate OS signals: SIGINT/SIGTERM → graceful shutdown;
 	// SIGHUP → reload config from disk without full process restart.
@@ -143,11 +145,52 @@ func (x *App) Run() {
 	x.waitForEvents()
 }
 
+// startHandlers runs each handler in its own goroutine and decides what a
+// returning handler means. Start blocks for the life of the listener, so a
+// return is either a failure to come up or the handler winding down after
+// Stop — and the two demand opposite responses. The generation captured
+// here distinguishes them: Reload and Shutdown bump it before stopping, so
+// a goroutine whose generation has moved on was stopped on purpose and its
+// return (http.ErrServerClosed, "use of closed network connection", and
+// friends) is routine.
+//
+// fatal reports whether a genuine failure in this generation should take the
+// process down. It does at boot — a listening post that cannot listen has
+// nothing to offer — but not after a reload, where the old handlers are
+// already gone and exiting would turn a bad config edit into an outage.
+func (x *App) startHandlers(handlers []types.Handler, fatal bool) {
+	gen := x.handlerGen.Load()
+	for _, h := range handlers {
+		lg().Debug("Running handler", "handler", h)
+		go func(h types.Handler) {
+			err := h.Start(x, x.eventChan)
+			if x.handlerGen.Load() != gen {
+				lg().Debug("handler stopped", "handler", h.Name(), "err", err)
+				return
+			}
+			if err == nil {
+				return
+			}
+			if fatal {
+				lg().Error("error starting handler", "err", err, "handler", h)
+				exitFn(1)
+				return
+			}
+			lg().Error("handler start failed after reload", "handler", h.Name(), "err", err)
+		}(h)
+	}
+}
+
 // Shutdown stops every registered handler and unblocks Run.
 // Idempotent — multiple callers see only the first stop fire.
 func (x *App) Shutdown() {
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
+
+	// Bump first: the handler goroutines must see the new generation by the
+	// time Stop unblocks them, or they will read their own shutdown as a
+	// crash.
+	x.handlerGen.Add(1)
 
 	for _, h := range x.appConfig.Handlers {
 		if err := h.Stop(ctx); err != nil {
@@ -196,6 +239,7 @@ func (x *App) Reload() error {
 
 	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 	defer cancel()
+	x.handlerGen.Add(1)
 	for _, h := range x.appConfig.Handlers {
 		if err := h.Stop(ctx); err != nil {
 			lg().Warn("handler stop error during reload", "handler", h.Name(), "err", err)
@@ -228,13 +272,7 @@ func (x *App) Reload() error {
 		we.start()
 	}
 
-	for _, h := range newConfig.Handlers {
-		go func(h types.Handler) {
-			if err := h.Start(x, x.eventChan); err != nil {
-				lg().Error("handler start failed after reload", "handler", h.Name(), "err", err)
-			}
-		}(h)
-	}
+	x.startHandlers(newConfig.Handlers, false)
 
 	lg().Info("config reloaded successfully")
 	return nil
