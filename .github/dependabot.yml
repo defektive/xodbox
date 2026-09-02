@@ -9,3 +9,10 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    groups:
+      # The codeql-action sub-actions (init/analyze/autobuild/upload-sarif) must
+      # all run the same version; bumping them in separate PRs makes each PR fail
+      # with "Loaded a configuration file for version X, but running version Y".
+      codeql-action:
+        patterns:
+          - "github/codeql-action*"
