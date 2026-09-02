@@ -196,12 +196,12 @@ func isBinary(s string) bool {
 func ChatText(e types.InteractionEvent) string {
 	var sb strings.Builder
 	if sh, ok := e.(types.SinkHitProvider); ok {
-		sb.WriteString(fmt.Sprintf("*Sink hit: %s*", sh.SinkSlug()))
+		fmt.Fprintf(&sb, "*Sink hit: %s*", sh.SinkSlug())
 		if desc := sh.SinkDescription(); desc != "" {
-			sb.WriteString(fmt.Sprintf("\n> %s", desc))
+			fmt.Fprintf(&sb, "\n> %s", desc)
 		}
 		if link := sh.SinkLink(); link != "" {
-			sb.WriteString(fmt.Sprintf("\nLink: %s", link))
+			fmt.Fprintf(&sb, "\nLink: %s", link)
 		}
 		sb.WriteString("\n\n")
 	}
@@ -211,9 +211,9 @@ func ChatText(e types.InteractionEvent) string {
 	} else {
 		data = tryPrettyJSON(data)
 	}
-	sb.WriteString(fmt.Sprintf("%s\n```%s\n```", e.Details(), data))
+	fmt.Fprintf(&sb, "%s\n```%s\n```", e.Details(), data)
 	if curl := CurlCommand(e); curl != "" {
-		sb.WriteString(fmt.Sprintf("\nReplay:\n```%s\n```", curl))
+		fmt.Fprintf(&sb, "\nReplay:\n```%s\n```", curl)
 	}
 	return sb.String()
 }
