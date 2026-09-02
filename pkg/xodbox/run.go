@@ -90,7 +90,10 @@ type App struct {
 	// stop is closed once by Shutdown to unblock waitForEvents.
 	stop chan struct{}
 
-	// workerEngine runs periodic background jobs. Nil when no workers are configured.
+	// workerEngine runs periodic background jobs. Nil when no workers are
+	// configured. Reload swaps the pointer, so workerMu guards every read —
+	// the management API can ask for worker status mid-reload.
+	workerMu     sync.RWMutex
 	workerEngine *workerEngine
 
 	// reloadMu serialises Reload calls so two concurrent triggers (e.g.
@@ -103,8 +106,8 @@ func (x *App) Run() {
 	// write never delays notifier delivery.
 	go x.runPersister()
 
-	if x.workerEngine != nil {
-		x.workerEngine.start()
+	if we := x.workers(); we != nil {
+		we.start()
 	}
 
 	for _, h := range x.appConfig.Handlers {
@@ -152,8 +155,8 @@ func (x *App) Shutdown() {
 		}
 	}
 
-	if x.workerEngine != nil {
-		x.workerEngine.stop()
+	if we := x.workers(); we != nil {
+		we.stop()
 	}
 
 	// Close stop at most once so concurrent Shutdown callers don't
@@ -198,9 +201,9 @@ func (x *App) Reload() error {
 			lg().Warn("handler stop error during reload", "handler", h.Name(), "err", err)
 		}
 	}
-	if x.workerEngine != nil {
-		x.workerEngine.stop()
-		x.workerEngine = nil
+	if we := x.workers(); we != nil {
+		we.stop()
+		x.setWorkers(nil)
 	}
 
 	x.appConfig = newConfig
@@ -220,8 +223,9 @@ func (x *App) Reload() error {
 	}
 
 	if len(newConfig.Workers) > 0 {
-		x.workerEngine = newWorkerEngine(newConfig.Workers)
-		x.workerEngine.start()
+		we := newWorkerEngine(newConfig.Workers)
+		x.setWorkers(we)
+		we.start()
 	}
 
 	for _, h := range newConfig.Handlers {
@@ -238,6 +242,39 @@ func (x *App) Reload() error {
 
 func (x *App) RegisterNotificationHandler(n types.Notifier) {
 	x.notificationHandlers = append(x.notificationHandlers, n)
+}
+
+func (x *App) workers() *workerEngine {
+	x.workerMu.RLock()
+	defer x.workerMu.RUnlock()
+	return x.workerEngine
+}
+
+func (x *App) setWorkers(we *workerEngine) {
+	x.workerMu.Lock()
+	defer x.workerMu.Unlock()
+	x.workerEngine = we
+}
+
+// WorkerStatus reports every configured worker and the outcome of its most
+// recent run. Returns an empty slice when no workers are configured.
+func (x *App) WorkerStatus() []types.WorkerStatus {
+	we := x.workers()
+	if we == nil {
+		return []types.WorkerStatus{}
+	}
+	return we.statuses()
+}
+
+// TriggerWorker starts an out-of-schedule run of the named worker, returning
+// once the run is accepted rather than when it completes. Poll WorkerStatus for
+// the outcome.
+func (x *App) TriggerWorker(name string) error {
+	we := x.workers()
+	if we == nil {
+		return types.ErrUnknownWorker
+	}
+	return we.trigger(name)
 }
 
 func (x *App) GetTemplateData() map[string]string {

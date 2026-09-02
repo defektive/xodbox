@@ -127,6 +127,11 @@ func (a *adminAuth) mux() *http.ServeMux {
 	mux.HandleFunc("POST /api/apikeys", a.requireAuth(a.handleCreateAPIKey))
 	mux.HandleFunc("DELETE /api/apikeys/{id}", a.requireAuth(a.handleDeleteAPIKey))
 
+	// Background jobs: status, and manual out-of-schedule runs. Admin-only —
+	// a purge deletes data permanently.
+	mux.HandleFunc("GET /api/workers", a.requireAdmin(a.handleWorkers))
+	mux.HandleFunc("POST /api/workers/{name}/run", a.requireAdmin(a.handleRunWorker))
+
 	// Config management (admin-only; changes are saved to disk and require restart).
 	mux.HandleFunc("GET /api/config", a.requireAdmin(a.handleGetConfig))
 	mux.HandleFunc("PUT /api/config", a.requireAdmin(a.handlePutConfig))

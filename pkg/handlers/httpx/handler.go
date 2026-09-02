@@ -687,6 +687,11 @@ func httpRedirectHandler(w http.ResponseWriter, r *http.Request) {
 	// get rid of this disgusting unencrypted HTTP connection 🤢
 	w.Header().Set("Connection", "close")
 
+	// gosec G710 flags this as an open redirect because r.Host is
+	// attacker-controlled. The destination is the same host the client
+	// itself asked for, only over TLS, so a caller can redirect nobody
+	// but themselves; this is the standard HTTP->HTTPS upgrade.
+	//nolint:gosec // G710: redirects to the client's own Host, over TLS
 	http.Redirect(w, r, toURL, http.StatusMovedPermanently)
 }
 

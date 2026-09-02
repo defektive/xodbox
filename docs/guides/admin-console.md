@@ -197,6 +197,36 @@ Slugs must be 6-64 characters of `[a-zA-Z0-9_-]`. Random slugs are
 | `PUT` | `/api/sinks/{slug}` | Update description |
 | `DELETE` | `/api/sinks/{slug}` | Delete sink (interactions kept) |
 
+## Background jobs
+
+The **Jobs** page (admin only) lists every worker configured under the
+`workers:` key, with its schedule, next fire time, and the outcome of its last
+run — duration and any error. **Run now** starts one immediately instead of
+waiting for its next tick.
+
+Runs happen inside the live server process, so they share its database
+connection rather than competing with it for SQLite's write lock. That matters
+for the [`purge`](../../pkg/workers/purge/) worker, whose `VACUUM` step takes an
+exclusive lock.
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/workers` | List workers and their last-run status |
+| `POST` | `/api/workers/{name}/run` | Start an out-of-schedule run |
+
+```sh
+curl -X POST https://admin:9091/api/workers/purge/run \
+  -H "Authorization: Bearer xdbx_your_key"
+```
+
+The run endpoint returns `202 Accepted` once the run is accepted, not when it
+completes — a purge on a large database can take minutes. Poll `GET
+/api/workers` for the result. It returns `404` for an unknown worker and `409`
+when that worker is already running.
+
+An empty Jobs page means no `workers:` block is configured, so no background
+job will ever run.
+
 ## Login notifications
 
 Enable event emission on every successful admin login:

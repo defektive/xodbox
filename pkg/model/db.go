@@ -12,6 +12,10 @@ import (
 
 var db *gorm.DB
 
+// dbPath records the file the singleton was opened from, so operations that
+// work on the file itself (see DBFileSize) don't have to guess.
+var dbPath string
+
 type DBOptions struct {
 	Reset bool
 	Path  string
@@ -56,6 +60,7 @@ func LoadDBWithOptions(options DBOptions) {
 		}
 
 		var err error
+		dbPath = options.DBPath()
 		db, err = gorm.Open(sqlite.Open(options.DBPath()), &gorm.Config{
 			Logger: newLogger,
 		})
@@ -89,6 +94,15 @@ func DB() *gorm.DB {
 		LoadDBWithOptions(defaultDBOptions)
 	}
 	return db
+}
+
+// DBFilePath returns the path of the SQLite file currently open, falling back
+// to the default path when no database has been loaded yet.
+func DBFilePath() string {
+	if dbPath == "" {
+		return defaultDBPath
+	}
+	return dbPath
 }
 
 var defaultProject = &Project{

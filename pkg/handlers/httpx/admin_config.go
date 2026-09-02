@@ -139,6 +139,7 @@ func buildFieldSchema() (map[string]typeMeta, []fieldMeta) {
 		"purge": {Fields: []fieldMeta{
 			{Key: "schedule", Label: "Schedule", Description: "Cron expression or @every interval", Default: "@daily"},
 			{Key: "max_age_days", Label: "Max age (days)", Description: "Delete interactions older than this many days", Default: "30"},
+			{Key: "vacuum", Label: "Vacuum", Description: "Run VACUUM after a purge to shrink the database file (\"true\"/\"false\")", Default: "true"},
 		}},
 	}
 
