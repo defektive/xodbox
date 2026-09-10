@@ -20,6 +20,7 @@ handlers:
   - handler: HTTPX
 #    payload_dir: payloads/httpx
 #    static_dir: static
+#    static_path: /static/ # URL prefix static_dir is mounted at; use / to serve it from the site root
 #    acme_email: youremail.real.place
 #    acme_accept: false # this should be true. you must accept :D
 #    acme_url: https://acme-staging-v02.api.letsencrypt.org/directory # when ready use real URL https://acme-v02.api.letsencrypt.org/directory

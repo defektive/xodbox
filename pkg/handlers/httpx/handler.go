@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -70,7 +71,17 @@ type Handler struct {
 	// admin console. Injected after construction to avoid import cycles.
 	ConfigOps types.ConfigOps
 
-	StaticDir       string
+	StaticDir string
+	// StaticPath is the URL prefix StaticDir is served under, normalised to a
+	// leading and trailing slash (default "/static/"). "/" serves the static
+	// directory from the site root: requests that resolve to an existing file
+	// are served from disk, anything else falls through to payload processing.
+	StaticPath string
+	// staticFS / staticFileServer are built from StaticDir when the mux is
+	// assembled; they are only consulted for the root-mounted case.
+	staticFS         http.FileSystem
+	staticFileServer http.Handler
+
 	dispatchChannel chan types.InteractionEvent
 	app             types.App
 	mux             *http.ServeMux
@@ -86,6 +97,12 @@ type Handler struct {
 func NewHandler(handlerConfig map[string]string) types.Handler {
 
 	staticDir := handlerConfig["static_dir"]
+	// static_path controls where static_dir is mounted. It defaults to
+	// /static/ and may be set to / to serve the directory from the site root.
+	staticPath := normalizeMountPath(handlerConfig["static_path"])
+	if staticPath == "" {
+		staticPath = "/static/"
+	}
 	payloadDir := handlerConfig["payload_dir"]
 	listener := handlerConfig["listener"]
 	tlsNamesOpt := handlerConfig["tls_names"]
@@ -110,15 +127,7 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	// Admin web UI: mounted under a normalized ui_path prefix (empty =
 	// disabled). Access is restricted to ui_allow_cidrs (checked against the
 	// real TCP peer IP) on top of the auth added in later phases.
-	uiPath := handlerConfig["ui_path"]
-	if uiPath != "" {
-		if !strings.HasPrefix(uiPath, "/") {
-			uiPath = "/" + uiPath
-		}
-		if !strings.HasSuffix(uiPath, "/") {
-			uiPath = uiPath + "/"
-		}
-	}
+	uiPath := normalizeMountPath(handlerConfig["ui_path"])
 	uiCIDRs, badCIDRs := parseCIDRs(handlerConfig["ui_allow_cidrs"])
 	for _, b := range badCIDRs {
 		lg().Warn("ignoring invalid ui_allow_cidrs entry", "entry", b)
@@ -156,6 +165,7 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 		name:               "HTTPX",
 		Listener:           listener,
 		StaticDir:          staticDir,
+		StaticPath:         staticPath,
 		AutoCert:           len(tlsNames) > 0,
 		ACMEEmail:          acmeEmail,
 		ACMEAccept:         acmeAccept,
@@ -217,9 +227,21 @@ func (h *Handler) serverMux() *http.ServeMux {
 					lg().Error("Failed to create static directory", "err", err)
 				}
 			}
-			httpFS := http.FileServer(http.Dir(h.StaticDir))
+			h.staticFS = http.Dir(h.StaticDir)
+			h.staticFileServer = http.FileServer(h.staticFS)
 
-			h.mux.Handle("/static/", http.StripPrefix("/static", h.noIndex(httpFS)))
+			switch {
+			case h.StaticPath == "/":
+				// Root-mounted: "/" belongs to the honeypot catchall, so the
+				// static files are served from inside it (see below) rather
+				// than from their own mux entry.
+				lg().Debug("serving static directory from site root", "static_dir", h.StaticDir)
+			case h.staticPathConflicts():
+				lg().Error("static_path collides with another mount point; static files not served",
+					"static_path", h.StaticPath)
+			default:
+				h.mux.Handle(h.StaticPath, http.StripPrefix(strings.TrimSuffix(h.StaticPath, "/"), h.noIndex(h.staticFileServer)))
+			}
 		}
 
 		if h.APIPath != "" {
@@ -258,6 +280,13 @@ func (h *Handler) serverMux() *http.ServeMux {
 			parseUploads(e, h.MaxUploadSize)
 			parseRawBody(e, h.MaxUploadSize)
 			e.Dispatch(h.dispatchChannel)
+
+			// Root-mounted static files win over payloads, but only when the
+			// request resolves to an actual file; everything else falls
+			// through to the payload chain below.
+			if h.serveRootStatic(w, r) {
+				return
+			}
 
 			for _, payload := range SortedPayloads() {
 				if payload.ShouldProcess(r) {
@@ -529,6 +558,72 @@ func (h *Handler) noIndex(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// normalizeMountPath returns p with a leading and trailing slash so it can be
+// used as an http.ServeMux prefix pattern. An empty path stays empty.
+func normalizeMountPath(p string) string {
+	if p == "" {
+		return ""
+	}
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	if !strings.HasSuffix(p, "/") {
+		p += "/"
+	}
+	return p
+}
+
+// staticPathConflicts reports whether StaticPath would be registered on a mux
+// pattern already claimed by another mount point. http.ServeMux panics on a
+// duplicate pattern, so a colliding static_path is skipped with an error
+// instead of taking the process down at start-up.
+func (h *Handler) staticPathConflicts() bool {
+	taken := []string{EmbeddedMountPoint, normalizeMountPath(h.APIPath)}
+	if h.AdminListener == "" {
+		taken = append(taken, h.UIPath)
+	}
+	for _, p := range taken {
+		if p != "" && p == h.StaticPath {
+			return true
+		}
+	}
+	return false
+}
+
+// serveRootStatic serves r from StaticDir when static files are mounted at the
+// site root and the request resolves to a regular file. It reports whether the
+// response was written; false means the caller should carry on with payload
+// processing. Directories (and therefore index listings) never match, so an
+// empty static dir leaves the honeypot behaving exactly as before.
+func (h *Handler) serveRootStatic(w http.ResponseWriter, r *http.Request) bool {
+	if h.staticFileServer == nil || h.StaticPath != "/" {
+		return false
+	}
+
+	// A directory-style request never resolves to a file; let the payloads
+	// answer it instead of emitting a redirect or an index listing.
+	if strings.HasSuffix(r.URL.Path, "/") {
+		return false
+	}
+	name := path.Clean("/" + r.URL.Path)
+
+	// http.Dir.Open rejects paths that escape the directory, so a cleaned
+	// request path is safe to hand it directly.
+	f, err := h.staticFS.Open(name)
+	if err != nil {
+		return false
+	}
+	defer f.Close()
+
+	fi, err := f.Stat()
+	if err != nil || fi.IsDir() {
+		return false
+	}
+
+	h.staticFileServer.ServeHTTP(w, r)
+	return true
 }
 
 var watcher *fsnotify.Watcher
