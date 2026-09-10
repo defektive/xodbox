@@ -64,7 +64,8 @@ func buildFieldSchema() (map[string]typeMeta, []fieldMeta) {
 	fields := map[string]typeMeta{
 		"HTTPX": {Fields: []fieldMeta{
 			{Key: "listener", Label: "Listener", Description: "Bind address (e.g. :80 or 0.0.0.0:8080)", Required: true, Group: "General"},
-			{Key: "static_dir", Label: "Static directory", Description: "Directory for static files served at /static/", Group: "General"},
+			{Key: "static_dir", Label: "Static directory", Description: "Directory for static files served under static_path", Group: "General"},
+			{Key: "static_path", Label: "Static path", Description: "URL prefix static_dir is served under; / serves it from the site root", Default: "/static/", Group: "General"},
 			{Key: "payload_dir", Label: "Payload directory", Description: "Directory of payload template files", Group: "General"},
 			{Key: "public_url", Label: "Public URL", Description: "Externally-reachable base URL for copy-link feature", Group: "General"},
 			{Key: "max_upload_size", Label: "Max upload size", Description: "Per-file size cap in bytes (0 = no limit)", Group: "General"},

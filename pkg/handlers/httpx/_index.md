@@ -58,6 +58,8 @@ single-quoted); `Content-Length` is dropped so curl recomputes it.
   favour of the admin console's user accounts and API keys (see below);
   setting it logs a deprecation warning at start-up.
 - Embedded static assets ship at `/ixdbxi/`.
+- `static_dir` is served under `static_path` (default `/static/`), which can
+  be moved anywhere — including the site root.
 - An embedded **admin web UI** (React SPA + JSON API) ships in the binary
   and is served under `ui_path` — or on a separate `admin_listener` bind —
   behind session/API-key auth and a CIDR allowlist (see below).
@@ -70,7 +72,8 @@ single-quoted); `Content-Length` is dropped so curl recomputes it.
 |----------------|----------|---------|----------------------------------------------------------------------------------------|
 | `handler`      | yes      | —       | Must be `HTTPX`.                                                                       |
 | `listener`     | yes      | —       | Bind address, e.g. `:80` or `:8080`.                                                   |
-| `static_dir`   | no       | —       | Directory served at `/static/`. Created on first start with mode `0750` if missing.    |
+| `static_dir`   | no       | —       | Directory served under `static_path`. Created on first start with mode `0750` if missing. |
+| `static_path`  | no       | `/static/` | URL prefix `static_dir` is mounted at. Normalised to leading/trailing slash. Set to `/` to serve the static directory from the site root — see **Static files at the root** below. |
 | `payload_dir`  | no       | —       | Directory of `*.md` payload definitions. Watched at runtime; updates are upserted.     |
 | `api_path`     | no       | —       | URL path prefix to mount the JSON API on, e.g. `/api`. Normalised to leading/trailing slash. |
 | `api_token`    | no       | —       | **Deprecated.** Bearer-style token for the legacy `/private/*` API. Prefer admin users + API keys. Setting it warns at start-up. |
@@ -81,6 +84,30 @@ single-quoted); `Content-Length` is dropped so curl recomputes it.
 | `public_url`     | no     | —       | Externally-reachable base URL of the honeypot (e.g. `https://oob.example.com`). The admin UI's **Copy HTTP link** control on a sink builds `<public_url>/<slug>` from it. Empty falls back to the UI's own origin — correct when the UI is served on the honeypot listener, wrong on an isolated `admin_listener`. |
 | `notify_logins`  | no     | `false` | When `"true"`, a successful admin-UI login emits an `InteractionEvent` (recorded in the Events log and delivered to notifiers whose filter matches `^HTTPX Login`). See **Login notifications** below. |
 | `max_upload_size` | no    | `0`     | Per-file size cap for multipart/form-data uploads, in bytes. `0` means no limit. Files exceeding the cap are rejected with `413`. |
+
+### Static files at the root
+
+`static_path: /` serves `static_dir` from the site root, so
+`static_dir/robots.txt` answers `GET /robots.txt` instead of
+`GET /static/robots.txt`. Useful when the listener has to look like an
+ordinary web site rather than a tool with an obvious `/static/` prefix.
+
+The root is also where the payload catchall lives, so the two share it by
+this rule: **a request that resolves to an existing file under `static_dir`
+is served from disk; everything else falls through to payload processing**
+unchanged. Directories never match — there are no index listings, and a
+request for a directory path falls through to the payloads as usual. Every
+request still emits an `InteractionEvent` before the file is served, so
+static hits are recorded and notified like any other interaction.
+
+Note that a static file shadows any payload matching the same path. Payloads
+that add response headers to everything (the bundled **Default Header**
+payload, for instance) do not apply to root static responses.
+
+Other mount points keep priority over `static_path`: the embedded assets at
+`/ixdbxi/`, `api_path`, and `ui_path` are matched first by the mux. Pointing
+`static_path` directly at one of those prefixes is a conflict — it is logged
+as an error at start-up and the static directory is not served.
 
 ### OIDC / SSO
 
