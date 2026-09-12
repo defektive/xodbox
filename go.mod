@@ -17,7 +17,7 @@ require (
 	github.com/gin-gonic/gin v1.12.0
 	github.com/glebarez/sqlite v1.11.0
 	github.com/gliderlabs/ssh v0.3.8
-	github.com/go-jose/go-jose/v4 v4.1.4
+	github.com/go-jose/go-jose/v4 v4.1.5
 	github.com/libdns/namecheap v1.0.0
 	github.com/libdns/route53 v1.6.2
 	github.com/miekg/dns v1.1.73
