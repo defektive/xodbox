@@ -632,7 +632,7 @@ func (s *staticFallthrough) Write(b []byte) (int, error) {
 // reset drops the headers the file server added before it missed, so the
 // payload chain starts from the response it would have seen.
 func (s *staticFallthrough) reset() {
-	hdr := s.ResponseWriter.Header()
+	hdr := s.Header()
 	for k := range hdr {
 		if _, ok := s.preset[k]; !ok {
 			delete(hdr, k)
