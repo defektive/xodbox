@@ -166,8 +166,9 @@ func TestServerMuxStaticPathRoot(t *testing.T) {
 		t.Error("root static request should still emit an InteractionEvent")
 	}
 
-	// Requests that do not resolve to a file fall through to payloads, and
-	// directories never serve an index listing.
+	// Requests that do not resolve to a file fall through to payloads: no
+	// index listings, no 404 from the file server, and none of the file
+	// server's headers left behind on the response the payloads answer with.
 	for _, p := range []string{"/nope.txt", "/sub/", "/sub", "/"} {
 		req := httptest.NewRequest(http.MethodGet, p, nil)
 		req.RemoteAddr = "127.0.0.1:1"
@@ -179,6 +180,18 @@ func TestServerMuxStaticPathRoot(t *testing.T) {
 		}
 		if strings.Contains(rr.Body.String(), "hello.txt") {
 			t.Errorf("%s leaked a directory listing: %q", p, rr.Body.String())
+		}
+		if strings.Contains(rr.Body.String(), "404 page not found") {
+			t.Errorf("%s leaked the file server's 404 body", p)
+		}
+		if rr.Code == http.StatusNotFound || rr.Code == http.StatusMovedPermanently {
+			t.Errorf("%s status = %d, want the payload chain's response", p, rr.Code)
+		}
+		if loc := rr.Header().Get("Location"); loc != "" {
+			t.Errorf("%s leaked a redirect to %q", p, loc)
+		}
+		if h := rr.Header().Get("X-Content-Type-Options"); h != "" {
+			t.Errorf("%s left the file server's X-Content-Type-Options header behind", p)
 		}
 	}
 }
@@ -202,12 +215,17 @@ func TestServeRootStaticRejectsTraversal(t *testing.T) {
 	h.dispatchChannel = make(chan types.InteractionEvent, 16)
 	_ = h.serverMux()
 
-	req := httptest.NewRequest(http.MethodGet, "/x", nil)
-	req.URL.Path = "/../secret.txt"
-	rr := httptest.NewRecorder()
+	for _, p := range []string{"/../secret.txt", "/..%2fsecret.txt", "/sub/../../secret.txt"} {
+		req := httptest.NewRequest(http.MethodGet, "/x", nil)
+		req.URL.Path = p
+		rr := httptest.NewRecorder()
 
-	if h.serveRootStatic(rr, req) {
-		t.Fatalf("traversal outside static_dir should not be served: %q", rr.Body.String())
+		if h.serveRootStatic(rr, req) {
+			t.Errorf("traversal outside static_dir should not be served: %s -> %q", p, rr.Body.String())
+		}
+		if strings.Contains(rr.Body.String(), "secret") {
+			t.Errorf("%s leaked content outside static_dir: %q", p, rr.Body.String())
+		}
 	}
 }
 
