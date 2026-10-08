@@ -70,7 +70,17 @@ type Handler struct {
 	// admin console. Injected after construction to avoid import cycles.
 	ConfigOps types.ConfigOps
 
-	StaticDir       string
+	StaticDir string
+	// StaticPath is the URL prefix StaticDir is served under, normalised to a
+	// leading and trailing slash (default "/static/"). "/" serves the static
+	// directory from the site root: requests that resolve to an existing file
+	// are served from disk, anything else falls through to payload processing.
+	StaticPath string
+	// staticFileServer is built from StaticDir when the mux is assembled. It
+	// is kept on the handler so the root-mounted case can consult it from
+	// inside the catchall.
+	staticFileServer http.Handler
+
 	dispatchChannel chan types.InteractionEvent
 	app             types.App
 	mux             *http.ServeMux
@@ -86,6 +96,12 @@ type Handler struct {
 func NewHandler(handlerConfig map[string]string) types.Handler {
 
 	staticDir := handlerConfig["static_dir"]
+	// static_path controls where static_dir is mounted. It defaults to
+	// /static/ and may be set to / to serve the directory from the site root.
+	staticPath := normalizeMountPath(handlerConfig["static_path"])
+	if staticPath == "" {
+		staticPath = "/static/"
+	}
 	payloadDir := handlerConfig["payload_dir"]
 	listener := handlerConfig["listener"]
 	tlsNamesOpt := handlerConfig["tls_names"]
@@ -110,15 +126,7 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 	// Admin web UI: mounted under a normalized ui_path prefix (empty =
 	// disabled). Access is restricted to ui_allow_cidrs (checked against the
 	// real TCP peer IP) on top of the auth added in later phases.
-	uiPath := handlerConfig["ui_path"]
-	if uiPath != "" {
-		if !strings.HasPrefix(uiPath, "/") {
-			uiPath = "/" + uiPath
-		}
-		if !strings.HasSuffix(uiPath, "/") {
-			uiPath = uiPath + "/"
-		}
-	}
+	uiPath := normalizeMountPath(handlerConfig["ui_path"])
 	uiCIDRs, badCIDRs := parseCIDRs(handlerConfig["ui_allow_cidrs"])
 	for _, b := range badCIDRs {
 		lg().Warn("ignoring invalid ui_allow_cidrs entry", "entry", b)
@@ -156,6 +164,7 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 		name:               "HTTPX",
 		Listener:           listener,
 		StaticDir:          staticDir,
+		StaticPath:         staticPath,
 		AutoCert:           len(tlsNames) > 0,
 		ACMEEmail:          acmeEmail,
 		ACMEAccept:         acmeAccept,
@@ -217,9 +226,20 @@ func (h *Handler) serverMux() *http.ServeMux {
 					lg().Error("Failed to create static directory", "err", err)
 				}
 			}
-			httpFS := http.FileServer(http.Dir(h.StaticDir))
+			h.staticFileServer = http.FileServer(http.Dir(h.StaticDir))
 
-			h.mux.Handle("/static/", http.StripPrefix("/static", h.noIndex(httpFS)))
+			switch {
+			case h.StaticPath == "/":
+				// Root-mounted: "/" belongs to the honeypot catchall, so the
+				// static files are served from inside it (see below) rather
+				// than from their own mux entry.
+				lg().Debug("serving static directory from site root", "static_dir", h.StaticDir)
+			case h.staticPathConflicts():
+				lg().Error("static_path collides with another mount point; static files not served",
+					"static_path", h.StaticPath)
+			default:
+				h.mux.Handle(h.StaticPath, http.StripPrefix(strings.TrimSuffix(h.StaticPath, "/"), h.noIndex(h.staticFileServer)))
+			}
 		}
 
 		if h.APIPath != "" {
@@ -258,6 +278,13 @@ func (h *Handler) serverMux() *http.ServeMux {
 			parseUploads(e, h.MaxUploadSize)
 			parseRawBody(e, h.MaxUploadSize)
 			e.Dispatch(h.dispatchChannel)
+
+			// Root-mounted static files win over payloads, but only when the
+			// request resolves to an actual file; everything else falls
+			// through to the payload chain below.
+			if h.serveRootStatic(w, r) {
+				return
+			}
 
 			for _, payload := range SortedPayloads() {
 				if payload.ShouldProcess(r) {
@@ -529,6 +556,118 @@ func (h *Handler) noIndex(next http.Handler) http.Handler {
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+// normalizeMountPath returns p with a leading and trailing slash so it can be
+// used as an http.ServeMux prefix pattern. An empty path stays empty.
+func normalizeMountPath(p string) string {
+	if p == "" {
+		return ""
+	}
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	if !strings.HasSuffix(p, "/") {
+		p += "/"
+	}
+	return p
+}
+
+// staticPathConflicts reports whether StaticPath would be registered on a mux
+// pattern already claimed by another mount point. http.ServeMux panics on a
+// duplicate pattern, so a colliding static_path is skipped with an error
+// instead of taking the process down at start-up.
+func (h *Handler) staticPathConflicts() bool {
+	taken := []string{EmbeddedMountPoint, normalizeMountPath(h.APIPath)}
+	if h.AdminListener == "" {
+		taken = append(taken, h.UIPath)
+	}
+	for _, p := range taken {
+		if p != "" && p == h.StaticPath {
+			return true
+		}
+	}
+	return false
+}
+
+// staticFallthrough wraps the real ResponseWriter while the static file
+// server gets first refusal on a root-mounted request. The two responses that
+// mean "this is not a static file" — 404 for a missing one, and the 301
+// http.ServeFile emits to canonicalise a directory or an explicit
+// /index.html — are swallowed so the request can fall through to payload
+// processing against an untouched response.
+type staticFallthrough struct {
+	http.ResponseWriter
+	preset map[string]struct{} // header keys already set before the file server ran
+	missed bool
+	wrote  bool
+}
+
+func newStaticFallthrough(w http.ResponseWriter) *staticFallthrough {
+	preset := make(map[string]struct{}, len(w.Header()))
+	for k := range w.Header() {
+		preset[k] = struct{}{}
+	}
+	return &staticFallthrough{ResponseWriter: w, preset: preset}
+}
+
+func (s *staticFallthrough) WriteHeader(code int) {
+	if !s.wrote && (code == http.StatusNotFound || code == http.StatusMovedPermanently) {
+		s.missed = true
+		return
+	}
+	s.wrote = true
+	s.ResponseWriter.WriteHeader(code)
+}
+
+func (s *staticFallthrough) Write(b []byte) (int, error) {
+	if s.missed {
+		// Swallow the file server's error body; a payload answers instead.
+		return len(b), nil
+	}
+	s.wrote = true
+	return s.ResponseWriter.Write(b)
+}
+
+// reset drops the headers the file server added before it missed, so the
+// payload chain starts from the response it would have seen.
+func (s *staticFallthrough) reset() {
+	hdr := s.Header()
+	for k := range hdr {
+		if _, ok := s.preset[k]; !ok {
+			delete(hdr, k)
+		}
+	}
+}
+
+// serveRootStatic serves r from StaticDir when static files are mounted at the
+// site root and the request resolves to a regular file. It reports whether the
+// response was written; false means the caller should carry on with payload
+// processing. Directories (and therefore index listings) never match, so an
+// empty static dir leaves the honeypot behaving exactly as before.
+//
+// The lookup is left to http.FileServer rather than resolving the request
+// path against StaticDir here: net/http already cleans the path and refuses
+// to escape the directory, and keeping the request path out of any filesystem
+// expression of ours means there is no traversal surface to get wrong.
+func (h *Handler) serveRootStatic(w http.ResponseWriter, r *http.Request) bool {
+	if h.staticFileServer == nil || h.StaticPath != "/" {
+		return false
+	}
+
+	// A directory-style request is never a static hit: no index listings, and
+	// "/" itself stays the honeypot's.
+	if strings.HasSuffix(r.URL.Path, "/") {
+		return false
+	}
+
+	sw := newStaticFallthrough(w)
+	h.staticFileServer.ServeHTTP(sw, r)
+	if sw.missed {
+		sw.reset()
+		return false
+	}
+	return true
 }
 
 var watcher *fsnotify.Watcher
