@@ -96,7 +96,8 @@ The root is also where the payload catchall lives, so the two share it by
 this rule: **a request that resolves to an existing file under `static_dir`
 is served from disk; everything else falls through to payload processing**
 unchanged. Directories never match — there are no index listings, and a
-request for a directory path falls through to the payloads as usual. Every
+request for a directory path (or for an explicit `index.html`) falls through
+to the payloads as usual, so `/` keeps answering with your payloads. Every
 request still emits an `InteractionEvent` before the file is served, so
 static hits are recorded and notified like any other interaction.
 

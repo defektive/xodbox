@@ -10,7 +10,6 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -77,9 +76,9 @@ type Handler struct {
 	// directory from the site root: requests that resolve to an existing file
 	// are served from disk, anything else falls through to payload processing.
 	StaticPath string
-	// staticFS / staticFileServer are built from StaticDir when the mux is
-	// assembled; they are only consulted for the root-mounted case.
-	staticFS         http.FileSystem
+	// staticFileServer is built from StaticDir when the mux is assembled. It
+	// is kept on the handler so the root-mounted case can consult it from
+	// inside the catchall.
 	staticFileServer http.Handler
 
 	dispatchChannel chan types.InteractionEvent
@@ -227,8 +226,7 @@ func (h *Handler) serverMux() *http.ServeMux {
 					lg().Error("Failed to create static directory", "err", err)
 				}
 			}
-			h.staticFS = http.Dir(h.StaticDir)
-			h.staticFileServer = http.FileServer(h.staticFS)
+			h.staticFileServer = http.FileServer(http.Dir(h.StaticDir))
 
 			switch {
 			case h.StaticPath == "/":
@@ -592,37 +590,83 @@ func (h *Handler) staticPathConflicts() bool {
 	return false
 }
 
+// staticFallthrough wraps the real ResponseWriter while the static file
+// server gets first refusal on a root-mounted request. The two responses that
+// mean "this is not a static file" — 404 for a missing one, and the 301
+// http.ServeFile emits to canonicalise a directory or an explicit
+// /index.html — are swallowed so the request can fall through to payload
+// processing against an untouched response.
+type staticFallthrough struct {
+	http.ResponseWriter
+	preset map[string]struct{} // header keys already set before the file server ran
+	missed bool
+	wrote  bool
+}
+
+func newStaticFallthrough(w http.ResponseWriter) *staticFallthrough {
+	preset := make(map[string]struct{}, len(w.Header()))
+	for k := range w.Header() {
+		preset[k] = struct{}{}
+	}
+	return &staticFallthrough{ResponseWriter: w, preset: preset}
+}
+
+func (s *staticFallthrough) WriteHeader(code int) {
+	if !s.wrote && (code == http.StatusNotFound || code == http.StatusMovedPermanently) {
+		s.missed = true
+		return
+	}
+	s.wrote = true
+	s.ResponseWriter.WriteHeader(code)
+}
+
+func (s *staticFallthrough) Write(b []byte) (int, error) {
+	if s.missed {
+		// Swallow the file server's error body; a payload answers instead.
+		return len(b), nil
+	}
+	s.wrote = true
+	return s.ResponseWriter.Write(b)
+}
+
+// reset drops the headers the file server added before it missed, so the
+// payload chain starts from the response it would have seen.
+func (s *staticFallthrough) reset() {
+	hdr := s.ResponseWriter.Header()
+	for k := range hdr {
+		if _, ok := s.preset[k]; !ok {
+			delete(hdr, k)
+		}
+	}
+}
+
 // serveRootStatic serves r from StaticDir when static files are mounted at the
 // site root and the request resolves to a regular file. It reports whether the
 // response was written; false means the caller should carry on with payload
 // processing. Directories (and therefore index listings) never match, so an
 // empty static dir leaves the honeypot behaving exactly as before.
+//
+// The lookup is left to http.FileServer rather than resolving the request
+// path against StaticDir here: net/http already cleans the path and refuses
+// to escape the directory, and keeping the request path out of any filesystem
+// expression of ours means there is no traversal surface to get wrong.
 func (h *Handler) serveRootStatic(w http.ResponseWriter, r *http.Request) bool {
 	if h.staticFileServer == nil || h.StaticPath != "/" {
 		return false
 	}
 
-	// A directory-style request never resolves to a file; let the payloads
-	// answer it instead of emitting a redirect or an index listing.
+	// A directory-style request is never a static hit: no index listings, and
+	// "/" itself stays the honeypot's.
 	if strings.HasSuffix(r.URL.Path, "/") {
 		return false
 	}
-	name := path.Clean("/" + r.URL.Path)
 
-	// http.Dir.Open rejects paths that escape the directory, so a cleaned
-	// request path is safe to hand it directly.
-	f, err := h.staticFS.Open(name)
-	if err != nil {
+	sw := newStaticFallthrough(w)
+	h.staticFileServer.ServeHTTP(sw, r)
+	if sw.missed {
+		sw.reset()
 		return false
 	}
-	defer f.Close()
-
-	fi, err := f.Stat()
-	if err != nil || fi.IsDir() {
-		return false
-	}
-
-	h.staticFileServer.ServeHTTP(w, r)
 	return true
 }
 
