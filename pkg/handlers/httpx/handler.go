@@ -71,6 +71,7 @@ type Handler struct {
 	ConfigOps types.ConfigOps
 
 	StaticDir       string
+	RootDir         string
 	dispatchChannel chan types.InteractionEvent
 	app             types.App
 	mux             *http.ServeMux
@@ -86,6 +87,7 @@ type Handler struct {
 func NewHandler(handlerConfig map[string]string) types.Handler {
 
 	staticDir := handlerConfig["static_dir"]
+	rootDir := handlerConfig["root_dir"]
 	payloadDir := handlerConfig["payload_dir"]
 	listener := handlerConfig["listener"]
 	tlsNamesOpt := handlerConfig["tls_names"]
@@ -156,6 +158,7 @@ func NewHandler(handlerConfig map[string]string) types.Handler {
 		name:               "HTTPX",
 		Listener:           listener,
 		StaticDir:          staticDir,
+		RootDir:            rootDir,
 		AutoCert:           len(tlsNames) > 0,
 		ACMEEmail:          acmeEmail,
 		ACMEAccept:         acmeAccept,
@@ -248,11 +251,38 @@ func (h *Handler) serverMux() *http.ServeMux {
 		}
 		h.mux.Handle(EmbeddedMountPoint, http.StripPrefix(EmbeddedMountPoint[:len(EmbeddedMountPoint)-1], h.noIndex(http.FileServer(http.FS(subFs)))))
 
+		// Set up root directory file serving if configured
+		var rootFileServer http.Handler
+		if h.RootDir != "" {
+			if !fileutil.DirExists(h.RootDir) {
+				if err := os.MkdirAll(h.RootDir, 0750); err != nil {
+					lg().Error("Failed to create root directory", "err", err)
+				}
+			}
+			rootFileServer = h.noIndex(http.FileServer(http.Dir(h.RootDir)))
+		}
+
 		h.mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 			loadStart := time.Now()
 			defer func() {
 				lg().Debug("http response completed", "timeTaken", fmt.Sprintf("%dµs", time.Since(loadStart).Microseconds()))
 			}()
+
+			// Check for files in root directory first if RootDir is configured
+			if rootFileServer != nil {
+				// Check if the requested path (excluding leading slash) exists in root directory
+				requestPath := strings.TrimPrefix(r.URL.Path, "/")
+				if requestPath != "" {
+					fullPath := filepath.Join(h.RootDir, requestPath)
+					fileInfo, err := os.Stat(fullPath)
+					if err == nil && fileInfo.Mode().IsRegular() {
+						// File exists, serve it
+						rootFileServer.ServeHTTP(w, r)
+						return
+					}
+				}
+			}
+
 			e := NewEvent(r)
 			e.botExemptPrivate = h.BotExemptPrivate
 			parseUploads(e, h.MaxUploadSize)
