@@ -4,6 +4,25 @@ import (
 	"gorm.io/gorm"
 )
 
+// idChunkSize caps how many IDs are bound into a single IN (...) clause.
+// SQLite rejects statements with more than 32766 parameters ("too many SQL
+// variables"), and a purge of a busy deployment easily matches more rows than
+// that, so every ID list is processed in chunks well under the limit.
+const idChunkSize = 500
+
+// chunkIDs splits ids into consecutive slices of at most idChunkSize.
+func chunkIDs(ids []uint) [][]uint {
+	var chunks [][]uint
+	for len(ids) > idChunkSize {
+		chunks = append(chunks, ids[:idChunkSize])
+		ids = ids[idChunkSize:]
+	}
+	if len(ids) > 0 {
+		chunks = append(chunks, ids)
+	}
+	return chunks
+}
+
 // deleteInteractionsByID permanently removes the given interactions and every
 // uploaded file attached to them.
 //
@@ -23,22 +42,24 @@ func deleteInteractionsByID(ids []uint) (int64, error) {
 
 	var deleted int64
 	err := DB().Transaction(func(tx *gorm.DB) error {
-		var fileIDs []uint
-		if err := tx.Model(&UploadedFile{}).
-			Where("interaction_id IN ?", ids).
-			Pluck("id", &fileIDs).Error; err != nil {
-			return err
-		}
+		for _, chunk := range chunkIDs(ids) {
+			var fileIDs []uint
+			if err := tx.Model(&UploadedFile{}).
+				Where("interaction_id IN ?", chunk).
+				Pluck("id", &fileIDs).Error; err != nil {
+				return err
+			}
 
-		if err := deleteFilesByID(tx, fileIDs); err != nil {
-			return err
-		}
+			if err := deleteFilesByID(tx, fileIDs); err != nil {
+				return err
+			}
 
-		res := tx.Unscoped().Where("id IN ?", ids).Delete(&Interaction{})
-		if res.Error != nil {
-			return res.Error
+			res := tx.Unscoped().Where("id IN ?", chunk).Delete(&Interaction{})
+			if res.Error != nil {
+				return res.Error
+			}
+			deleted += res.RowsAffected
 		}
-		deleted = res.RowsAffected
 		return nil
 	})
 
@@ -47,14 +68,21 @@ func deleteInteractionsByID(ids []uint) (int64, error) {
 
 // deleteFilesByID hard-deletes uploaded files, first making sure any
 // deduplicated BLOB they hold survives for the rows that still reference it.
+//
+// Chunks are preserved and deleted one at a time, so each chunk's survivor
+// check sees the earlier chunks already gone. A blob may be promoted into a
+// row from a later chunk; that chunk then promotes it again, so the bytes
+// always end up on a row that actually survives.
 func deleteFilesByID(tx *gorm.DB, fileIDs []uint) error {
-	if len(fileIDs) == 0 {
-		return nil
+	for _, chunk := range chunkIDs(fileIDs) {
+		if err := preserveDedupedFileData(tx, chunk); err != nil {
+			return err
+		}
+		if err := tx.Unscoped().Where("id IN ?", chunk).Delete(&UploadedFile{}).Error; err != nil {
+			return err
+		}
 	}
-	if err := preserveDedupedFileData(tx, fileIDs); err != nil {
-		return err
-	}
-	return tx.Unscoped().Where("id IN ?", fileIDs).Delete(&UploadedFile{}).Error
+	return nil
 }
 
 // preserveDedupedFileData keeps deduplicated uploads downloadable across a
@@ -127,21 +155,14 @@ func preserveDedupedFileData(tx *gorm.DB, doomed []uint) error {
 // Returns the number of interaction rows and file rows removed.
 func PurgeSoftDeleted() (interactions int64, files int64, err error) {
 	err = DB().Transaction(func(tx *gorm.DB) error {
-		var ids []uint
-		if err := tx.Unscoped().Model(&Interaction{}).
-			Where("deleted_at IS NOT NULL").
-			Pluck("id", &ids).Error; err != nil {
-			return err
-		}
-
 		// Every file belonging to a soft-deleted interaction goes too, along
-		// with files soft-deleted on their own.
+		// with files soft-deleted on their own. The subquery keeps the
+		// interaction IDs out of bound parameters entirely.
 		var fileIDs []uint
-		q := tx.Unscoped().Model(&UploadedFile{}).Where("deleted_at IS NOT NULL")
-		if len(ids) > 0 {
-			q = q.Or("interaction_id IN ?", ids)
-		}
-		if err := q.Pluck("id", &fileIDs).Error; err != nil {
+		if err := tx.Unscoped().Model(&UploadedFile{}).
+			Where("deleted_at IS NOT NULL").
+			Or("interaction_id IN (SELECT id FROM interactions WHERE deleted_at IS NOT NULL)").
+			Pluck("id", &fileIDs).Error; err != nil {
 			return err
 		}
 
@@ -150,13 +171,11 @@ func PurgeSoftDeleted() (interactions int64, files int64, err error) {
 		}
 		files = int64(len(fileIDs))
 
-		if len(ids) > 0 {
-			res := tx.Unscoped().Where("id IN ?", ids).Delete(&Interaction{})
-			if res.Error != nil {
-				return res.Error
-			}
-			interactions = res.RowsAffected
+		res := tx.Unscoped().Where("deleted_at IS NOT NULL").Delete(&Interaction{})
+		if res.Error != nil {
+			return res.Error
 		}
+		interactions = res.RowsAffected
 		return nil
 	})
 

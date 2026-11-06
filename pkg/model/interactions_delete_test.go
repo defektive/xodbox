@@ -2,6 +2,7 @@ package model
 
 import (
 	"os"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -325,5 +326,63 @@ func TestDBFilePathTracksOpenDatabase(t *testing.T) {
 	}
 	if _, err := os.Stat(p); err != nil {
 		t.Errorf("DBFilePath() = %q, which does not exist: %v", p, err)
+	}
+}
+
+// TestPurgeOlderThanBeyondSQLiteVariableLimit is the regression test for the
+// purge worker failing with "too many SQL variables": every matched ID was
+// bound into a single IN (...) list, which SQLite caps at 32766 parameters.
+func TestPurgeOlderThanBeyondSQLiteVariableLimit(t *testing.T) {
+	resetDB(t)
+
+	const total = 33000
+	rows := make([]Interaction, total)
+	for i := range rows {
+		rows[i] = Interaction{Handler: "httpx", RequestTarget: "/bulk"}
+	}
+	if err := DB().CreateInBatches(rows, 1000).Error; err != nil {
+		t.Fatalf("seed interactions: %v", err)
+	}
+	when := time.Now().AddDate(0, 0, -90)
+	if err := DB().Exec("UPDATE interactions SET created_at = ?", when).Error; err != nil {
+		t.Fatalf("backdate interactions: %v", err)
+	}
+	// Enough files to span several delete chunks; one per interaction would
+	// only slow the test down with per-file dedup checks.
+	files := make([]UploadedFile, 1200)
+	for i := range files {
+		files[i] = UploadedFile{InteractionID: rows[i].ID, FileName: "f.bin", ContentHash: "bulk-" + strconv.Itoa(i), Data: []byte("x")}
+	}
+	if err := DB().CreateInBatches(files, 1000).Error; err != nil {
+		t.Fatalf("seed files: %v", err)
+	}
+
+	n, err := PurgeInteractionsOlderThan(30)
+	if err != nil {
+		t.Fatalf("PurgeInteractionsOlderThan: %v", err)
+	}
+	if n != total {
+		t.Errorf("deleted %d interactions, want %d", n, total)
+	}
+	if got := rawCount(t, "select count(*) from interactions"); got != 0 {
+		t.Errorf("interaction rows = %d, want 0", got)
+	}
+	if got := rawCount(t, "select count(*) from uploaded_files"); got != 0 {
+		t.Errorf("uploaded_files rows = %d, want 0", got)
+	}
+
+	// The soft-delete sweep binds IDs the same way.
+	if err := DB().CreateInBatches(make([]Interaction, total), 1000).Error; err != nil {
+		t.Fatalf("seed interactions: %v", err)
+	}
+	if err := DB().Exec("UPDATE interactions SET deleted_at = ?", time.Now()).Error; err != nil {
+		t.Fatalf("soft-delete interactions: %v", err)
+	}
+	ixN, _, err := PurgeSoftDeleted()
+	if err != nil {
+		t.Fatalf("PurgeSoftDeleted: %v", err)
+	}
+	if ixN != total {
+		t.Errorf("swept %d interactions, want %d", ixN, total)
 	}
 }
