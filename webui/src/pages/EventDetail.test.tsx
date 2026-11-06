@@ -55,4 +55,29 @@ describe("EventDetail", () => {
       ),
     );
   });
+
+  it("links to the raw body download", async () => {
+    getMock.mockResolvedValue({
+      id: 7,
+      created_at: new Date().toISOString(),
+      remote_addr: "1.2.3.4",
+      remote_port: "5000",
+      handler: "tcp",
+      request_type: "",
+      request_target: "",
+      protocol: "tcp",
+      user_agent: "",
+      headers: "",
+      body: "00000000  de ad be ef",
+      has_binary_body: true,
+      body_size: 4,
+      curl: "",
+    });
+
+    renderDetail();
+
+    const link = await screen.findByRole("link", { name: "Download raw body" });
+    expect(link.getAttribute("href")).toMatch(/interactions\/7\/body$/);
+    expect(link).toHaveAttribute("download", "interaction-7-body.bin");
+  });
 });

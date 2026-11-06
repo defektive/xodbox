@@ -145,6 +145,31 @@ function FilesSection({
   );
 }
 
+// BodyHeader labels a body block and links to the raw, untruncated body bytes.
+function BodyHeader({
+  label,
+  interactionId,
+  size,
+}: {
+  label: string;
+  interactionId: number;
+  size?: number;
+}) {
+  return (
+    <div className="mb-1 flex items-center gap-2 text-xs font-medium text-muted-foreground">
+      <span>{label}</span>
+      {size ? <span className="font-normal">· {formatBytes(size)}</span> : null}
+      <a
+        href={`${apiBase}interactions/${interactionId}/body`}
+        download={`interaction-${interactionId}-body.bin`}
+        className="ml-auto font-normal underline hover:text-foreground"
+      >
+        Download raw body
+      </a>
+    </div>
+  );
+}
+
 // InteractionDetailView renders a single interaction's full detail: metadata
 // plus a replay curl, raw request, and body. Each code block is shown only when
 // it has content — non-httpx handlers (dns/tcp/smb/…) have no replay curl and
@@ -190,25 +215,28 @@ export function InteractionDetailView({ d, onDeleteFile }: { d: InteractionDetai
       )}
 
       {d.has_binary_body && !hasBody && (
-        <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-          Binary body — download via the files section above.
+        <div>
+          <BodyHeader label="Body" interactionId={d.id} size={d.body_size} />
+          <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+            Binary body — use the download link above.
+          </div>
         </div>
       )}
 
       {hasBody && !d.has_binary_body && (
         <div>
-          <div className="mb-1 text-xs font-medium text-muted-foreground">
-            Body
-          </div>
+          <BodyHeader label="Body" interactionId={d.id} size={d.body_size} />
           <CodeBlock text={d.body} copyLabel="Copy body" className="max-h-96" />
         </div>
       )}
 
       {hasBody && d.has_binary_body && (
         <div>
-          <div className="mb-1 text-xs font-medium text-muted-foreground">
-            Body (hex preview)
-          </div>
+          <BodyHeader
+            label="Body (hex preview)"
+            interactionId={d.id}
+            size={d.body_size}
+          />
           <CodeBlock text={d.body} copyLabel="Copy hex dump" className="max-h-48" />
         </div>
       )}

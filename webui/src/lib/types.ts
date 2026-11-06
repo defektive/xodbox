@@ -23,6 +23,7 @@ export interface InteractionDetail extends InteractionSummary {
   headers: string;
   body: string;
   has_binary_body?: boolean;
+  body_size?: number;
   curl: string;
   files?: UploadedFileMeta[];
 }

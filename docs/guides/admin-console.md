@@ -133,6 +133,28 @@ curl https://admin:9091/api/interactions \
 
 API key requests skip CSRF checks.
 
+## Interactions API
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/interactions` | List interactions (`?handler=`, `?remote=`, `?target=`, `?limit=`, `?offset=`) |
+| `GET` | `/api/interactions/{id}` | Detail: raw request, display body (truncated / hex preview), `body_size`, replay curl, files |
+| `GET` | `/api/interactions/{id}/body` | Download the full raw body bytes (`application/octet-stream`, never truncated) |
+| `GET` | `/api/interactions/{id}/curl` | Replay curl command (HTTP only) |
+| `GET` | `/api/interactions/{id}/files` | List uploaded files |
+| `GET` | `/api/interactions/{id}/files/{fileID}` | Download an uploaded file |
+| `DELETE` | `/api/interactions/{id}` | Delete an interaction |
+
+The detail view caps text bodies at 4 KB and shows binary bodies as a
+512-byte hex preview. To get the exact bytes the client sent — for any
+handler (HTTP, TCP, SMTP, …) — use the `/body` endpoint, or the
+**Download raw body** link on the event page:
+
+```sh
+curl -o body.bin https://admin:9091/api/interactions/42/body \
+  -H "Authorization: Bearer xdbx_your_key_here"
+```
+
 ## User management
 
 ### CLI

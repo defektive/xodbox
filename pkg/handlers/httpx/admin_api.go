@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
 	"time"
@@ -69,6 +70,7 @@ type interactionDetail struct {
 	Headers       string     `json:"headers"`
 	Body          string     `json:"body"`
 	HasBinaryBody bool       `json:"has_binary_body"`
+	BodySize      int        `json:"body_size"`
 	Curl          string     `json:"curl"`
 	Files         []fileInfo `json:"files"`
 }
@@ -85,7 +87,7 @@ func safeBodyString(data []byte) (string, bool) {
 	if utf8.Valid(data) {
 		s := string(data)
 		if len(data) > maxBodyDisplay {
-			s = string(data[:maxBodyDisplay]) + "\n[truncated — download full body via the Files tab]"
+			s = string(data[:maxBodyDisplay]) + "\n[truncated — download the full raw body]"
 		}
 		return tryPrettyJSON(s), false
 	}
@@ -93,7 +95,7 @@ func safeBodyString(data []byte) (string, bool) {
 	if len(preview) > 512 {
 		preview = preview[:512]
 	}
-	return hex.Dump(preview) + "\n[binary body — download via the Files tab]", true
+	return hex.Dump(preview) + "\n[binary body — download the full raw body]", true
 }
 
 // tryPrettyJSON attempts to pretty-print s as JSON. If s is not valid JSON,
@@ -159,6 +161,7 @@ func toDetail(i *model.Interaction) interactionDetail {
 		Headers:            i.Headers,
 		Body:               body,
 		HasBinaryBody:      isBinary,
+		BodySize:           len(i.Data),
 		Curl:               interactionCurl(i),
 		Files:              files,
 	}
@@ -178,6 +181,23 @@ func (a *adminAuth) handleInteractionCurl(w http.ResponseWriter, r *http.Request
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"curl": interactionCurl(i)})
+}
+
+// handleInteractionBody serves the full, unmodified body (Interaction.Data) of
+// an interaction as an attachment. Unlike the detail view it is never
+// truncated, pretty-printed, or hex-dumped, and it works for every handler —
+// not just HTTP bodies that were captured as uploaded files.
+func (a *adminAuth) handleInteractionBody(w http.ResponseWriter, r *http.Request) {
+	i := a.lookupInteraction(w, r)
+	if i == nil {
+		return
+	}
+	h := w.Header()
+	h.Set("Content-Type", "application/octet-stream")
+	h.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="interaction-%d-body.bin"`, i.ID))
+	h.Set("Content-Length", strconv.Itoa(len(i.Data)))
+	h.Set("X-Content-Type-Options", "nosniff")
+	_, _ = w.Write(i.Data)
 }
 
 func (a *adminAuth) handleDeleteInteraction(w http.ResponseWriter, r *http.Request) {
