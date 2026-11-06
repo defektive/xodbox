@@ -149,3 +149,63 @@ func TestInteractionNotFound(t *testing.T) {
 	}
 	resp.Body.Close()
 }
+
+func TestInteractionBodyDownload(t *testing.T) {
+	// Binary, non-UTF-8 body longer than the display cap: the download must be
+	// byte-for-byte identical, untruncated, and not hex-dumped.
+	data := make([]byte, maxBodyDisplay*2)
+	for i := range data {
+		data[i] = byte(i % 256)
+	}
+	ix := model.Interaction{Handler: "tcp", RequestTarget: uniqueName("/body"), Data: data}
+	model.DB().Create(&ix)
+
+	srv, _, u := adminTestServer(t)
+	full, _, err := model.NewAPIKey(u.ID, "k", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	req, _ := http.NewRequest(http.MethodGet, fmt.Sprintf("%s/api/interactions/%d/body", srv.URL, ix.ID), nil)
+	req.Header.Set("Authorization", "Bearer "+full)
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d, want 200", resp.StatusCode)
+	}
+	if ct := resp.Header.Get("Content-Type"); ct != "application/octet-stream" {
+		t.Errorf("content-type = %q", ct)
+	}
+	if cd := resp.Header.Get("Content-Disposition"); !strings.Contains(cd, fmt.Sprintf("interaction-%d-body.bin", ix.ID)) {
+		t.Errorf("content-disposition = %q", cd)
+	}
+	got, _ := io.ReadAll(resp.Body)
+	if string(got) != string(data) {
+		t.Errorf("body mismatch: got %d bytes, want %d", len(got), len(data))
+	}
+
+	var detail interactionDetail
+	_ = json.Unmarshal(getAuthed(t, fmt.Sprintf("%s/api/interactions/%d", srv.URL, ix.ID), full), &detail)
+	if detail.BodySize != len(data) {
+		t.Errorf("detail body_size = %d, want %d", detail.BodySize, len(data))
+	}
+
+	// Unknown id → 404; unauthenticated → 401.
+	req, _ = http.NewRequest(http.MethodGet, srv.URL+"/api/interactions/999999999/body", nil)
+	req.Header.Set("Authorization", "Bearer "+full)
+	if resp, err := http.DefaultClient.Do(req); err == nil {
+		if resp.StatusCode != http.StatusNotFound {
+			t.Errorf("missing id status = %d, want 404", resp.StatusCode)
+		}
+		resp.Body.Close()
+	}
+	if resp, err := http.Get(fmt.Sprintf("%s/api/interactions/%d/body", srv.URL, ix.ID)); err == nil {
+		if resp.StatusCode != http.StatusUnauthorized {
+			t.Errorf("unauth status = %d, want 401", resp.StatusCode)
+		}
+		resp.Body.Close()
+	}
+}

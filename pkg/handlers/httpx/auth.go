@@ -91,6 +91,7 @@ func (a *adminAuth) mux() *http.ServeMux {
 	mux.HandleFunc("GET /api/interactions", a.requireAuth(a.handleInteractions))
 	mux.HandleFunc("GET /api/interactions/{id}", a.requireAuth(a.handleInteraction))
 	mux.HandleFunc("GET /api/interactions/{id}/curl", a.requireAuth(a.handleInteractionCurl))
+	mux.HandleFunc("GET /api/interactions/{id}/body", a.requireAuth(a.handleInteractionBody))
 	mux.HandleFunc("DELETE /api/interactions/{id}", a.requireAuth(a.handleDeleteInteraction))
 	mux.HandleFunc("GET /api/interactions/{id}/files", a.requireAuth(a.handleInteractionFiles))
 	mux.HandleFunc("GET /api/interactions/{id}/files/{fileID}", a.requireAuth(a.handleInteractionFileDownload))
